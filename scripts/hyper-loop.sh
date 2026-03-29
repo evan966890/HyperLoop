@@ -570,7 +570,7 @@ with open(output_path, 'w') as f:
     f.write(f"MAX_DIFF={max_diff}\n")
     f.write(f"VETO={veto}\n")
     f.write(f"TESTER_P0={tester_p0}\n")
-    f.write(f"SCORES={' '.join(str(s) for s in scores)}\n")
+    f.write(f"SCORES=\"{' '.join(str(s) for s in scores)}\"\n")
 PYVERDICT
 
   echo "═══════════════════════════════════"
