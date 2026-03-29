@@ -1,0 +1,9 @@
+=== S011: Tester P0 否决 ===
+
+实测验证 (report 含 "P0" + "fail", scores=[5.0, 6.0, 7.0]):
+  Tester P0: True ✓
+  决策: REJECTED_TESTER_P0 ✓
+
+条件 (line 553): "P0" in text and ("bug" in text.lower() or "fail" in text.lower())
+
+VERDICT: PASS

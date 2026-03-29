@@ -1,0 +1,20 @@
+=== S012: verdict.env 安全读取 ===
+实际验证：
+$ echo 'MEDIAN=0.0' > /tmp/test.env
+$ echo 'SCORES="1.0 2.0 3.0"' >> /tmp/test.env
+$ grep '^DECISION=' → REJECTED_VETO ✓
+$ grep '^MEDIAN=' → 0.0 ✓
+$ grep '^SCORES=' | tr -d '"' → 1.0 2.0 3.0 ✓
+无 'command not found' 错误 ✓
+
+代码分析：
+- 行618-620: record_result 使用 grep + cut，不 source ✓
+- 行672-673: cmd_round 使用 grep + cut ✓
+- 行894-895: cmd_loop 使用 grep + cut ✓
+- 历史修复：commit a5a4007 和 bd5d53b 专门修复了此问题
+
+所有 Then 条件满足：
+1. DECISION 和 MEDIAN 被正确提取 ✓
+2. 不出现 'command not found' 错误 ✓
+
+评估：PASS

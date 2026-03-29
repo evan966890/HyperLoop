@@ -1,0 +1,4 @@
+=== S006: Writer timeout ===
+Default timeout 900s:   local TIMEOUT="${2:-900}"  # 默认 15 分钟
+DONE.json timeout write:         [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"
+PASS

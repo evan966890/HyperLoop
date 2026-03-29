@@ -1,0 +1,13 @@
+=== S017: multi-writer conflict ===
+306:  local FAILED=0
+319:      ((FAILED++)) || true
+326:      ((FAILED++)) || true
+350:      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+351:      echo "  ✗ ${TASK_NAME} conflict, deferred"
+352:      ((FAILED++)) || true
+356:  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped"
+657:    echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+880:      echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+First writer merges, second conflicts are aborted and deferred
+Script doesn't crash: ((FAILED++)) || true
+PASS

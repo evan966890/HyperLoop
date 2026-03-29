@@ -1,0 +1,2 @@
+S002: auto_decompose 生成到 tasks/round-N/, 降级 fallback 在 line 766-783, Claude -p 失败时生成 task1.md
+P1 BUG: line 716 引用 _hyper-loop/bdd-specs.md 而非 _hyper-loop/context/bdd-specs.md (路径不一致)

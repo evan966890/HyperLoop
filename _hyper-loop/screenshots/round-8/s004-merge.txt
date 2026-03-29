@@ -1,0 +1,1 @@
+S004: git add -A && git commit (line 335-336) 在 merge 前执行, squash merge 到 integration, .patch/.stat 生成

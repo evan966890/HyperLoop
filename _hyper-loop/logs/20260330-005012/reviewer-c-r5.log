@@ -1,0 +1,248 @@
+cd /Users/xiaomimacmini3/Desktop/HyperLoop && codex --full-auto
+/Users/xiaomimacmini3/.zshrc:source:15: no such file or directory: /Users/xiaomimacmini3/.openclaw/completions/openclaw.zsh
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004hccd /Users/xiaomimacmini3/Desktop/HyperLoop && cod [Keex --full-auto[?2004l
+[?2004h[>7u[?1004h[6n[?u[c]10;?\[?2026h[1;5r[5S[r[1;53H[0m[49m[K[2;2H[0m[49m[K[3;79H[0m[49m[K[4;46H[0m[49m[K[5;2H[0m[49m[K[6;19H[0m[49m[K[7;14H[0m[49m[K[8;2H[0m[49m[K[9;26H[0m[49m[K[10;2H[0m[49m[K[11;2H[0m[49m[K[12;2H[0m[49m[K[13;2H[0m[49m[K[14;2H[0m[49m[K[15;2H[0m[49m[K[16;2H[0m[49m[K[17;2H[0m[49m[K[18;2H[0m[49m[K[19;2H[0m[49m[K[20;2H[0m[49m[K[21;2H[0m[49m[K[22;2H[0m[49m[K[23;2H[0m[49m[K[24;2H[0m[49m[K[1;1H>[1;3H[1mYou are in [22m/Users/xiaomimacmini3/Desktop/HyperLoop[3;3HDo[3;6Hyou[3;10Htrust[3;16Hthe[3;20Hcontents[3;29Hof[3;32Hthis[3;37Hdirectory?[3;48HWorking[3;56Hwith[3;61Huntrusted[3;71Hcontents[4;3Hcomes[4;9Hwith[4;14Hhigher[4;21Hrisk[4;26Hof[4;29Hprompt[4;36Hinjection.[6;1H[38;5;6;49m› 1. Yes, continue[7;3H[39;49m2.[7;6HNo,[7;10Hquit[9;3H[2mPress enter to continue[39m[49m[0m[?25l[?2026l[<1u[?2004l[?1004l[?25hTER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh   [1;1H[J[?25h[1m[7m%[27m[1m[0m                                                                                 scripts/hyper-loop.sh                    |  22[0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004hTTER_INIT.md                           |  34 ++[?2004l
+zsh: command not found: TER_INIT.md
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    zsh: command not found: 34
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/INSTALL.md                          | 136 + [K+++++[?2004l
+zsh: no such file or directory: _ctx/INSTALL.md
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh              zsh: command not found: 136
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/SKILL.md                            | 234 + [K++++++++[?2004l
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    zsh: no such file or directory: _ctx/SKILL.md
+zsh: command not found: 234
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/agents/reviewer.md                  |  30 + [K[K[?2004l
+zsh: no such file or directory: _ctx/agents/reviewer.md
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh              zsh: command not found: 30
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/agents/tester.md                    |  30 + [K[K[?2004l
+zsh: no such file or directory: _ctx/agents/tester.md
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh          zsh: command not found: 30
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/bdd-specs.md                        | 114 + [K++++[?2004l
+zsh: no such file or directory: _ctx/bdd-specs.md
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                        zsh: command not found: 114
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/cli-reference-verified.md           | 107 + [K++++[?2004l
+zsh: no such file or directory: _ctx/cli-reference-verified.md
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                              zsh: command not found: 107
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/contract.md                         |   6 + [K[K[?2004l
+zsh: no such file or directory: _ctx/contract.md
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                          zsh: command not found: 6
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/design-context.md                   |  53 + [K+[?2004l
+zsh: no such file or directory: _ctx/design-context.md
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                   zsh: command not found: 53
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/hooks/hooks.json                    |  36 + [K+[?2004l
+zsh: no such file or directory: _ctx/hooks/hooks.json
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                      zsh: command not found: 36
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/hooks/pre-write-guard.sh            |  57 + [K+[?2004l
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                           zsh: no such file or directory: _ctx/hooks/pre-write-guard.sh
+zsh: command not found: 57
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/hooks/session-start.sh              |  40 + [K+[?2004l
+zsh: no such file or directory: _ctx/hooks/session-start.sh
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                  zsh: command not found: 40
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/hooks/stop-guard.sh                 |  42 + [K+[?2004l
+zsh: no such file or directory: _ctx/hooks/stop-guard.sh
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                                  |                                      zsh: command not found: 42
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/hyper-loop.sh                       | 976 + [K+++++++++++++++++++++++++++++++[?2004l
+zsh: no such file or directory: _ctx/hyper-loop.sh
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                                  |                                                 |                                                  |                        zsh: command not found: 976
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 + [K+++++++[?2004l
+zsh: no such file or directory: _ctx/templates/ORCHESTRATOR_CHECKLIST.md
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                                  |                                                 |                                                  |                                                  ++       zsh: command not found: 209
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/templates/REVIEWER_INIT.md          | 174 + [K++++++[?2004l
+zsh: no such file or directory: _ctx/templates/REVIEWER_INIT.md
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                                  |                                                 |                                                  |                                                  ++                           st                                           zsh: command not found: 174
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/templates/TESTER_INIT.md            | 393 + [K+++++++++++++[?2004l
+zsh: no such file or directory: _ctx/templates/TESTER_INIT.md
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                                  |                                                 |                                                  |                                                  ++                           st                                                 ++                                                      ++ zsh: command not found: 393
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  _ctx/templates/WRITER_INIT.md            | 111 + [K++++[?2004l
+zsh: no such file or directory: _ctx/templates/WRITER_INIT.md
+ scripts/hyper-loop.sh                    |  22 + scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh                    |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W scripts/hyper-loop.sh                    |  22 
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                                  |                                                 |                                                  |                                                  ++                           st                                                 ++                                                      ++                                                     ++zsh: command not found: 111
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h  scripts/hyper-loop.sh                    |  22 + [K  scripts/hyper-loop.sh                    |  le scripts/hyper-loop.sh            [K          |  22 + sc   scripts/hyper-loop.sh                    |  22 + scrip W s [Kccripts/hyper-loop.sh                    |  22 [?2004l
+zsh: command not found: 22
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                  1                                                  |                                                 |                                                  |                                                  ++                           st                                                 ++                                                      ++                                                     ++         at                                                 ++mp                                                 ++                                                 ++++                                                 ++ 3                                                 3                     etzsh: command not found: le
+zsh: command not found: 22
+zsh: command not found: 22
+zsh: command not found: 22
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@Mac HyperLoop % [K[?2004h                                                   [K+++                                                 ++++                          [K                         ++ 3                                                 3   [K                                                14                                [K                    1                                                  |          [K                                         |                                        [K            |                                                  ++                 [K            st                                                 ++                 [K                                       ++                                         [K              ++         at                                                 ++mp  [K                                                 ++                               [K                    ++++                                                 ++ 3     [K                                              3                                   [K              et

@@ -1,0 +1,14 @@
+=== S016: macOS timeout 兼容 ===
+
+1. gtimeout 检测 (line 17): command -v gtimeout
+2. 当前环境: gtimeout found at /opt/homebrew/bin/gtimeout ✓
+3. timeout 也存在: /opt/homebrew/bin/timeout ✓
+4. Polyfill 逻辑 (line 17-21):
+   - 有 gtimeout → timeout() { gtimeout "$@"; }
+   - 无 gtimeout 且无 timeout → 自定义 timeout 函数
+5. BDD spec 要求: "timeout 函数可用" → 当前环境满足 ✓
+
+注意: timeout 函数定义但未在实际超时控制中使用
+  (超时由 polling loop + sleep 实现)
+
+VERDICT: PASS

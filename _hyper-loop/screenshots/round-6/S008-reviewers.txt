@@ -1,0 +1,35 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+验证时间: 2026年 3月30日 星期一 01时26分28秒 CST
+
+--- Given: Tester 报告存在 ---
+run_reviewers 在 run_tester 之后调用 (L889)
+
+--- Then: 3 个 Reviewer 在 tmux 中启动 ---
+run_reviewers (L425-507):
+  REVIEWERS=(reviewer-a:gemini reviewer-b:claude reviewer-c:codex) (L450)
+  for ENTRY in REVIEWERS: start_agent (L452-460)
+✓ 3 个 Reviewer 在不同 tmux 窗口启动
+
+--- And: 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json ---
+  等待循环: while WAITED < 600 (L467)
+  检查 3 个 json 文件存在 (L469-471)
+  DONE_COUNT >= 3 break (L472)
+✓ 10 分钟超时等待
+
+--- And: JSON 包含 'score' 字段 ---
+  评审请求模板要求输出 {"score":数字,...} (L445-446)
+  compute_verdict 用 python3 读 json['score'] (L523)
+✓ score 字段约定正确
+
+--- And: 文件不存在时从 pane 输出提取 JSON ---
+  降级逻辑 (L478-501):
+  tmux capture-pane → 文本 (L481)
+  python3 JSON decoder 扫描找 {"score":...} (L482-499)
+  找不到则写默认 {"score":0,...} (L498)
+✓ 降级提取机制完整
+
+⚠ P1: REVIEWER_INIT.md 文件也不存在
+  start_agent 引用 context/REVIEWER_INIT.md (L457) 但该文件不存在
+  与 S007 同样问题——Reviewer 读不到角色定义文件
+
+结论: PASS (有 P1 问题)

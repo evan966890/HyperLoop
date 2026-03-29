@@ -1,0 +1,11 @@
+Round 5 任务已拆解完毕，5 个文件已写入 `_hyper-loop/tasks/round-5/`：
+
+| 文件 | 优先级 | 问题 | 关键行号 |
+|------|--------|------|----------|
+| task1.md | P1 | `auto_decompose` heredoc `\$f` 不展开，评分信息丢失 | 725-730 |
+| task2.md | P1 | `cmd_status` 重复定义，第一个是死代码 | 694-700 |
+| task3.md | P1 | decompose prompt 路径缺 `context/` 前缀，不一致 | 716-718 |
+| task4.md | P1 | `timeout` polyfill 未使用 + `cmd_round` 格式框缺 `║` | 17-21, 640 |
+| task5.md | P1 | 4 轮连续 0.0 分 REJECTED_VETO，评分管线端到端排查 | run_reviewers / compute_verdict / record_result |
+
+Task5 是最关键的 — 4 轮全 0 分说明评分管线可能存在系统性问题，不仅仅是报告中列出的单点 bug。

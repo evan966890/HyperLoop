@@ -1,0 +1,15 @@
+=== S002: auto_decompose 生成任务文件 ===
+代码分析（行703-786）：
+- mkdir -p $TASK_DIR 确保目录存在
+- 用 claude -p 非交互模式拆解任务
+- 拆解模板包含'修复任务'和'相关文件'段落
+- 降级逻辑（行764-785）：如果 TASK_COUNT=0，生成默认 task1.md
+- 默认任务包含'修复任务'和'相关文件'段落 ✓
+
+P1 bug：行716-717 路径错误
+  引用 ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+  实际路径 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+  同样 contract.md 路径也错误
+  影响：Claude 拆解时找不到 BDD spec 和 contract
+
+评估：PARTIAL PASS（核心逻辑正确，但路径错误导致拆解质量降低）

@@ -1,0 +1,2 @@
+S015: cleanup_round: subshell+set+e, git worktree remove, branch -D
+P1 BUG: 不删除 /tmp/hyper-loop-worktrees-rN/ 父目录, BDD 要求该目录不存在

@@ -1,0 +1,27 @@
+=== S002: auto_decompose 生成任务文件 ===
+验证时间: 2026年 3月30日 星期一 01时24分39秒 CST
+
+--- Given: context/ 和 bdd-specs.md 存在 ---
+✓ context/ 存在
+
+--- Then: tasks/round-N/ 下至少有 1 个 task*.md ---
+auto_decompose 函数 (L703-786):
+  1. mkdir -p $TASK_DIR (L705)
+  2. 用 claude -p 非交互拆解 (L757-759)
+  3. 检查: find $TASK_DIR -name 'task*.md' | wc -l (L762)
+✓ 生成 task*.md 到 tasks/round-N/
+
+--- And: 每个文件包含'修复任务'和'相关文件'段落 ---
+prompt 模板 (L738-750) 要求格式含 '## 修复任务' 和 '### 相关文件'
+验证 round-6 实际输出:
+  task1.md: 修复任务=1 相关文件=1
+  task2.md: 修复任务=1 相关文件=1
+  task3.md: 修复任务=1 相关文件=1
+  task4.md: 修复任务=3 相关文件=1
+  task5.md: 修复任务=1 相关文件=1
+
+--- And: claude -p 失败时降级生成默认 task1.md ---
+降级逻辑 (L764-783): if TASK_COUNT=0 → cat > task1.md <<FALLBACK
+✓ 降级机制存在
+
+结论: PASS

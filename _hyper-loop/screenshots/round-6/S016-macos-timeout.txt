@@ -1,0 +1,22 @@
+=== S016: macOS timeout 兼容 ===
+验证时间: 2026年 3月30日 星期一 01时29分12秒 CST
+
+--- Given: macOS 没有 timeout 命令但有 gtimeout ---
+macOS 环境检查:
+/opt/homebrew/bin/timeout
+timeout: 存在
+/opt/homebrew/bin/gtimeout
+gtimeout: 存在
+
+--- Then: timeout 函数可用（不报 command not found）---
+脚本开头 (L17-21):
+  if command -v gtimeout → timeout() { gtimeout "$@"; }
+  elif ! command -v timeout → 自实现 timeout() { kill after sleep }
+
+三级降级:
+  1. gtimeout 存在 → 用 gtimeout
+  2. timeout 存在 → 用系统 timeout
+  3. 都没有 → 自实现 (background + sleep + kill)
+✓ macOS 兼容
+
+结论: PASS

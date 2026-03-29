@@ -1,0 +1,30 @@
+-rw-r--r--@ 1 xiaomimacmini3  staff  1180  3月 30 00:08 _hyper-loop/tasks/round-3/task1.md
+-rw-r--r--@ 1 xiaomimacmini3  staff   701  3月 30 00:08 _hyper-loop/tasks/round-3/task2.md
+-rw-r--r--@ 1 xiaomimacmini3  staff  1202  3月 30 00:08 _hyper-loop/tasks/round-3/task3.md
+=== _hyper-loop/tasks/round-3/task1.md ===
+## 修复任务: TASK-1
+### 上下文
+先读 _ctx/ 下所有文件。
+### 问题
+[P0] S007/S008: Tester 和 Reviewer 的 INIT 文件路径错误，导致 Agent 无法获取角色定义
+
+`start_agent` 调用时传入的路径是：
+- `${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md` (line 381)
+=== _hyper-loop/tasks/round-3/task2.md ===
+## 修复任务: TASK-2
+### 上下文
+先读 _ctx/ 下所有文件。
+### 问题
+[P1] S001: 循环输出前缀不符合 BDD 规格
+
+BDD S001 要求输出 `Round 1/3`，但 line 849 实际输出 `LOOP: Round 1/3`，多了 `LOOP: ` 前缀。
+
+=== _hyper-loop/tasks/round-3/task3.md ===
+## 修复任务: TASK-3
+### 上下文
+先读 _ctx/ 下所有文件。
+### 问题
+[P2] context/hyper-loop.sh 与 scripts/hyper-loop.sh 同步：确保 context/ 下的副本也反映 P0/P1 修复
+
+`_hyper-loop/context/hyper-loop.sh` 是供 Agent（Tester/Reviewer）阅读的参考副本。如果 task1 和 task2 只修了 `scripts/hyper-loop.sh`，context/ 下的副本仍然包含旧的错误路径和 LOOP: 前缀，会导致 Agent 阅读到过时的代码。
+

@@ -1,0 +1,4 @@
+=== S009: median + ACCEPTED ===
+median=6.0 (expected 6.0): PASS=True
+ACCEPTED when median > prev: PASS=True
+PASS

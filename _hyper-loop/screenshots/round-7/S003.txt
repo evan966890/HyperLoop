@@ -1,0 +1,14 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+代码分析（行101-194）：
+- 行124: git worktree add $WT -b $BRANCH ✓
+- 行128-133: 解析符号链接后写入 ~/.codex/config.toml trust 配置 ✓
+- 行182: codex --dangerously-bypass-approvals-and-sandbox 在 tmux window 中启动 ✓
+- 行136: cp -r context → _ctx/ ✓
+
+所有 Then 条件满足：
+1. 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录 ✓
+2. config.toml 包含 trust 配置 ✓
+3. Codex 在 tmux window 中启动 ✓
+4. _ctx/ 复制到 worktree ✓
+
+评估：PASS

@@ -1,0 +1,19 @@
+=== S013: 连续 5 轮失败自动回退 ===
+代码分析（行918-929）：
+- 行919: 条件 CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0 ✓
+- 行923: 从 archive/round-N/git-sha.txt 读取 SHA ✓
+- 行925: git checkout $BEST_SHA -- . 回退代码 ✓
+- 行928: CONSECUTIVE_REJECTS 重置为 0 ✓
+
+P1 bug #1: BEST_ROUND 只追踪 ACCEPTED 轮次
+  如果连续 5 轮全部 REJECTED（BEST_ROUND=0），回退不会触发
+  BDD spec 假设 'archive/round-2/git-sha.txt 存在且得分最高'
+  但 archive_round 只在 loop 的 else 分支（非 BUILD_FAILED）才执行
+  而 BEST_ROUND 只在 ACCEPTED 时更新（行904-906）
+  → 如果没有任何轮次被 ACCEPTED，BEST_ROUND=0，跳过回退
+
+P1 bug #2: CONSECUTIVE_REJECTS 是内存变量
+  重启 cmd_loop 后重置为 0
+  不从 results.tsv 恢复历史连败计数
+
+评估：PARTIAL PASS（核心逻辑存在但有边界条件问题）

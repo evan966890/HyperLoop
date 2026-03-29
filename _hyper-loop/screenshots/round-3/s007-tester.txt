@@ -1,0 +1,15 @@
+42:  REPORT_FILE="${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md"
+49:    "$(dirname "$REPORT_FILE")"
+376:run_tester() {
+393:4. 写试用报告到 ${REPORT_FILE}
+404:  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
+413:  if [[ -f "$REPORT_FILE" ]]; then
+414:    echo "  ✓ 试用报告已生成: $REPORT_FILE"
+416:    echo "  ⚠ Tester 超时，生成空报告"
+417:    echo "# Round $ROUND 试用报告（Tester 超时）" > "$REPORT_FILE"
+418:    echo "Tester 未在 10 分钟内完成。需要人工验证。" >> "$REPORT_FILE"
+437:    echo "- Tester 试用报告：${REPORT_FILE}"
+536:  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+664:  run_tester "$ROUND"
+690:  echo "报告: $REPORT_FILE"
+886:      run_tester "$ROUND"

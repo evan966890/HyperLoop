@@ -1,0 +1,12 @@
+=== S007: Tester 启动并生成报告 ===
+
+1. run_tester 函数存在 (line 376)
+2. 启动 claude --dangerously-skip-permissions (line 380)
+3. 等待 REPORT_FILE 最多 900s (line 404)
+4. 超时降级: 生成空报告 (line 416-418)
+
+BUG-P1: 超时消息不一致
+  - line 402: "等待 Tester 完成（最多 15 分钟）"
+  - line 418: "Tester 未在 10 分钟内完成" ← 应为 15 分钟
+
+VERDICT: PASS (with P1 bug)

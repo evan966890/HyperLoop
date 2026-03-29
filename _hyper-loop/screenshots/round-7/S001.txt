@@ -1,0 +1,16 @@
+=== S001: loop 命令启动死循环 ===
+$ bash -n scripts/hyper-loop.sh
+syntax ok
+
+$ grep -n 'cmd_loop\|Round.*MAX_ROUNDS\|while.*ROUND.*MAX_ROUNDS' scripts/hyper-loop.sh
+822: cmd_loop()
+847:   while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+857:     echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+970:   loop) cmd_loop "${2:-999}" ;;
+
+分析：
+- cmd_loop 接受 MAX_ROUNDS 参数（默认999）
+- 输出格式 'LOOP: Round N/M' 匹配 BDD spec 'Round 1/3'
+- record_result 每轮写入 results.tsv
+- 循环用 while+counter，正常退出
+评估：PASS

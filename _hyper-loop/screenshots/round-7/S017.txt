@@ -1,0 +1,13 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+代码分析（行344-353）：
+- 行345: git merge --squash，如果成功则 commit ✓
+- 行349-351: merge 失败（冲突）→ git merge --abort → 输出 'conflict, deferred' ✓
+- 行319: ((FAILED++)) || true 确保不崩溃 ✓
+- 行356: 输出合并统计 ✓
+
+所有 Then 条件满足：
+1. 第一个成功 merge ✓（先遍历到的 task 先 merge）
+2. 第二个报 conflict 被 deferred ✓
+3. 脚本不崩溃 ✓（merge --abort + || true）
+
+评估：PASS

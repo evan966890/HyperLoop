@@ -1,0 +1,15 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+
+1. 3 reviewers 定义 (line 450): gemini, claude, codex
+2. 各自启动 tmux window (line 456)
+3. 等待最多 600s = 10 分钟 (line 467)
+4. 降级: pane 输出提取 JSON (line 477-501)
+5. Python JSON 提取器正确匹配含 "score" 字段的 JSON (line 493)
+6. 提取失败时写入 score=0 默认值 (line 498)
+
+BUG-P1: REVIEWER_INIT.md 不存在
+  - line 457 引用 context/REVIEWER_INIT.md
+  - 实际文件在 context/agents/reviewer.md
+  - Reviewer 缺失角色定义上下文
+
+VERDICT: PASS (with P1 bug)

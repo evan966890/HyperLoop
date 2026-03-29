@@ -1,0 +1,8 @@
+Round 8 已拆解为 4 个任务：
+
+| 任务 | 优先级 | 修复内容 | 关联场景 |
+|------|--------|---------|---------|
+| TASK-1 | **P0** | Tester/Reviewer init 路径加 `templates/` | S007, S008 |
+| TASK-2 | P1 | auto_decompose/archive_round 中 bdd-specs/contract 路径加 `context/` | S002 |
+| TASK-3 | P1 | BEST_ROUND 也追踪 REJECTED 轮 + CONSECUTIVE_REJECTS 从 results.tsv 恢复 | S013 |
+| TASK-4 | P1 | 删除第一个重复的 cmd_status 定义 | 代码质量 |

@@ -1,0 +1,9 @@
+=== S014: STOP file ===
+824:  local STOP_FILE="${PROJECT_ROOT:-.}/_hyper-loop/STOP"
+831:  echo "║  创建 _hyper-loop/STOP 文件可优雅停止          "
+849:    if [[ -f "$STOP_FILE" ]]; then
+850:      echo "检测到 STOP 文件，优雅退出"
+851:      rm "$STOP_FILE"
+Exits via break (exit 0 from function): PASS
+STOP file deleted: 1
+PASS

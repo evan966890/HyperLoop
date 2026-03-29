@@ -1,0 +1,2 @@
+S012: verdict.env 用 grep 读取 (line 618-620, 672-673, 894-895), 不 source, 无 'command not found'
+验证: grep '^DECISION=' | cut -d= -f2 正确提取 ✓

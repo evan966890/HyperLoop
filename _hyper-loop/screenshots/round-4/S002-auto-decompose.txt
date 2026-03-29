@@ -1,0 +1,24 @@
+=== S002: auto_decompose ===
+Function exists: 1
+
+Tasks dir created:   mkdir -p "$LOG_DIR" "$SCREENSHOT_DIR" "$SCORES_DIR" "$SUMMARY_DIR" "$TASK_DIR" \
+  mkdir -p "$TASK_DIR"
+
+Claude decompose call:
+  start_agent "tester" "claude --dangerously-skip-permissions" \
+  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+  cat "$DECOMPOSE_PROMPT" | claude --dangerously-skip-permissions -p - \
+
+Fallback to default task1.md:
+    echo "  ⚠ 自动拆解未生成任务文件，生成默认任务"
+    # 降级：基于上一轮失败的 BDD 场景生成一个通用任务
+    cat > "${TASK_DIR}/task1.md" <<FALLBACK
+
+BUG: decompose prompt references wrong paths (line 716-717):
+- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+- 评估契约：${PROJECT_ROOT}/_hyper-loop/contract.md
+Should be: _hyper-loop/context/bdd-specs.md and _hyper-loop/context/contract.md
+Files exist at both paths so impact is minimal.
+
+BUG: $f in heredoc (lines 728-729) doesn't expand correctly.
+PASS (with P1 notes)

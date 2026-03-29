@@ -1,0 +1,7 @@
+=== S004: Writer commit + merge ===
+git add -A: 1
+git commit: 1
+squash merge: 1
+.patch generation: 2
+.stat generation: 3
+PASS

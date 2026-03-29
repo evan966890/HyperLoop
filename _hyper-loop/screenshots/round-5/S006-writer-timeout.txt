@@ -1,0 +1,7 @@
+=== S006: Writer 超时处理 ===
+
+1. wait_writers 默认超时 900s = 15 分钟 (line 198)
+2. 超时后写入 DONE.json status=timeout (line 224)
+3. merge_writers 中 status != "done" 则跳过 (line 317-319)
+
+VERDICT: PASS

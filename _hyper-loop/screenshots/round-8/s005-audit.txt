@@ -1,0 +1,1 @@
+S005: audit_writer_diff 提取 '### 相关文件' 列表, 比对 git diff --name-only, 越界返回 exit 1, Writer 被跳过

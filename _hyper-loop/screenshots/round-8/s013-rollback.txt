@@ -1,0 +1,1 @@
+S013: CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0 → git checkout $BEST_SHA -- . → 重置计数器

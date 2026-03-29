@@ -1,0 +1,18 @@
+=== S002: auto_decompose 生成任务文件 ===
+
+1. auto_decompose 函数存在 (line 703)
+2. 生成 task*.md 到 TASK_DIR (line 706)
+3. 使用 claude -p 非交互拆解 (line 757)
+4. 降级: 如果无文件生成，创建默认 task1.md (line 766-783)
+
+BUG-P1: heredoc \$f 不展开 (line 725-729)
+  - 已实测确认: 用 \$f 时 for 循环输出为空
+  - 用 $f (无转义) 时正常输出
+  - 影响: decompose prompt 中"上一轮评分"始终为空
+
+BUG-P1: 路径不一致 (line 716-717)
+  - auto_decompose 引用 _hyper-loop/bdd-specs.md (无 context/)
+  - 其他地方用 _hyper-loop/context/bdd-specs.md
+  - 当前两个路径都存在对应文件，不崩溃
+
+VERDICT: PASS (with P1 bugs)

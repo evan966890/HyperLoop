@@ -1,0 +1,1 @@
+S008: 3 Reviewer 启动 (gemini/claude/codex), 等待 600s, 降级从 pane 提取 JSON (Python JSONDecoder)

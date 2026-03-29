@@ -1,0 +1,245 @@
+cd /Users/xiaomimacmini3/Desktop/HyperLoop && codex --full-auto
+/Users/xiaomimacmini3/.zshrc:source:15: no such file or directory: /Users/xiaomimacmini3/.openclaw/completions/openclaw.zsh
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004hccd /Users/xiaomimacmini3/Desktop/HyperLoop  [K&&& codex --full-auto[?2004l
+[?2004h[>7u[?1004h[6n[?u[c]10;?\[?2026h[1;5r[5S[r[1;53H[0m[49m[K[2;2H[0m[49m[K[3;79H[0m[49m[K[4;46H[0m[49m[K[5;2H[0m[49m[K[6;19H[0m[49m[K[7;14H[0m[49m[K[8;2H[0m[49m[K[9;26H[0m[49m[K[10;2H[0m[49m[K[11;2H[0m[49m[K[12;2H[0m[49m[K[13;2H[0m[49m[K[14;2H[0m[49m[K[15;2H[0m[49m[K[16;2H[0m[49m[K[17;2H[0m[49m[K[18;2H[0m[49m[K[19;2H[0m[49m[K[20;2H[0m[49m[K[21;2H[0m[49m[K[22;2H[0m[49m[K[23;2H[0m[49m[K[24;2H[0m[49m[K[1;1H>[1;3H[1mYou are in [22m/Users/xiaomimacmini3/Desktop/HyperLoop[3;3HDo[3;6Hyou[3;10Htrust[3;16Hthe[3;20Hcontents[3;29Hof[3;32Hthis[3;37Hdirectory?[3;48HWorking[3;56Hwith[3;61Huntrusted[3;71Hcontents[4;3Hcomes[4;9Hwith[4;14Hhigher[4;21Hrisk[4;26Hof[4;29Hprompt[4;36Hinjection.[6;1H[38;5;6;49m› 1. Yes, continue[7;3H[39;49m2.[7;6HNo,[7;10Hquit[9;3H[2mPress enter to continue[39m[49m[0m[?25l[?2026l[<1u[?2004l[?1004l[?25h[1;1H[J[?25h## 评审请求 Round 4
+
+请读以下文件后打分：
+- 评估契约：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/contract.md
+- BDD 规格：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md
+- Tester 试用报告：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-4-test.md
+- 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 [1m[7m%[27m[1m[0m                                                                                 _ctx/hooks/h[0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h### 评审请求 Round 4[?2004l
+zsh: command not found: ##
+
+请读以下文件后打分：
+- 评估契约：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/contract.md
+- BDD 规格：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md
+- Tester 试用报告：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-4-test.md
+- 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  [1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                                请读以下文件后打分：
+- 评估契约：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/contract.md
+- BDD 规格：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md
+- Tester 试用报告：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-4-test.md
+- 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md     [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h请读以下文件后打分：[?2004l
+zsh: command not found: 请读以下文件后打分：
+- 评估契约：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/contract.md
+- BDD 规格：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md
+- Tester 试用报告：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-4-test.md
+- 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h-- 评估契约：/Users/xiaomimacmini3/Desktop/H [KyyperLoop/_hyper-loop/context/contract.md[?2004l
+zsh: no such file or directory: 评估契约：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/contract.md
+- BDD 规格：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md
+- Tester 试用报告：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-4-test.md
+- 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hook[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h-- BDD 规格：/Users/xiaomimacmini3/Desktop/H [KyyperLoop/_hyper-loop/context/bdd-specs.md[?2004l
+- Tester 试用报告：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-4-test.md
+- 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _czsh: command not found: BDD
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h-- Tester 试用报告：/Users/xiaomimacmini3/De [Kssktop/HyperLoop/_hyper-loop/reports/round-4-test.md[?2004l
+- 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo zsh: command not found: Tester
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h-- 截图目录：/Users/xiaomimacmini3/Desktop/H [KyyperLoop/_hyper-loop/screenshots/round-4/[?2004l
+zsh: no such file or directory: 截图目录：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/screenshots/round-4/
+- 本轮 diff：
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h-- 本轮 diff：[?2004l
+zsh: command not found: 本轮
+ DONE.json                                |   1 +
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hoo[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  DONE.json                                | [K    1 +[?2004l
+zsh: command not found: DONE.json
+ TASK.md                                  |  27 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctxzsh: command not found: 1
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  TASK.md                                  | [K   27 +[?2004l
+zsh: command not found: TASK.md
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hozsh: command not found: 27
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  WRITER_INIT.md                           | [K   34 ++[?2004l
+zsh: command not found: WRITER_INIT.md
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _czsh: command not found: 34
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/INSTALL.md                          | [K  136 +++++[?2004l
+zsh: no such file or directory: _ctx/INSTALL.md
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoozsh: command not found: 136
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/SKILL.md                            | [K  234 ++++++++[?2004l
+zsh: no such file or directory: _ctx/SKILL.md
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctzsh: command not found: 234
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/agents/reviewer.md                  | [K   30 +[?2004l
+zsh: no such file or directory: _ctx/agents/reviewer.md
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctxzsh: command not found: 30
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/agents/tester.md                    | [K   30 +[?2004l
+zsh: no such file or directory: _ctx/agents/tester.md
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo W _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    zsh: command not found: 30
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/bdd-specs.md                        | [K  114 ++++[?2004l
+zsh: no such file or directory: _ctx/bdd-specs.md
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo W _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho
+                                                 zsh: command not found: 114
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/cli-reference-verified.md           | [K  107 ++++[?2004l
+zsh: no such file or directory: _ctx/cli-reference-verified.md
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo W _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho
+                                                 ++                                       zsh: command not found: 107
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/contract.md                         | [K    6 +[?2004l
+zsh: no such file or directory: _ctx/contract.md
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo W _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho
+                                                 ++                                                 ++++                                                 ++zsh: command not found: 6
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/design-context.md                   | [K   53 ++[?2004l
+zsh: no such file or directory: _ctx/design-context.md
+ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx/hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hoole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo W _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho
+                                                 ++                                                 ++++                                                 ++ 3                                            zsh: command not found: 53
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h  _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _c [Kttx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/ [Khhoo _ctx/hooks/hoit _ctx/hooks/hoo /h _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _c [Kttx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo|  _ctx/hooks/hoo _ctx/hooks/hoo _ctx [K//h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ctx/hooks/te _ctx/hooks/hoo [K  _ctx/hooks/hoo _ctx/h    _ctx/hooks/hoo _ctx/hooks/hoit _ctx/hooks/hoo _ | _ctx [K//hooks/hoo++ _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho1  _ctx/hooks/hoo _c [Kttx/hooks/hoo _ctx/h    _ctx/ho   _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ho [Koole _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/hooks/   _ctx/hooks/hoo _ctx/ho [Kooks/hoo _ctx/h    _ctx/hooks/hoo W _ctx/hooks/hoo _ctx/hooks/hoo _ctx/h    _ctx/ [Khho[?2004l
+zsh: no such file or directory: _ctx/hooks/hoo
+                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                 ++                                                 ++++                                                 ++ 3                                                 3                                                 14                                                 ++                                                 ++++                                                 ++ 3                                             lezsh: no such file or directory: _ctx/hooks/hoo
+zsh: no such file or directory: _ctx/hooks/hoo++
+[1m[7m%[27m[1m[0m                                                                                [0m[27m[24m[Jxiaomimacmini3@localhost HyperLoop % [K[?2004h                                             [K       ++                                                 ++++                    [K                               ++ 3                                               [K    3                                                 14                          [K                         ++                                                 ++++  [K                                                 ++ 3                             [K                      3                                                 14        [K                                           ++                                     [K              ++++                                                 ++ 3           [K                                        3                                         [K          14                                                 ++                   [K                                ++++                                              [K     ++ 3                                                 3                       [K                    le

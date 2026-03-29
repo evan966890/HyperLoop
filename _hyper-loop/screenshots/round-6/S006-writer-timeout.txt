@@ -1,0 +1,18 @@
+=== S006: Writer 超时处理 ===
+验证时间: 2026年 3月30日 星期一 01时25分49秒 CST
+
+--- Given: Writer 15 分钟未写 DONE.json ---
+wait_writers (L196-236):
+  TIMEOUT=${2:-900} (15 分钟) (L198)
+
+--- Then: DONE.json 被写入 status=timeout ---
+  ELAPSED 检查: if ELAPSED > TIMEOUT (L221)
+  强制写入: echo '{"status":"timeout"}' > DONE.json (L224)
+✓ 超时写入 status=timeout
+
+--- And: 该 Writer 被标记为 failed ---
+  merge_writers 中 STATUS != done → 跳过 (L317-319)
+  timeout status 的 Writer 自然被 FAILED++ (L319)
+✓ 超时 Writer 被标记为 failed
+
+结论: PASS

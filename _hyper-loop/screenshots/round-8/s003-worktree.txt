@@ -1,0 +1,1 @@
+S003: worktree 创建 (git worktree add), trust 写入 ~/.codex/config.toml, _ctx/ 复制, Codex 在 tmux 启动

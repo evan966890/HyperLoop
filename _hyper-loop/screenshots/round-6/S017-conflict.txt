@@ -1,0 +1,25 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+验证时间: 2026年 3月30日 星期一 01时29分27秒 CST
+
+--- Given: task1 和 task2 都改了同一个文件 ---
+merge_writers (L296-358) 逐个 merge
+
+--- Then: 第一个成功 merge ---
+  git merge $BRANCH --squash --no-edit (L345)
+  成功 → commit → MERGED++ (L345-348)
+✓ 第一个正常合并
+
+--- And: 第二个报 conflict 被 deferred ---
+  merge 失败 → else 分支 (L349)
+  git merge --abort (L350)
+  echo '✗ conflict, deferred' (L351)
+  FAILED++ (L352)
+✓ 冲突被 abort 并标记 deferred
+
+--- And: 脚本不崩溃 ---
+  merge --abort 有 || true (L350)
+  FAILED++ 有 || true (L352)
+  set -e 不会因为 merge 失败退出（if 分支中）
+✓ 脚本继续执行
+
+结论: PASS

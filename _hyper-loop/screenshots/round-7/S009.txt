@@ -1,0 +1,15 @@
+=== S009: 和议计算正确 ===
+实际验证 scores=[5.0, 6.0, 7.0]：
+$ python3 compute_verdict → median=6.0, decision=ACCEPTED ✓
+
+代码分析（行509-584）：
+- 中位数计算：scores[n//2] for odd count ✓
+- ACCEPTED 条件：median > prev_median ✓
+- verdict.env 安全写入（纯文本赋值）✓
+
+所有 Then 条件满足：
+1. 中位数 = 6.0 ✓（实际计算验证）
+2. DECISION = ACCEPTED ✓（实际计算验证）
+3. verdict.env 可安全读取 ✓
+
+评估：PASS

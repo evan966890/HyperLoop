@@ -1,0 +1,6 @@
+=== S007: Tester launch + report ===
+run_tester function: 1
+tmux start: 1
+Report wait:   while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
+Timeout fallback:     echo "  ⚠ Tester 超时，生成空报告"
+PASS

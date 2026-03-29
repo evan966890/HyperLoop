@@ -1,0 +1,9 @@
+Round 3 任务已拆解完毕，3 个文件写入 `_hyper-loop/tasks/round-3/`:
+
+| 文件 | 优先级 | 问题 | 关联场景 |
+|------|--------|------|----------|
+| task1.md | P0 | Tester/Reviewer INIT 路径缺少 `templates/`，Agent 无法读取角色定义 | S007, S008 |
+| task2.md | P1 | 循环输出 `LOOP: Round N/M` 不符合 BDD 要求的 `Round N/M` | S001 |
+| task3.md | P2 | `context/hyper-loop.sh` 副本需同步 task1+task2 的修复 | S001, S007, S008 |
+
+本轮聚焦 3 个 bug，均为路径/格式类的确定性修复，范围小且互不冲突，适合并行 Writer 执行。

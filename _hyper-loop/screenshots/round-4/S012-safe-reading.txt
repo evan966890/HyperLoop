@@ -1,0 +1,14 @@
+=== S012: verdict.env safe reading ===
+Uses grep instead of source:
+618:  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)
+619:  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)
+620:  R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')
+672:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+673:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+894:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+895:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+
+Test with actual values:
+DECISION=REJECTED_VETO MEDIAN=0.0 SCORES=1.0 2.0 3.0
+No 'command not found' error
+PASS

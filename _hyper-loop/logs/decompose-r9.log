@@ -1,0 +1,10 @@
+已生成 4 个任务文件到 `_hyper-loop/tasks/round-9/`：
+
+| Task | 优先级 | 问题 | 影响 |
+|------|--------|------|------|
+| task1 | P0 | Agent init 文件路径错 (`REVIEWER_INIT.md` / `TESTER_INIT.md` 不存在，实际在 `agents/` 子目录) | Reviewer/Tester 无法读取角色定义 |
+| task2 | P0 | 评审请求用字面量"你的角色名"作为 score 文件名，Reviewer 不知道写哪个文件 | 所有 score 文件未生成 → 降级默认 0 分 → veto |
+| task3 | P0 | Tester P0 检测误报：匹配到 S011 场景标题中的 "P0" + 报告正文中的 "fail" | 即使全 PASS 也触发 REJECTED_TESTER_P0 |
+| task4 | P1 | cleanup_round 未清理残留 git 分支（worktree 已删时拿不到 branch name） | S015 PARTIAL PASS |
+
+**根因链**：task1 + task2 → Reviewer 给 0 分 → veto → 8 轮全部 REJECTED_VETO。task3 作为第二重否决也在生效。修复这 3 个 P0 后评分流水线才能正常工作。

@@ -1,0 +1,1 @@
+S001: bash -n 通过 (exit 0), cmd_loop 输出 'LOOP: Round N/M' 格式正确, results.tsv 累积写入正确

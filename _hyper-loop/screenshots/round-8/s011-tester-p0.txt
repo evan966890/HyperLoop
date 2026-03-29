@@ -1,0 +1,1 @@
+S011: 'P0' in text and ('bug' or 'fail' in text.lower()) → REJECTED_TESTER_P0

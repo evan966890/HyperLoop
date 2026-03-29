@@ -1,0 +1,14 @@
+=== S009: 和议计算正确 ===
+验证时间: 2026年 3月30日 星期一 01时27分55秒 CST
+
+--- Given: scores=[5.0, 6.0, 7.0] ---
+--- Then: 中位数 = 6.0 ---
+实测: python3 → median=6.0 ✓
+
+--- And: DECISION = ACCEPTED (如果 > prev_median) ---
+实测: prev_median=5.0, median=6.0 > 5.0 → ACCEPTED ✓
+
+--- And: verdict.env 可以被安全读取 ---
+实测: grep+cut 方式成功读取所有字段 ✓
+
+结论: PASS

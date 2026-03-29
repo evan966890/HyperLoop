@@ -1,0 +1,4 @@
+=== S010: REJECTED_VETO ===
+veto=True (expected True): PASS=True
+decision=REJECTED_VETO: PASS=True
+PASS

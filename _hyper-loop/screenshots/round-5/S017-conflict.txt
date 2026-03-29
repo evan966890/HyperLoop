@@ -1,0 +1,11 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+
+merge_writers 函数 (line 296):
+1. squash merge 尝试 (line 345): git merge $BRANCH --squash --no-edit
+2. 成功: commit 并计数 MERGED++ (line 346-348)
+3. 失败: merge --abort 回滚 (line 350)
+4. 报告 "conflict, deferred" (line 351)
+5. 脚本继续处理其他 Writer: FAILED++ (line 352)
+6. 不崩溃: || true 保护 (line 352)
+
+VERDICT: PASS

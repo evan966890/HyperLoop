@@ -1,0 +1,20 @@
+=== S014: STOP 文件优雅退出 ===
+验证时间: 2026年 3月30日 星期一 01时28分42秒 CST
+
+--- Given: _hyper-loop/STOP 文件存在 ---
+STOP_FILE=${PROJECT_ROOT}/_hyper-loop/STOP (L828)
+
+--- Then: 当前轮不执行 ---
+检查在循环开头: if [[ -f $STOP_FILE ]] (L849)
+在 auto_decompose / start_writers 之前检查 ✓
+
+--- And: 脚本正常退出 (exit 0) ---
+break 退出 while 循环 (L852)
+循环结束后打印总结并自然退出 (L945-951)
+✓ 正常 exit 0
+
+--- And: STOP 文件被删除 ---
+rm $STOP_FILE (L851)
+✓ STOP 文件被清理
+
+结论: PASS

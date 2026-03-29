@@ -1,0 +1,7 @@
+239:audit_writer_diff() {
+263:  # 检查是否有越界改动
+281:      VIOLATIONS="${VIOLATIONS}    越界: ${changed}\n"
+288:    return 1
+324:    if ! audit_writer_diff "$WT"; then
+371:    return 1
+661:    return 1

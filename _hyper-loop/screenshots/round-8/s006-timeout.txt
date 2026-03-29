@@ -1,0 +1,1 @@
+S006: 超时 900s 后写 {"status":"timeout"} 到 DONE.json (line 224), merge_writers 视为 failed 跳过

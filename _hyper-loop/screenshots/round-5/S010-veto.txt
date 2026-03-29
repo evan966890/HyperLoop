@@ -1,0 +1,12 @@
+=== S010: 一票否决（score < 4.0）===
+
+实测验证 (scores=[3.5, 6.0, 7.0]):
+  决策: REJECTED_VETO ✓
+  中位数: 6.0 (仍计算)
+  否决: True (3.5 < 4.0)
+
+verdict.env:
+  DECISION=REJECTED_VETO
+  VETO=True
+
+VERDICT: PASS

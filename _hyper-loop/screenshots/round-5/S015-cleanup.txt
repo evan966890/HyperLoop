@@ -1,0 +1,11 @@
+=== S015: worktree 清理 ===
+
+cleanup_round 函数 (line 587):
+1. subshell + set +e 保护 (line 591-592)
+2. 关闭 tmux writer/tester/reviewer windows (line 593-595)
+3. worktree remove --force (line 601)
+4. branch -D 删除临时分支 (line 602)
+5. 复制 verdict.env 到 archive (line 605)
+6. 整个 subshell 容错: ) || true (line 606)
+
+VERDICT: PASS

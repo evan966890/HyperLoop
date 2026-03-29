@@ -1,0 +1,9 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+
+1. git add -A 在 worktree 中执行 (line 335)
+2. git commit --allow-empty (line 336): 确保即使 Codex 已 commit 也不报错
+3. squash merge 到 integration 分支 (line 345)
+4. patch 和 stat 文件生成 (line 339-342)
+5. 实际验证: round-5 tasks 有 task1-4.patch 和 task1-4.stat 文件
+
+VERDICT: PASS

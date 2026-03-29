@@ -1,0 +1,10 @@
+=== S005: diff 审计拦截越界修改 ===
+
+1. audit_writer_diff 函数存在 (line 239)
+2. 从 TASK.md 提取 "相关文件" 列表 (line 245-247)
+3. 检查 CHANGED_FILES 是否在 ALLOWED_FILES 中 (line 265-283)
+4. 允许列表: DONE.json, WRITER_INIT.md, _ctx/*, TASK.md (line 277)
+5. 越界返回非零退出码 (line 288: return 1)
+6. merge_writers 中调用审计，失败则跳过合并 (line 324-326)
+
+VERDICT: PASS

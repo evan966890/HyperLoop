@@ -230,9 +230,12 @@ wait_writers() {
   done
 
   # 关闭 writer windows
-  tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep '^w-' | while read -r w; do
-    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
-  done
+  (
+    set +e
+    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep '^w-' | while read -r w; do
+      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+    done
+  ) || true
 }
 
 # ── Diff 审计（autoresearch 启示：产出必须在可控范围内）──

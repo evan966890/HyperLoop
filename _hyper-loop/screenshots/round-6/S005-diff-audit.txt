@@ -1,0 +1,23 @@
+=== S005: diff 审计拦截越界修改 ===
+验证时间: 2026年 3月30日 星期一 01时25分37秒 CST
+
+--- Given: Writer 改了 TASK.md 未指定的文件 ---
+audit_writer_diff (L239-293)
+
+--- Then: 返回非零退出码 ---
+  提取允许文件: grep '### 相关文件' TASK.md → ALLOWED_FILES (L245-247)
+  提取实际改动: git diff --name-only HEAD → CHANGED_FILES (L255)
+  逐文件比对: changed vs allowed (L265-278)
+  豁免 HyperLoop 内部文件: DONE.json|WRITER_INIT.md|_ctx/*|TASK.md (L276-278)
+  有越界 → return 1 (L287)
+✓ 返回非零退出码
+
+--- And: 该 Writer 的产出被跳过不合并 ---
+  merge_writers 中: if ! audit_writer_diff → FAILED++ continue (L324-327)
+✓ 越界 Writer 被跳过
+
+⚠ 注意: 允许文件匹配用子串包含 (L269):
+  if changed == *allowed* || allowed == *changed*
+  这可能导致误匹配（如 src/a.ts 匹配 src/a.tsx），但不算严重 bug
+
+结论: PASS

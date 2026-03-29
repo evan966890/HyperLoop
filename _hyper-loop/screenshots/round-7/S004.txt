@@ -1,0 +1,14 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+代码分析（行295-358）：
+- 行335-336: git add -A && git commit 在 merge 前执行 ✓
+- 行345: git merge --squash --no-edit 到 integration 分支 ✓
+- 行346: git commit 后完成 squash merge ✓
+- 行339-342: 生成 taskN.patch 和 taskN.stat 文件 ✓
+
+注意：行336 使用 --allow-empty，即使没有实际改动也会创建 commit
+这避免了 'already up to date' 问题
+
+实际验证：round-7/task1.patch 和 task1.stat 存在
+-rw-r--r--@ 1 xiaomimacmini3  staff  104550  3月 30 01:50 /Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/tasks/round-7/task1.patch
+
+评估：PASS

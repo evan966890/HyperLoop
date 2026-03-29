@@ -1,0 +1,8 @@
+=== S015: worktree cleanup ===
+97:  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
+234:    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
+594:      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+601:      git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null
+602:      [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null
+Subshell + set +e for error tolerance: 2
+PASS

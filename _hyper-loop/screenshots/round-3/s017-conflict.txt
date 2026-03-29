@@ -1,0 +1,2 @@
+350:      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+351:      echo "  ✗ ${TASK_NAME} conflict, deferred"

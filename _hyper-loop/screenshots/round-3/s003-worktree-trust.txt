@@ -1,0 +1,12 @@
+124:    git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>/dev/null
+127:    # Codex 的 trust 存在 ~/.codex/config.toml
+130:    if ! grep -q "\"$REAL_WT\"" ~/.codex/config.toml 2>/dev/null; then
+131:      printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$REAL_WT" >> ~/.codex/config.toml
+136:    cp -r "${PROJECT_ROOT}/_hyper-loop/context" "${WT}/_ctx"
+147:1. 先读 _ctx/ 下所有 .md 文件了解项目：
+182:      "cd ${WT} && codex --dangerously-bypass-approvals-and-sandbox" Enter
+184:    # 等 Codex 完全启动（trust 已通过 config.toml 预配置，不会弹确认）
+277:      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+303:  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" 2>/dev/null
+740:先读 _ctx/ 下所有文件。
+771:先读 _ctx/ 下所有文件，特别是 bdd-specs.md。

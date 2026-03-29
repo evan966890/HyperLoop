@@ -1,0 +1,11 @@
+=== S006: Writer 超时处理 ===
+代码分析（行196-236）：
+- 行198: TIMEOUT=${2:-900}（默认 15 分钟 = 900 秒）✓
+- 行220-226: 超时后对未写 DONE.json 的 Writer 写入 {"status":"timeout"} ✓
+- 行316-319: merge_writers 检查 status != done 则跳过 ✓
+
+所有 Then 条件满足：
+1. DONE.json 被写入 status=timeout ✓
+2. 该 Writer 被标记为 failed（跳过合并）✓
+
+评估：PASS

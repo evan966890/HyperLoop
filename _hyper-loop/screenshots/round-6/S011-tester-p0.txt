@@ -1,0 +1,9 @@
+=== S011: Tester P0 否决 ===
+验证时间: 2026年 3月30日 星期一 01时27分55秒 CST
+
+--- Given: Tester 报告包含 'P0' 和 'fail' ---
+--- Then: DECISION = REJECTED_TESTER_P0 ---
+实测: tester_p0=True → REJECTED_TESTER_P0 ✓
+逻辑: 'P0' in text and ('bug' in lower or 'fail' in lower) (L553)
+
+结论: PASS

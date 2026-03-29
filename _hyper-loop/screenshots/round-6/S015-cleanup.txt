@@ -1,0 +1,24 @@
+=== S015: worktree 清理 ===
+验证时间: 2026年 3月30日 星期一 01时28分57秒 CST
+
+--- Given: Round N 完成 ---
+cleanup_round 在每轮结束时调用 (L685, L916)
+
+--- Then: /tmp/hyper-loop-worktrees-rN/ 不存在 ---
+cleanup_round (L587-607):
+  用 subshell + set +e 确保不影响主循环 (L591)
+  遍历 task* 和 integration: git worktree remove --force (L601)
+✓ worktree 目录被清理
+
+--- And: hyper-loop/rN-* 分支被删除 ---
+  BRANCH=$(git branch --show-current) (L600)
+  git branch -D $BRANCH (L602)
+✓ 分支被删除
+
+--- And: tmux writer windows 被关闭 ---
+  tmux list-windows | grep '^w-|^tester|^reviewer' → kill-window (L593-595)
+✓ tmux 窗口被关闭
+
+额外: verdict.env 被归档 (L605)
+
+结论: PASS

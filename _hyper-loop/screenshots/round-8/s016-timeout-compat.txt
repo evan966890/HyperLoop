@@ -1,0 +1,1 @@
+S016: line 17-20: gtimeout 优先, 否则自定义 timeout 函数 (background+sleep+kill)

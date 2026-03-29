@@ -1,0 +1,10 @@
+=== S014: STOP 文件优雅退出 ===
+
+1. STOP_FILE 路径: _hyper-loop/STOP (line 824)
+2. 循环开头检查: [[ -f "$STOP_FILE" ]] (line 849)
+3. 检测到后: echo "检测到 STOP 文件，优雅退出" (line 850)
+4. 删除 STOP 文件: rm "$STOP_FILE" (line 851)
+5. break 退出循环 (line 852)
+6. 使用说明: echo "停止方法：touch _hyper-loop/STOP" (line 982)
+
+VERDICT: PASS

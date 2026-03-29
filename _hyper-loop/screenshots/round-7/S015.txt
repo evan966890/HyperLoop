@@ -1,0 +1,18 @@
+=== S015: worktree 清理 ===
+代码分析（行587-607）：
+- 行591: subshell + set +e 确保清理不终止循环 ✓
+- 行593-595: 关闭 tmux writer/tester/reviewer windows ✓
+- 行597-603: 遍历 worktree，git worktree remove --force ✓
+- 行602: git branch -D 删除分支 ✓
+- 行605: 复制 verdict.env 到 archive ✓
+
+所有 Then 条件满足：
+1. /tmp/hyper-loop-worktrees-rN/ 被清理 ✓
+2. hyper-loop/rN-* 分支被删除 ✓
+3. tmux writer windows 被关闭 ✓
+
+注意：cleanup_round 不删除 WORKTREE_BASE 目录本身，
+只删除其中的 task*/integration 子目录。
+但 worktree remove 应该足够。
+
+评估：PASS

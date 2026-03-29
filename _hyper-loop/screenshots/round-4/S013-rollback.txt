@@ -1,0 +1,7 @@
+=== S013: 5-round rollback ===
+919:    if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+925:        git -C "$PROJECT_ROOT" checkout "$BEST_SHA" -- . 2>/dev/null || true
+843:  local CONSECUTIVE_REJECTS=0
+901:        CONSECUTIVE_REJECTS=0
+928:      CONSECUTIVE_REJECTS=0
+PASS

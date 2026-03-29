@@ -1,0 +1,9 @@
+=== S016: macOS timeout compat ===
+16:# macOS 没有 timeout，用 coreutils 的 gtimeout
+17:if command -v gtimeout >/dev/null 2>&1; then
+18:  timeout() { gtimeout "$@"; }
+19:elif ! command -v timeout >/dev/null 2>&1; then
+20:  timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
+Function defined: YES
+NOTE: timeout function is never actually called (polling loops used instead)
+PASS (function available but unused)

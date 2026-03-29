@@ -1,0 +1,14 @@
+=== S012: verdict.env 安全读取 ===
+
+实测验证 (verdict.env 含 SCORES="1.0 2.0 3.0"):
+  DECISION=REJECTED_VETO ✓
+  MEDIAN=0.0 ✓
+  SCORES=1.0 2.0 3.0 ✓ (引号正确去除)
+  无 "command not found" 错误 ✓
+
+读取方式: grep + cut (line 618-620)，不 source verdict.env
+record_result (line 610-624): 使用 grep 提取
+cmd_round (line 672-673): 使用 grep 提取
+cmd_loop (line 894-895): 使用 grep 提取
+
+VERDICT: PASS

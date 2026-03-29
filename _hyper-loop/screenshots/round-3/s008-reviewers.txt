@@ -1,0 +1,7 @@
+450:  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+469:    for NAME in reviewer-a reviewer-b reviewer-c; do
+478:  for NAME in reviewer-a reviewer-b reviewer-c; do
+480:      echo "  ⚠ ${NAME} 未写文件，从 pane 提取..."
+482:      python3 - "/tmp/hyper-loop-pane-${NAME}.txt" "${SCORES_DIR}/${NAME}.json" <<'PYEXTRACT' 2>/dev/null || true
+500:PYEXTRACT
+504:  for NAME in reviewer-a reviewer-b reviewer-c; do

@@ -1,0 +1,9 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+
+1. worktree add 创建分支 (line 124): git worktree add "$WT" -b "$BRANCH"
+2. trust 配置写入 ~/.codex/config.toml (line 130-131)
+3. _ctx/ 目录复制到 worktree (line 136): cp -r context "${WT}/_ctx"
+4. Codex 在 tmux window 启动 (line 182): codex --dangerously-bypass-approvals-and-sandbox
+5. WRITER_INIT.md 生成并注入 (line 140-175, 188-189)
+
+VERDICT: PASS

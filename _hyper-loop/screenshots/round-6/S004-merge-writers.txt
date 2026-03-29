@@ -1,0 +1,36 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+验证时间: 2026年 3月30日 星期一 01时25分14秒 CST
+
+--- Given: Writer 写了 DONE.json status=done 且改了文件 ---
+merge_writers (L296-358) 检查 status:
+  STATUS=$(python3 -c ... DONE.json ...['status']) (L316)
+  if status != done → 跳过 (L317-319)
+
+--- Then: Writer worktree 里先执行 git add -A && git commit ---
+  git -C $WT add -A (L335)
+  git -C $WT commit -m 'hyper-loop writer: $TASK_NAME' --allow-empty (L336)
+✓ 先 commit Writer 的改动
+
+--- And: squash merge 到 integration 分支成功 ---
+  integration worktree 创建: git worktree add $INTEGRATION_WT -b $INTEGRATION_BRANCH (L303)
+  merge: git merge $BRANCH --squash --no-edit (L345)
+  commit: git commit --no-edit -m 'hyper-loop RN taskM' (L346)
+✓ squash merge 逻辑正确
+
+--- And: task*.patch 和 task*.stat 文件被生成 ---
+  git diff HEAD~1 > task*.patch (L339)
+  git diff --stat HEAD~1 > task*.stat (L341)
+验证 round-6 实际输出:
+  _hyper-loop/tasks/round-6/task1.patch (96985 bytes)
+  _hyper-loop/tasks/round-6/task1.stat (1183 bytes)
+  _hyper-loop/tasks/round-6/task2.patch (96898 bytes)
+  _hyper-loop/tasks/round-6/task2.stat (1183 bytes)
+  _hyper-loop/tasks/round-6/task3.patch (96776 bytes)
+  _hyper-loop/tasks/round-6/task3.stat (1183 bytes)
+  _hyper-loop/tasks/round-6/task4.patch (97870 bytes)
+  _hyper-loop/tasks/round-6/task4.stat (1184 bytes)
+  _hyper-loop/tasks/round-6/task5.patch (98395 bytes)
+  _hyper-loop/tasks/round-6/task5.stat (1184 bytes)
+✓ patch 和 stat 文件生成逻辑正确
+
+结论: PASS

@@ -1,0 +1,9 @@
+798:  git -C "$PROJECT_ROOT" rev-parse HEAD > "$ARCHIVE/git-sha.txt" 2>/dev/null || true
+808:  if [[ ! -f "$ARCHIVE/git-sha.txt" ]]; then
+809:    echo "ERROR: Round ${TARGET_ROUND} 档案不存在或没有 git-sha.txt" >&2
+814:  SHA=$(cat "$ARCHIVE/git-sha.txt")
+918:    # 连续 5 轮失败 → 回退到最佳轮次重新开始
+919:    if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+921:      echo "⚠ 连续 ${CONSECUTIVE_REJECTS} 轮失败，回退到 Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+923:      BEST_SHA=$(cat "${PROJECT_ROOT}/_hyper-loop/archive/round-${BEST_ROUND}/git-sha.txt" 2>/dev/null)
+926:        echo "  ✓ 代码已回退"

@@ -1,0 +1,1 @@
+S014: STOP 文件检测 → rm STOP → break → 正常退出 exit 0

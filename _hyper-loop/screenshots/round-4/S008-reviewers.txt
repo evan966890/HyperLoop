@@ -1,0 +1,7 @@
+=== S008: 3 Reviewers ===
+Reviewers array:
+  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+Wait loop:     [[ "$DONE_COUNT" -ge 3 ]] && break
+Pane extraction fallback: 2
+JSON score field check:         if "score" in obj: last = obj
+PASS

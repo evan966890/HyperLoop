@@ -1,0 +1,20 @@
+=== S013: 连续 5 轮失败自动回退 ===
+
+1. CONSECUTIVE_REJECTS 计数器 (line 843)
+2. 每次 REJECTED: CONSECUTIVE_REJECTS++ (line 884, 910)
+3. ACCEPTED 时重置: CONSECUTIVE_REJECTS=0 (line 901)
+4. 检查阈值: CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0 (line 919)
+5. 回退方式: git checkout $BEST_SHA -- . (line 925)
+6. 回退后重置: CONSECUTIVE_REJECTS=0 (line 928)
+
+BUG注意: 条件要求 BEST_ROUND > 0，即必须有至少一次 ACCEPTED 才能回退。
+  - 当前 results.tsv 显示 4 轮全部 REJECTED_VETO (0.0)
+  - BEST_ROUND 从未更新过（始终为 0）
+  - 意味着即使连续 5 轮失败，也不会回退（因为没有"最佳轮次"可回退到）
+  - 这是合理行为：如果从未成功过，无处可退
+
+BDD spec 说: "archive/round-2/git-sha.txt 存在且得分最高"
+  - 这个 Given 前提意味着必须有某一轮 ACCEPTED 过
+  - 当前场景不满足此前提，所以不触发回退是正确的
+
+VERDICT: PASS

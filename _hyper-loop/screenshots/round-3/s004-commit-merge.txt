@@ -1,0 +1,8 @@
+335:    git -C "$WT" add -A 2>/dev/null
+339:    git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
+340:      git -C "$WT" diff HEAD > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null
+341:    git -C "$WT" diff --stat HEAD~1 > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null || \
+342:      git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
+344:    # squash merge
+345:    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+440:    for STAT in "${TASK_DIR}"/*.stat; do

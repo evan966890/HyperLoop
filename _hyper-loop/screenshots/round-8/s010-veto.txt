@@ -1,0 +1,2 @@
+S010: any(s < 4.0) → veto=True → REJECTED_VETO
+验证: [3.5, 6.0, 7.0] → REJECTED_VETO ✓

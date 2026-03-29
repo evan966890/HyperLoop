@@ -1,0 +1,14 @@
+=== S009: 和议计算正确 ===
+
+实测验证 (scores=[5.0, 6.0, 7.0], prev_median=5.0):
+  中位数: 6.0 ✓
+  分歧: 2.0
+  否决: False
+  决策: ACCEPTED ✓ (6.0 > 5.0)
+
+verdict.env 内容:
+  DECISION=ACCEPTED
+  MEDIAN=6.0
+  SCORES="5.0 6.0 7.0"
+
+VERDICT: PASS

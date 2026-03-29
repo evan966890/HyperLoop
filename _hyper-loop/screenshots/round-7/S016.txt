@@ -1,0 +1,15 @@
+=== S016: macOS timeout 兼容 ===
+代码分析（行17-21）：
+- 行17: 优先使用 gtimeout（coreutils）✓
+- 行19: 没有 gtimeout 也没有 timeout 时，用 bash 内置实现 ✓
+- 行20: 内置实现：后台执行命令 + sleep+kill 超时机制
+
+本机验证：
+$ command -v gtimeout → /opt/homebrew/bin/gtimeout ✓
+$ command -v timeout → /opt/homebrew/bin/timeout ✓
+macOS 上 gtimeout 可用
+
+所有 Then 条件满足：
+1. timeout 函数可用（不报 command not found）✓
+
+评估：PASS

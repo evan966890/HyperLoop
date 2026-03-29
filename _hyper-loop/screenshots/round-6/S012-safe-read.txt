@@ -1,0 +1,14 @@
+=== S012: verdict.env 安全读取 ===
+验证时间: 2026年 3月30日 星期一 01时27分55秒 CST
+
+--- Given: verdict.env 包含 MEDIAN=0.0 和 SCORES="1.0 2.0 3.0" ---
+--- Then: DECISION 和 MEDIAN 被正确提取 ---
+实测: grep '^DECISION=' | cut -d= -f2 → REJECTED_VETO ✓
+实测: grep '^MEDIAN=' | cut -d= -f2 → 0.0 ✓
+实测: grep '^SCORES=' | cut -d= -f2- | tr -d '"' → 1.0 2.0 3.0 ✓
+
+--- And: 不会出现 'command not found' 错误 ---
+已改用 grep+cut (L617-620, L672-673, L894-895)
+不再 source verdict.env → 不会解析 bash 语法 ✓
+
+结论: PASS

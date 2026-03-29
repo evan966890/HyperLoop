@@ -1,0 +1,10 @@
+Round 4 已拆解为 4 个任务，按优先级排列：
+
+| 任务 | 优先级 | 问题 | 根因 |
+|------|--------|------|------|
+| **TASK-1** | P0 | TESTER_INIT.md / REVIEWER_INIT.md 路径错误 | `run_tester` 和 `run_reviewers` 引用 `context/TESTER_INIT.md`，实际文件在 `context/templates/` 下 — **连续 3 轮 0.0 分的根本原因** |
+| **TASK-2** | P1 | heredoc 中 `\$f` 转义错误 | `auto_decompose` 的评分注入循环永远跳过，Claude 拆解时看不到上轮评分详情 |
+| **TASK-3** | P1 | `cmd_status` 重复定义 | L694 是死代码，应删除 |
+| **TASK-4** | P1 | REVIEWER_INIT 模板占位符未替换 | 即使 TASK-1 修了路径，Reviewer 读到的仍是 `{{placeholder}}` 模板，需为 HyperLoop 生成实际内容 |
+
+TASK-1 + TASK-4 组合解决是关键：路径修对了但内容是空模板仍然无效。

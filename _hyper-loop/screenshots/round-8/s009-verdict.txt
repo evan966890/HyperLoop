@@ -1,0 +1,2 @@
+S009: Python3 计算中位数 (sorted + n//2), 比较 prev_median, ACCEPTED 当 median > prev
+验证: [5.0, 6.0, 7.0] → median=6.0 ✓

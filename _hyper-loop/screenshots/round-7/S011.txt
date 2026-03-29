@@ -1,0 +1,12 @@
+=== S011: Tester P0 否决 ===
+实际验证：报告含 'P0' 和 'fail'
+$ python3 compute_verdict → decision=REJECTED_TESTER_P0, tester_p0=True ✓
+
+代码分析（行549-553）：
+- 检查报告中同时包含 'P0' 和 ('bug' or 'fail') ✓
+- tester_p0 在 veto 之后检查（优先级正确）✓
+
+所有 Then 条件满足：
+1. DECISION = REJECTED_TESTER_P0 ✓
+
+评估：PASS

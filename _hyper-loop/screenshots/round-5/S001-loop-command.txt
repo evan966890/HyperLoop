@@ -1,0 +1,9 @@
+=== S001: loop 命令启动死循环 ===
+
+1. bash -n scripts/hyper-loop.sh → EXIT 0 (syntax ok)
+2. cmd_loop 函数存在 (line 822)
+3. Loop 输出 "LOOP: Round ${ROUND}/${MAX_ROUNDS}" (line 857)
+4. results.tsv 追加记录 (record_result, line 609)
+5. 循环结束条件: ROUND > MAX_ROUNDS 或 STOP 文件 或 median >= 8.0
+
+VERDICT: PASS

@@ -1,0 +1,40 @@
+=== S013: 连续 5 轮失败自动回退 ===
+验证时间: 2026年 3月30日 星期一 01时28分30秒 CST
+
+--- Given: results.tsv 有 5 行 REJECTED ---
+当前 results.tsv:
+1	0.0	0.0 0.0 0.0	REJECTED_VETO
+2	0.0	0.0 0.0 0.0	REJECTED_VETO
+3	0.0	0.0 0.0 0.0	REJECTED_VETO
+4	0.0	0.0 0.0 0.0	REJECTED_VETO
+5	0.0	0.0 0.0 0.0	REJECTED_VETO
+(确实 5 行 REJECTED_VETO)
+
+--- And: archive/round-2/git-sha.txt 存在且得分最高 ---
+检查 archive 目录:
+  _hyper-loop/archive/round-1/ → SHA=e5e41527
+  _hyper-loop/archive/round-2/ → SHA=bd5d53b0
+  _hyper-loop/archive/round-3/ → SHA=554537fd
+  _hyper-loop/archive/round-4/ → SHA=554537fd
+  _hyper-loop/archive/round-5/ → SHA=554537fd
+  _hyper-loop/archive/round-6/ → ✗ 无 git-sha.txt
+
+--- Then: 代码回退到最佳轮次的 git sha ---
+cmd_loop 中的回退逻辑 (L918-929):
+  if CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0 (L919)
+  BEST_SHA=$(cat archive/round-$BEST_ROUND/git-sha.txt) (L922-923)
+  git checkout $BEST_SHA -- . (L925)
+✓ 回退逻辑正确
+
+--- And: consecutive_rejects 重置为 0 ---
+  CONSECUTIVE_REJECTS=0 (L929)
+✓ 计数器重置
+
+⚠ P1: BEST_ROUND 追踪仅在 ACCEPTED 时更新 (L903-906)
+  如果从未 ACCEPTED 过，BEST_ROUND=0，则不会触发回退
+  这在'全是 REJECTED'的场景下回退不到任何地方
+  BDD spec 说'archive/round-2/git-sha.txt 存在且得分最高'
+  但代码只在 ACCEPTED 时更新 BEST_ROUND，不比较所有轮次
+  当前 5 轮全是 0.0 分 → BEST_ROUND=0 → 不触发回退
+
+结论: PARTIAL PASS (核心逻辑存在，但边界条件有 P1 bug)

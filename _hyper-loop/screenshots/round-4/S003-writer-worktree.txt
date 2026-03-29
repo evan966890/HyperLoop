@@ -1,0 +1,6 @@
+=== S003: Writer worktree creation ===
+worktree add: 2
+config.toml trust: 4
+_ctx/ copy: 1
+Codex launch in tmux: 1
+PASS

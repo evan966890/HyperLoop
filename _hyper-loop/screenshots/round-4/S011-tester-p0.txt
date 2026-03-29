@@ -1,0 +1,3 @@
+=== S011: REJECTED_TESTER_P0 ===
+tester_p0=True: PASS=True
+PASS

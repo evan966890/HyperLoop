@@ -1,0 +1,31 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+验证时间: 2026年 3月30日 星期一 01时24分57秒 CST
+
+--- Given: task*.md 文件存在 ---
+Round 6 tasks: 5 个
+
+--- Then: 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录 ---
+start_writers (L101-193):
+  WORKTREE_BASE=/tmp/hyper-loop-worktrees-r${ROUND} (L45)
+  git worktree add $WT -b $BRANCH (L124)
+✓ worktree 创建逻辑正确
+
+--- And: ~/.codex/config.toml 包含 trust 配置 ---
+  REAL_WT=$(cd $WT && pwd -P) 解析符号链接 (L129)
+  grep -q 检查是否已 trust (L130)
+  追加 [projects."$REAL_WT"] trust_level="trusted" (L131)
+✓ trust 配置逻辑正确
+
+--- And: Codex 进程在 tmux window 中启动 ---
+  tmux new-window -t hyper-loop -n $WRITER_NAME (L179)
+  tmux pipe-pane 记录日志 (L180)
+  tmux send-keys 启动 codex --dangerously-bypass-approvals-and-sandbox (L181-182)
+✓ tmux 启动逻辑正确
+
+--- And: _ctx/ 目录被复制到 worktree ---
+  cp -r context _ctx (L136)
+  cp TASK.md (L137)
+  cat > WRITER_INIT.md (L140-175)
+✓ 上下文文件复制完整
+
+结论: PASS

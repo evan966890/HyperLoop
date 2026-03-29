@@ -1,0 +1,24 @@
+=== S001: loop 命令启动死循环 ===
+验证时间: 2026年 3月30日 星期一 01时24分21秒 CST
+
+--- Given: project-config.env 和 bdd-specs.md 存在 ---
+✓ project-config.env 存在
+✓ bdd-specs.md 存在
+
+--- Then: 脚本输出 Round 1/3 ---
+cmd_loop 接受 MAX_ROUNDS 参数: cmd_loop "${2:-999}"
+输出格式: "LOOP: Round ${ROUND}/${MAX_ROUNDS}" (L857)
+✓ 正确输出 Round N/M 格式
+
+--- And: 循环跑满 N 轮后正常退出 ---
+while 条件: [[ $ROUND -le $MAX_ROUNDS ]] (L847)
+递增: ((ROUND++)) (L938)
+正常退出: STOP文件 break(L852) 或 median>=8.0 break(L935) 或 while 条件不满足
+✓ 循环结构完整
+
+--- And: results.tsv 有 N 行记录 ---
+record_result 在每轮 BUILD_FAILED(L659) 或正常完成(L889) 后调用
+printf 追加: (L622-624)
+✓ 每轮写一行到 results.tsv
+
+结论: PASS
