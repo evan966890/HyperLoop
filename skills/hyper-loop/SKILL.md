@@ -108,37 +108,39 @@ find docs/design -name "*.md" -exec cp {} _hyper-loop/context/ \;
 场景 S012: Gateway 异常时显示红灯
 ```
 
-### Step 2: 调用脚本
+### Step 2: 启动无人值守循环
+
+**Phase 0 完成后，必须调用 loop 命令启动死循环。不要用 round。**
 
 ```bash
-PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round 1
+PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh loop 50
 ```
 
-**脚本自动执行（你不需要手动做）：**
-1. 为每个 task*.md 创建 worktree + 启动 Codex Writer
-2. 等待所有 Writer 完成（超时 15min）
-3. Squash merge 到 integration 分支
-4. 构建 App
-5. 启动 Tester（Claude），按 BDD spec 截图验证
-6. 启动 3 个 Reviewer（Gemini + Claude + Codex），独立评分
-7. 和议计算：中位数 + 一票否决
-8. 输出决策建议 + 清理 worktrees
+脚本自动循环执行（你不需要再介入）：
+1. 用 Claude -p 非交互模式自动拆解任务
+2. 为每个 task*.md 创建 worktree + 启动 Codex Writer
+3. 等待所有 Writer 完成（超时 15min）
+4. Diff 审计 + Squash merge
+5. 构建 App
+6. 启动 Tester（Claude），按 BDD spec 截图验证
+7. 启动 3 个 Reviewer（Gemini + Claude + Codex），独立评分
+8. 和议计算：中位数 + 一票否决
+9. ACCEPTED → merge 到 main / REJECTED → 丢弃
+10. 30s 冷却 → 下一轮
 
-### Step 3: 读结果，做判断
+**停止方法：** `touch _hyper-loop/STOP`
 
+**监控方法：**
 ```bash
-cat _hyper-loop/tasks/round-1/verdict.env
+# 在另一个终端
+tail -f _hyper-loop/loop.log
+# 或
+PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh status
 ```
 
-- `ACCEPTED` → `git merge --no-ff hyper-loop/r1-integration`
-- `REJECTED_*` → 分析原因，调整任务，回到 Step 1
-- `PENDING_USER` → 展示评分分歧给用户裁决
+**自动达标停止：** median >= 8.0 时脚本自动退出
 
-### Step 4: 下一轮
-
-```bash
-PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round 2
-```
+**自动回退：** 连续 5 轮失败 → 回退到历史最佳轮次重新开始
 
 ---
 
