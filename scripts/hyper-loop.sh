@@ -653,7 +653,9 @@ cmd_round() {
 
   echo ""
   # shellcheck source=/dev/null
-  . "${TASK_DIR}/verdict.env"
+  # 安全读取 verdict.env（不 source，用 grep 提取）
+  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
 
   if [[ "$DECISION" == "ACCEPTED" ]] || [[ "$DECISION" == "ACCEPTED_UNCHANGED" ]]; then
     echo "建议：合并 integration 分支到 main"
@@ -873,7 +875,9 @@ cmd_loop() {
 
       # 读取决策
       # shellcheck source=/dev/null
-      . "${TASK_DIR}/verdict.env"
+      # 安全读取 verdict.env（不 source，用 grep 提取）
+  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
 
       if [[ "$DECISION" == "ACCEPTED" ]] || [[ "$DECISION" == "ACCEPTED_UNCHANGED" ]]; then
         echo "  → KEEP: 合并到 main"
