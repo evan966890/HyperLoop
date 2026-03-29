@@ -1,0 +1,22 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+Then: Writer worktree 先执行 git add -A && git commit?
+335:    git -C "$WT" add -A 2>/dev/null
+336:    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty 2>/dev/null || true
+  ✓ 有 git add + commit
+Then: squash merge 到 integration 分支?
+345:    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+  ✓ 有 squash merge
+Then: task*.patch 和 task*.stat 文件被生成?
+339:    git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
+340:      git -C "$WT" diff HEAD > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null
+341:    git -C "$WT" diff --stat HEAD~1 > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null || \
+342:      git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
+440:    for STAT in "${TASK_DIR}"/*.stat; do
+  ✓ 有 .patch 和 .stat 生成
+Then: integration 分支正确创建?
+298:  local INTEGRATION_BRANCH="hyper-loop/r${ROUND}-integration"
+299:  local INTEGRATION_WT="${WORKTREE_BASE}/integration"
+594:  for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
+668:    echo "建议：合并 integration 分支到 main"
+669:    echo "  git merge --no-ff hyper-loop/r${ROUND}-integration -m 'hyper-loop R${ROUND}'"
+  ✓ 有 integration 分支逻辑

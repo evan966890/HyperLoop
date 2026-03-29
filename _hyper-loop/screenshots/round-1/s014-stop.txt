@@ -1,0 +1,25 @@
+=== S014: STOP 文件优雅退出 ===
+Then: 检测 STOP 文件?
+816:  local STOP_FILE="${PROJECT_ROOT:-.}/_hyper-loop/STOP"
+823:  echo "║  创建 _hyper-loop/STOP 文件可优雅停止          "
+841:    if [[ -f "$STOP_FILE" ]]; then
+842:      echo "检测到 STOP 文件，优雅退出"
+843:      rm "$STOP_FILE"
+974:    echo "停止方法：touch _hyper-loop/STOP"
+  ✓ 有 STOP 检测
+
+Then: 检到 STOP 后 break?
+  echo "║  创建 _hyper-loop/STOP 文件可优雅停止          "
+  echo "╚══════════════════════════════════════════════════╝"
+  echo ""
+--
+      echo "检测到 STOP 文件，优雅退出"
+  ✓ 有 break
+
+Then: STOP 文件被删除?
+843:      rm "$STOP_FILE"
+  ✓ 有 rm STOP
+
+Then: 正常退出 (break 而非 exit 1)?
+  break 后 cmd_loop 自然结束，exit 0
+  ✓ PASS

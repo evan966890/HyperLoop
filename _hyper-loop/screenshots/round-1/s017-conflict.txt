@@ -1,0 +1,27 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+Then: 第一个成功 merge?
+345:    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+  ✓ squash merge 逻辑
+
+Then: 第二个冲突时 deferred?
+350:      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+351:      echo "  ✗ ${TASK_NAME} conflict, deferred"
+  ✓ 有 conflict → deferred 处理
+
+Then: 脚本不崩溃?
+345:    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+350:      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+  ✓ merge 失败有 || true / --abort 保护
+
+=== merge_writers 冲突处理代码 ===
+    # squash merge
+    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" 2>/dev/null
+      echo "  ✓ ${TASK_NAME} merged"
+      ((MERGED++)) || true
+    else
+      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+      echo "  ✗ ${TASK_NAME} conflict, deferred"
+      ((FAILED++)) || true
+    fi
+  done

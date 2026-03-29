@@ -1,0 +1,5 @@
+=== S010: 一票否决 (功能测试) ===
+输入分数: 3.5 6.0 7.0
+  决策: REJECTED_VETO
+验证: DECISION=REJECTED_VETO (期望 REJECTED_VETO)
+  ✓ PASS

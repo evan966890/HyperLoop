@@ -1,0 +1,55 @@
+=== S012: verdict.env 安全读取 (功能测试) ===
+verdict.env 内容:
+DECISION=REJECTED_NO_IMPROVEMENT
+MEDIAN=0.0
+MAX_DIFF=2.0
+VETO=False
+TESTER_P0=False
+SCORES="1.0 2.0 3.0"
+
+=== 测试 source 方式 ===
+source 后: DECISION=REJECTED_NO_IMPROVEMENT, MEDIAN=0.0, SCORES=1.0 2.0 3.0
+  结果: source 方式 成功
+
+=== 测试 grep 方式（脚本实际使用）===
+grep 后: DECISION=REJECTED_NO_IMPROVEMENT, MEDIAN=0.0
+  ✓ 无 'command not found' 错误
+
+=== 检查 record_result 中的读取方式 ===
+532:    echo "DECISION=ERROR" > "${TASK_DIR}/verdict.env"
+536:  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+602:  cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null || true
+608:  local VERDICT_FILE="${TASK_DIR}/verdict.env"
+649:    echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+650:    echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+663:  # 安全读取 verdict.env（不 source，用 grep 提取）
+664:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+665:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+789:  cp "${TASK_DIR}/verdict.env" "$ARCHIVE/" 2>/dev/null || true
+
+⚠ 注意: record_result() 仍使用 '. $VERDICT_FILE'（source 方式）
+  但 cmd_round() 和 cmd_loop() 已改用 grep 方式
+
+=== source 安全性测试 ===
+  exit code: 0
+  ✓ source 无报错（SCORES 加引号后安全）
+=== S012 补充: record_result 中 source verdict.env ===
+record_result() {
+  local ROUND="$1"
+  local VERDICT_FILE="${TASK_DIR}/verdict.env"
+
+  [[ -f "$VERDICT_FILE" ]] || return
+  # shellcheck source=/dev/null
+  . "$VERDICT_FILE"
+
+  printf '%s\t%s\t%s\t%s\n' \
+    "$ROUND" "${MEDIAN:-0}" "${SCORES:-}" "${DECISION:-ERROR}" \
+    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+}
+
+⚠ BUG 分析: record_result() 第 612 行使用 '. $VERDICT_FILE'（source）
+  虽然 SCORES 字段已加引号（compute_verdict 输出 SCORES="..."），
+  但如果 verdict.env 被人工编辑或损坏，source 仍可能出错。
+  cmd_round() 和 cmd_loop() 已改用 grep，record_result 尚未统一。
+
+  严重程度: P1（当前 SCORES 加引号可正常工作，但不一致）

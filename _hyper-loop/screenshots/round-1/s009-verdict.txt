@@ -1,0 +1,7 @@
+=== S009: 和议计算正确 (修正测试) ===
+输入分数: 5.0 6.0 7.0
+  中位数: 6.0, 分歧: 2.0, 否决: False, P0: False
+  决策: ACCEPTED
+验证: MEDIAN=6.0 (期望 6.0), DECISION=ACCEPTED (期望 ACCEPTED)
+  ✓ PASS: 中位数
+  ✓ PASS: 决策

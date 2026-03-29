@@ -1,0 +1,25 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+Then: 3 个 Reviewer 启动?
+450:  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+469:    for NAME in reviewer-a reviewer-b reviewer-c; do
+478:  for NAME in reviewer-a reviewer-b reviewer-c; do
+504:  for NAME in reviewer-a reviewer-b reviewer-c; do
+  ✓ 3 个 Reviewer 定义
+Then: 使用 Gemini + Claude + Codex?
+450:  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+  ✓ 3 种 CLI
+Then: 10 分钟超时?
+467:  while [[ "$WAITED" -lt 600 ]]; do
+  ✓ 600s 超时
+Then: JSON 包含 score 字段?
+445:    echo '{"score":数字,"issues":[{"severity":"P0","desc":"描述"}],"summary":"一句话"}'
+492:        if "score" in obj: last = obj
+498:    Path(sys.argv[2]).write_text('{"score":0,"issues":[],"summary":"未能获取评分"}')
+  ✓ 检查 score 字段
+Then: 降级从 pane 提取?
+477:  # 降级：从 pane 输出提取 JSON
+480:      echo "  ⚠ ${NAME} 未写文件，从 pane 提取..."
+481:      tmux capture-pane -t "hyper-loop:${NAME}" -p -S - > "/tmp/hyper-loop-pane-${NAME}.txt" 2>/dev/null || true
+482:      python3 - "/tmp/hyper-loop-pane-${NAME}.txt" "${SCORES_DIR}/${NAME}.json" <<'PYEXTRACT' 2>/dev/null || true
+500:PYEXTRACT
+  ✓ 有 pane 降级提取

@@ -608,15 +608,11 @@ record_result() {
   local VERDICT_FILE="${TASK_DIR}/verdict.env"
 
   [[ -f "$VERDICT_FILE" ]] || return
-
-  # 安全读取（不 source，用 grep）
-  local R_DECISION R_MEDIAN R_SCORES
-  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)
-  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)
-  R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')
+  # shellcheck source=/dev/null
+  . "$VERDICT_FILE"
 
   printf '%s\t%s\t%s\t%s\n' \
-    "$ROUND" "${R_MEDIAN:-0}" "${R_SCORES:-}" "${R_DECISION:-ERROR}" \
+    "$ROUND" "${MEDIAN:-0}" "${SCORES:-}" "${DECISION:-ERROR}" \
     >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
 }
 

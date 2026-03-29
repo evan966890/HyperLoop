@@ -1,0 +1,26 @@
+=== S002: auto_decompose 生成任务文件 ===
+Given: auto_decompose 函数存在?
+695:auto_decompose() {
+  ✓ YES
+Then: 生成 task*.md 文件?
+107:  TASK_COUNT=$(find "$TASK_DIR" -maxdepth 1 -name 'task*.md' | wc -l | tr -d ' ')
+110:    echo "ERROR: $TASK_DIR 下没有任务文件（task*.md）" >&2
+117:  for TASK_FILE in "$TASK_DIR"/task*.md; do
+726:每个任务写成一个独立的 markdown 文件，保存到 ${TASK_DIR}/taskN.md。
+754:  TASK_COUNT=$(find "$TASK_DIR" -maxdepth 1 -name 'task*.md' 2>/dev/null | wc -l | tr -d ' ')
+  ✓ 有 task*.md 文件生成逻辑
+Then: 模板包含'修复任务'和'相关文件'?
+2
+  ✓ 包含'修复任务'
+5
+  ✓ 包含'相关文件'
+Then: 有降级生成默认 task1.md?
+477:  # 降级：从 pane 输出提取 JSON
+757:    echo "  ⚠ 自动拆解未生成任务文件，生成默认任务"
+758:    # 降级：基于上一轮失败的 BDD 场景生成一个通用任务
+759:    cat > "${TASK_DIR}/task1.md" <<FALLBACK
+774:FALLBACK
+  ✓ 有降级逻辑
+Then: claude -p 失败时降级?
+751:    > "${PROJECT_ROOT}/_hyper-loop/logs/decompose-r${ROUND}.log" 2>&1 || true
+  ✓ claude -p 有 || true 保护

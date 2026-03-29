@@ -1,0 +1,20 @@
+=== S007: Tester 启动并生成报告 ===
+Then: Tester 在 tmux 中启动?
+376:run_tester() {
+380:  start_agent "tester" "claude --dangerously-skip-permissions" \
+656:  run_tester "$ROUND"
+878:      run_tester "$ROUND"
+  ✓ 有 tester 启动
+Then: 使用 claude CLI?
+380:  start_agent "tester" "claude --dangerously-skip-permissions" \
+450:  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+749:  cat "$DECOMPOSE_PROMPT" | claude --dangerously-skip-permissions -p - \
+  ✓ 使用 claude --dangerously-skip-permissions
+Then: 等待 15 分钟超时?
+402:  echo "等待 Tester 完成（最多 15 分钟）..."
+404:  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
+  ✓ 有 900s 超时等待
+Then: 超时生成空报告?
+416:    echo "  ⚠ Tester 超时，生成空报告"
+417:    echo "# Round $ROUND 试用报告（Tester 超时）" > "$REPORT_FILE"
+  ✓ 有空报告降级

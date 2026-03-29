@@ -1,0 +1,18 @@
+=== S016: macOS timeout 兼容 (功能测试) ===
+Then: timeout 函数定义?
+# macOS 没有 timeout，用 coreutils 的 gtimeout
+if command -v gtimeout >/dev/null 2>&1; then
+  timeout() { gtimeout "$@"; }
+elif ! command -v timeout >/dev/null 2>&1; then
+  timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
+fi
+
+gtimeout 可用?
+  ✓ gtimeout 已安装
+timeout 可用?
+  ✓ timeout 已安装
+
+测试 fallback timeout 实现:
+  使用 gtimeout
+hello from timeout
+  ✓ timeout 函数可用

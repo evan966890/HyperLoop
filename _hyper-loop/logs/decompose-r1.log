@@ -1,0 +1,10 @@
+Round 1 任务拆解完成。4 个独立任务文件已写入 `_hyper-loop/tasks/round-1/`:
+
+| 文件 | 优先级 | 问题 | 关联 BDD |
+|------|--------|------|----------|
+| **task1.md** | P0-Critical | `merge_writers` 状态信息污染 stdout 返回值，导致 `build_app` 收到多行垃圾路径 → `cd` 失败 → 脚本崩溃 | S004, S001 |
+| **task2.md** | P0 | `record_result` 仍用 `source` 读 verdict.env（commit a5a4007 漏修），`set -e` 下可能崩溃 | S012, S009 |
+| **task3.md** | P0 | `build_app` 裸 `cd` 永久改 CWD，后续函数在错误目录执行，cleanup 删目录后 CWD 悬空 | S001, S007 |
+| **task4.md** | P0+P1 | `cleanup_round` 未删 WORKTREE_BASE 父目录（S015 违规）+ `cmd_status` 重复定义死代码 | S015 |
+
+**TASK-1 是最关键的** — 它直接导致脚本无法完成一轮完整循环，因为 `merge_writers` 的 stdout 被 `$()` 捕获后，路径被状态信息污染。

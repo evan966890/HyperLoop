@@ -1,0 +1,21 @@
+=== S001: loop 命令启动死循环 ===
+Given: project-config.env 存在?
+  ✓ YES
+Given: bdd-specs.md 存在?
+  ✓ YES
+Then: 脚本包含 Round N/M 输出?
+849:    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+  ✓ 找到 Round N/M 模式
+Then: 循环有 MAX_ROUNDS 退出条件?
+839:  while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+  ✓ 有轮次上限
+Then: record_result 写 results.tsv?
+77:    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
+616:    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+637:  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+638:    PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+690:  echo "results.tsv:"
+  ✓ 有写入逻辑
+Then: 入口接受 loop 命令?
+963:  loop)         cmd_loop "${2:-999}" ;;
+  ✓ loop 入口存在

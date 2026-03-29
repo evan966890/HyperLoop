@@ -1,0 +1,6 @@
+=== S011: Tester P0 否决 (功能测试) ===
+输入分数: 8.0 7.0 9.0
+  Tester P0 检测: True
+  决策: REJECTED_TESTER_P0
+验证: DECISION=REJECTED_TESTER_P0 (期望 REJECTED_TESTER_P0)
+  ✓ PASS

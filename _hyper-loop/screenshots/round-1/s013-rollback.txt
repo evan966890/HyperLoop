@@ -1,0 +1,42 @@
+=== S013: 连续 5 轮失败自动回退 ===
+Then: 有 consecutive_rejects 计数?
+835:  local CONSECUTIVE_REJECTS=0
+876:      ((CONSECUTIVE_REJECTS++)) || true
+893:        CONSECUTIVE_REJECTS=0
+902:        ((CONSECUTIVE_REJECTS++)) || true
+911:    if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+913:      echo "⚠ 连续 ${CONSECUTIVE_REJECTS} 轮失败，回退到 Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+920:      CONSECUTIVE_REJECTS=0
+  ✓ 有计数器
+
+Then: 5 轮失败时回退?
+836:  local BEST_ROUND=0
+837:  local BEST_MEDIAN=0
+896:        if python3 -c "exit(0 if float('${MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+897:          BEST_ROUND=$ROUND
+898:          BEST_MEDIAN=$MEDIAN
+910:    # 连续 5 轮失败 → 回退到最佳轮次重新开始
+911:    if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+913:      echo "⚠ 连续 ${CONSECUTIVE_REJECTS} 轮失败，回退到 Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+915:      BEST_SHA=$(cat "${PROJECT_ROOT}/_hyper-loop/archive/round-${BEST_ROUND}/git-sha.txt" 2>/dev/null)
+918:        echo "  ✓ 代码已回退"
+  ✓ 有回退逻辑
+
+Then: 读取 archive/round-N/git-sha.txt?
+790:  git -C "$PROJECT_ROOT" rev-parse HEAD > "$ARCHIVE/git-sha.txt" 2>/dev/null || true
+800:  if [[ ! -f "$ARCHIVE/git-sha.txt" ]]; then
+801:    echo "ERROR: Round ${TARGET_ROUND} 档案不存在或没有 git-sha.txt" >&2
+806:  SHA=$(cat "$ARCHIVE/git-sha.txt")
+915:      BEST_SHA=$(cat "${PROJECT_ROOT}/_hyper-loop/archive/round-${BEST_ROUND}/git-sha.txt" 2>/dev/null)
+  ✓ 读取 git-sha.txt
+
+Then: git checkout 回退?
+808:  git -C "${PROJECT_ROOT:-.}" checkout "$SHA" -- .
+917:        git -C "$PROJECT_ROOT" checkout "$BEST_SHA" -- . 2>/dev/null || true
+  ✓ 有 checkout 回退
+
+Then: CONSECUTIVE_REJECTS 重置为 0?
+835:  local CONSECUTIVE_REJECTS=0
+893:        CONSECUTIVE_REJECTS=0
+920:      CONSECUTIVE_REJECTS=0
+  ✓ 有重置

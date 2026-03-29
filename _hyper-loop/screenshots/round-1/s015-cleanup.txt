@@ -1,0 +1,36 @@
+=== S015: worktree 清理 ===
+Then: worktree 被移除?
+598:    git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null || true
+  ✓ 有 worktree remove
+
+Then: 分支被删除?
+599:    [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null || true
+  ✓ 有 branch -D
+
+Then: tmux writer windows 被关闭?
+95:kill_agent() {
+97:  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
+234:    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
+421:  kill_agent "tester"
+505:    kill_agent "$NAME"
+591:    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
+  ✓ 有 kill-window
+
+cleanup_round 函数内容:
+cleanup_round() {
+  local ROUND="$1"
+
+  tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
+    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
+  done
+
+  for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
+    [[ -d "$WT" ]] || continue
+    local BRANCH
+    BRANCH=$(git -C "$WT" branch --show-current 2>/dev/null || true)
+    git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null || true
+    [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null || true
+  done
+
+  cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null || true
+}

@@ -1,0 +1,14 @@
+=== S006: Writer 超时处理 ===
+Then: 默认超时 900s (15分钟)?
+198:  local TIMEOUT="${2:-900}"  # 默认 15 分钟
+402:  echo "等待 Tester 完成（最多 15 分钟）..."
+  ✓ 默认 15 分钟
+Then: 超时写 DONE.json status=timeout?
+224:        [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"
+  ✓ 有超时写 DONE.json
+Then: status!=done 时 Writer 被跳过?
+250:    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计"
+317:    if [[ "$STATUS" != "done" ]]; then
+318:      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过"
+648:    echo "构建失败，跳过 Tester 和 Reviewer"
+  ✓ 非 done 状态被跳过

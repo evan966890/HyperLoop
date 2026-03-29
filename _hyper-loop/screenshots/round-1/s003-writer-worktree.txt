@@ -1,0 +1,26 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+Then: 为每个 task 创建 worktree?
+124:    git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>/dev/null
+303:  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" 2>/dev/null
+  ✓ 有 worktree add 调用
+Then: 写入 ~/.codex/config.toml trust?
+127:    # Codex 的 trust 存在 ~/.codex/config.toml
+130:    if ! grep -q "\"$REAL_WT\"" ~/.codex/config.toml 2>/dev/null; then
+131:      printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$REAL_WT" >> ~/.codex/config.toml
+184:    # 等 Codex 完全启动（trust 已通过 config.toml 预配置，不会弹确认）
+131:      printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$REAL_WT" >> ~/.codex/config.toml
+  ✓ 有 trust 配置写入
+Then: Codex 在 tmux window 启动?
+65:  tmux new-window -t "hyper-loop" -n "$NAME"
+179:    tmux new-window -t hyper-loop -n "$WRITER_NAME"
+61:  local CLI="$2"     # e.g. "codex --full-auto"
+127:    # Codex 的 trust 存在 ~/.codex/config.toml
+130:    if ! grep -q "\"$REAL_WT\"" ~/.codex/config.toml 2>/dev/null; then
+  ✓ 有 tmux + codex 启动
+Then: _ctx/ 目录复制到 worktree?
+136:    cp -r "${PROJECT_ROOT}/_hyper-loop/context" "${WT}/_ctx"
+147:1. 先读 _ctx/ 下所有 .md 文件了解项目：
+277:      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+732:先读 _ctx/ 下所有文件。
+763:先读 _ctx/ 下所有文件，特别是 bdd-specs.md。
+  ✓ 有 _ctx 复制逻辑
