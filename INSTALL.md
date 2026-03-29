@@ -76,6 +76,32 @@ which cliclick         # macOS 鼠标模拟
 which peekaboo         # macOS 截图
 ```
 
+## 关键：在目标项目安装 Guard Hook
+
+**不做这一步，Claude 会无视所有规则直接改代码。** 这是 v5.1 实测验证的教训。
+
+```bash
+# 在目标项目中创建 .claude/settings.json
+mkdir -p ~/Desktop/ClawMom1-setup/.claude
+cat > ~/Desktop/ClawMom1-setup/.claude/settings.json <<'HOOKEOF'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/skills/hyper-loop/hooks/pre-write-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+HOOKEOF
+```
+
 ## 使用
 
 ```bash
