@@ -13,6 +13,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# macOS 没有 timeout，用 coreutils 的 gtimeout
+if command -v gtimeout >/dev/null 2>&1; then
+  timeout() { gtimeout "$@"; }
+elif ! command -v timeout >/dev/null 2>&1; then
+  timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
+fi
+
 # ── 加载项目配置 ──
 load_config() {
   local CONFIG_FILE="${PROJECT_ROOT:-.}/_hyper-loop/project-config.env"
@@ -713,7 +720,7 @@ fi)
 \`\`\`
 ## 修复任务: TASK-N
 ### 上下文
-先读 _ctx/ 下所��文件。
+先读 _ctx/ 下所有文件。
 ### 问题
 [优先级] 具体问题描述
 ### 相关文件
@@ -728,7 +735,8 @@ fi)
 直接写文件，不要输出到 stdout。
 DPROMPT
 
-  claude --dangerously-skip-permissions -p "$(cat "$DECOMPOSE_PROMPT")" \
+  # 用 stdin 管道传 prompt（避免命令行参数过长）
+  cat "$DECOMPOSE_PROMPT" | claude --dangerously-skip-permissions -p - \
     --add-dir "$PROJECT_ROOT" \
     > "${PROJECT_ROOT}/_hyper-loop/logs/decompose-r${ROUND}.log" 2>&1 || true
 
