@@ -116,6 +116,15 @@ start_writers() {
     # 创建 worktree
     git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>/dev/null
 
+    # 预 trust worktree 目录（解决 Codex "Do you trust?" 弹窗）
+    # Codex 的 trust 存在 ~/.codex/config.toml
+    local REAL_WT
+    REAL_WT=$(cd "$WT" && pwd -P)  # 解析 /private/tmp → /tmp 等符号链接
+    if ! grep -q "\"$REAL_WT\"" ~/.codex/config.toml 2>/dev/null; then
+      printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$REAL_WT" >> ~/.codex/config.toml
+      echo "  ✓ Codex trusted: $REAL_WT"
+    fi
+
     # 复制上下文包 + 任务文件
     cp -r "${PROJECT_ROOT}/_hyper-loop/context" "${WT}/_ctx"
     cp "$TASK_FILE" "${WT}/TASK.md"
@@ -165,13 +174,10 @@ WINIT
     tmux send-keys -t "hyper-loop:${WRITER_NAME}" \
       "cd ${WT} && codex --dangerously-bypass-approvals-and-sandbox" Enter
 
-    # 等 Codex 启动 + 按过 "Do you trust this directory?" 确认
-    # Codex 即使用了 --dangerously-bypass 仍会弹 trust 确认
-    sleep 3
-    tmux send-keys -t "hyper-loop:${WRITER_NAME}" Enter  # 按 Enter 确认 trust
-    sleep 2
+    # 等 Codex 完全启动（trust 已通过 config.toml 预配置，不会弹确认）
+    sleep 5
 
-    # 注入 WRITER_INIT（Codex 已经进入交互模式后）
+    # 注入 WRITER_INIT
     tmux load-buffer -b "winit-${TASK_NAME}" "${WT}/WRITER_INIT.md"
     tmux paste-buffer -d -r -b "winit-${TASK_NAME}" -t "hyper-loop:${WRITER_NAME}"
     tmux send-keys -t "hyper-loop:${WRITER_NAME}" Enter
