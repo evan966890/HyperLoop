@@ -164,7 +164,14 @@ WINIT
     tmux pipe-pane -o -t "hyper-loop:${WRITER_NAME}" "cat >> '${LOG_DIR}/${WRITER_NAME}.log'"
     tmux send-keys -t "hyper-loop:${WRITER_NAME}" \
       "cd ${WT} && codex --dangerously-bypass-approvals-and-sandbox" Enter
+
+    # 等 Codex 启动 + 按过 "Do you trust this directory?" 确认
+    # Codex 即使用了 --dangerously-bypass 仍会弹 trust 确认
+    sleep 3
+    tmux send-keys -t "hyper-loop:${WRITER_NAME}" Enter  # 按 Enter 确认 trust
     sleep 2
+
+    # 注入 WRITER_INIT（Codex 已经进入交互模式后）
     tmux load-buffer -b "winit-${TASK_NAME}" "${WT}/WRITER_INIT.md"
     tmux paste-buffer -d -r -b "winit-${TASK_NAME}" -t "hyper-loop:${WRITER_NAME}"
     tmux send-keys -t "hyper-loop:${WRITER_NAME}" Enter
