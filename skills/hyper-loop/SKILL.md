@@ -111,7 +111,7 @@ find docs/design -name "*.md" -exec cp {} _hyper-loop/context/ \;
 ### Step 2: 调用脚本
 
 ```bash
-PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/hyper-loop.sh round 1
+PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round 1
 ```
 
 **脚本自动执行（你不需要手动做）：**
@@ -137,7 +137,7 @@ cat _hyper-loop/tasks/round-1/verdict.env
 ### Step 4: 下一轮
 
 ```bash
-PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/hyper-loop.sh round 2
+PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round 2
 ```
 
 ---

@@ -1,0 +1,10 @@
+{
+  "name": "hyper-loop",
+  "description": "Multi-agent self-improving development loop. BDD-driven validation, 3 Reviewer consensus, Tester with real UI automation, Writer in worktrees. Orchestrator cannot write business code — enforced by hooks.",
+  "version": "5.2.0",
+  "author": {
+    "name": "Evan Tian",
+    "email": "evan@clawmom.ai"
+  },
+  "license": "MIT"
+}

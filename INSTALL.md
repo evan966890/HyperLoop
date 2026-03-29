@@ -1,23 +1,47 @@
 # HyperLoop 安装指南
 
-## 安装 Skill + Command
+## 方式 1：作为 Claude Code Plugin 安装（推荐）
 
 ```bash
-# 复制 skill
-mkdir -p ~/.claude/skills/hyper-loop
-cp SKILL.md ~/.claude/skills/hyper-loop/
-cp -r templates ~/.claude/skills/hyper-loop/
-cp hyper-loop.sh ~/.claude/skills/hyper-loop/
-chmod +x ~/.claude/skills/hyper-loop/hyper-loop.sh
-cp -r hooks ~/.claude/skills/hyper-loop/
+# 注册为本地 plugin
+claude plugin add --dir ~/Desktop/HyperLoop
 
-# 复制 slash command
-cp commands/hyper-loop.md ~/.claude/commands/
+# 或者手动复制到 plugins 目录
+cp -r ~/Desktop/HyperLoop ~/.claude/plugins/hyper-loop
 ```
 
-## 安装 Guard Hook（防止 Claude 直接改源码）
+安装后 hook 自动生效：
+- **SessionStart**: 进入有 `_hyper-loop/` 的项目时自动注入 Orchestrator 规则
+- **PreToolUse(Edit|Write)**: 阻止直接修改业务代码
+- **Stop**: 有未裁决的评分分歧时阻止退出
 
-在目标项目的 `.claude/settings.json` 中添加：
+## 方式 2：手动安装
+
+```bash
+# Skill
+mkdir -p ~/.claude/skills/hyper-loop
+cp skills/hyper-loop/SKILL.md ~/.claude/skills/hyper-loop/
+
+# 脚本
+cp scripts/hyper-loop.sh ~/.claude/skills/hyper-loop/
+chmod +x ~/.claude/skills/hyper-loop/hyper-loop.sh
+
+# 模板
+cp -r templates ~/.claude/skills/hyper-loop/
+
+# Agent 定义
+cp -r agents ~/.claude/skills/hyper-loop/
+
+# Slash command
+cp commands/hyper-loop.md ~/.claude/commands/
+
+# Hook（需要手动配置 settings.json）
+# 见下方"手动 Hook 配置"
+```
+
+### 手动 Hook 配置
+
+在 `~/.claude/settings.json` 的 `hooks` 字段中添加：
 
 ```json
 {
@@ -28,7 +52,7 @@ cp commands/hyper-loop.md ~/.claude/commands/
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/skills/hyper-loop/hooks/guard-no-direct-edit.sh"
+            "command": "bash ~/.claude/skills/hyper-loop/hooks/pre-write-guard.sh"
           }
         ]
       }
@@ -36,8 +60,6 @@ cp commands/hyper-loop.md ~/.claude/commands/
   }
 }
 ```
-
-这个 hook 会阻止 Claude 直接用 Edit/Write 修改业务代码文件，强制它把任务写到 `_hyper-loop/tasks/` 让 Writer 来改。
 
 ## 前置依赖
 
@@ -56,15 +78,33 @@ which peekaboo         # macOS 截图
 
 ## 使用
 
-在目标项目中：
-
 ```bash
-cd ~/Desktop/ClawMom1-setup
+cd ~/Desktop/ClawMom1-setup  # 目标项目
 claude
 # 输入: /hyper-loop 安装向导完整流程
 ```
 
 Phase 0 完成后，每轮循环：
 1. Claude 拆任务 → 写 `_hyper-loop/tasks/round-N/taskM.md`
-2. Claude 跑 `PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/hyper-loop.sh round N`
+2. Claude 跑 `PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round N`
 3. Claude 读 `_hyper-loop/tasks/round-N/verdict.env` → 决策 → 下一轮
+
+## Plugin 结构说明
+
+```
+hyper-loop/
+├── .claude-plugin/plugin.json    # 插件元数据
+├── hooks/
+│   ├── hooks.json                # hook 声明
+│   ├── session-start.sh          # SessionStart → 注入 Orchestrator 规则
+│   ├── pre-write-guard.sh        # PreToolUse → 阻止直接写业务代码
+│   └── stop-guard.sh             # Stop → 未裁决时阻止退出
+├── scripts/
+│   └── hyper-loop.sh             # 编排脚本（tmux/writer/tester/reviewer/和议）
+├── skills/hyper-loop/SKILL.md    # Claude 的决策指南
+├── agents/
+│   ├── tester.md                 # Tester 子 agent 定义
+│   └── reviewer.md               # Reviewer 子 agent 定义
+├── templates/                    # 4 个角色初始化模板
+└── commands/hyper-loop.md        # /hyper-loop 命令入口
+```
