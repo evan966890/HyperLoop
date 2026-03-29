@@ -330,9 +330,16 @@ merge_writers() {
     local BRANCH
     BRANCH=$(git -C "$WT" branch --show-current)
 
-    # 保存 diff
-    git -C "$WT" diff HEAD > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null
-    git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
+    # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
+    # 必须先 commit 才能 merge
+    git -C "$WT" add -A 2>/dev/null
+    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty 2>/dev/null || true
+
+    # 保存 diff（对比 worktree 创建时的 parent commit）
+    git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
+      git -C "$WT" diff HEAD > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null
+    git -C "$WT" diff --stat HEAD~1 > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null || \
+      git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
 
     # squash merge
     if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
@@ -392,9 +399,9 @@ TREQ
   tmux paste-buffer -d -r -b "test-req-r${ROUND}" -t hyper-loop:tester
   tmux send-keys -t hyper-loop:tester Enter
 
-  echo "等待 Tester 完成（最多 10 分钟）..."
+  echo "等待 Tester 完成（最多 15 分钟）..."
   local WAITED=0
-  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 600 ]]; do
+  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
     sleep 15
     ((WAITED += 15))
     if ! tmux list-panes -t hyper-loop:tester >/dev/null 2>&1; then
@@ -455,9 +462,9 @@ run_reviewers() {
     tmux send-keys -t "hyper-loop:${NAME}" Enter
   done
 
-  echo "等待 3 个 Reviewer 完成（最多 5 分钟）..."
+  echo "等待 3 个 Reviewer 完成（最多 10 分钟）..."
   local WAITED=0
-  while [[ "$WAITED" -lt 300 ]]; do
+  while [[ "$WAITED" -lt 600 ]]; do
     local DONE_COUNT=0
     for NAME in reviewer-a reviewer-b reviewer-c; do
       [[ -f "${SCORES_DIR}/${NAME}.json" ]] && ((DONE_COUNT++)) || true
