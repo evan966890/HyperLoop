@@ -108,39 +108,32 @@ find docs/design -name "*.md" -exec cp {} _hyper-loop/context/ \;
 场景 S012: Gateway 异常时显示红灯
 ```
 
-### Step 2: 启动无人值守循环
+### Step 2: 告诉用户启动循环
 
-**Phase 0 完成后，必须调用 loop 命令启动死循环。不要用 round。**
+**Phase 0 完成后，你的工作结束了。** 告诉用户在终端直接运行以下命令：
 
 ```bash
-PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh loop 50
+cd ~/Desktop/ClawMom1-setup
+PROJECT_ROOT=$(pwd) nohup ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh loop 50 \
+  > _hyper-loop/loop.log 2>&1 &
 ```
 
-脚本自动循环执行（你不需要再介入）：
-1. 用 Claude -p 非交互模式自动拆解任务
-2. 为每个 task*.md 创建 worktree + 启动 Codex Writer
-3. 等待所有 Writer 完成（超时 15min）
-4. Diff 审计 + Squash merge
-5. 构建 App
-6. 启动 Tester（Claude），按 BDD spec 截图验证
-7. 启动 3 个 Reviewer（Gemini + Claude + Codex），独立评分
-8. 和议计算：中位数 + 一票否决
-9. ACCEPTED → merge 到 main / REJECTED → 丢弃
-10. 30s 冷却 → 下一轮
+**你不要自己调用这个命令。** 循环必须在 Claude 之外运行，否则：
+- 你会自己改代码绕过 Writer
+- 你会跳过 Tester 和 Reviewer
+- 你会找借口不循环
 
-**停止方法：** `touch _hyper-loop/STOP`
+脚本在用户终端自主循环：
+1. 用 Claude -p 非交互模式拆任务（不是你这个会话）
+2. Codex Writer 在 worktree 里改代码
+3. Tester 截图验证
+4. 3 Reviewer 评分
+5. 和议 → keep/reset → 下一轮
 
-**监控方法：**
-```bash
-# 在另一个终端
-tail -f _hyper-loop/loop.log
-# 或
-PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh status
-```
-
-**自动达标停止：** median >= 8.0 时脚本自动退出
-
-**自动回退：** 连续 5 轮失败 → 回退到历史最佳轮次重新开始
+**用户监控：** `tail -f _hyper-loop/loop.log`
+**用户停止：** `touch _hyper-loop/STOP`
+**自动达标：** median >= 8.0 停止
+**自动回退：** 连续 5 轮失败 → 回退最佳轮次
 
 ---
 
