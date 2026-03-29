@@ -736,6 +736,7 @@ fi)
 DPROMPT
 
   # 用 stdin 管道传 prompt（避免命令行参数过长）
+  mkdir -p "${PROJECT_ROOT}/_hyper-loop/logs"
   cat "$DECOMPOSE_PROMPT" | claude --dangerously-skip-permissions -p - \
     --add-dir "$PROJECT_ROOT" \
     > "${PROJECT_ROOT}/_hyper-loop/logs/decompose-r${ROUND}.log" 2>&1 || true
@@ -839,12 +840,12 @@ cmd_loop() {
     echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    # 自动拆解任务
-    auto_decompose "$ROUND"
-
-    # 执行本轮
+    # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
     init_dirs "$ROUND"
     ensure_session
+
+    # 自动拆解任务
+    auto_decompose "$ROUND"
 
     local PREV_MEDIAN=0
     if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
