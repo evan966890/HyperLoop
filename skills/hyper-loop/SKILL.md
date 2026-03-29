@@ -108,32 +108,32 @@ find docs/design -name "*.md" -exec cp {} _hyper-loop/context/ \;
 场景 S012: Gateway 异常时显示红灯
 ```
 
-### Step 2: 告诉用户启动循环
+### Step 2: 启动后台循环（nohup，不阻塞当前会话）
 
-**Phase 0 完成后，你的工作结束了。** 告诉用户在终端直接运行以下命令：
+Phase 0 完成后，用 Bash 工具把脚本扔到后台：
 
 ```bash
-cd ~/Desktop/ClawMom1-setup
 PROJECT_ROOT=$(pwd) nohup ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh loop 50 \
   > _hyper-loop/loop.log 2>&1 &
+echo "HyperLoop 已在后台启动，PID: $!"
+echo $! > _hyper-loop/loop.pid
 ```
 
-**你不要自己调用这个命令。** 循环必须在 Claude 之外运行，否则：
-- 你会自己改代码绕过 Writer
-- 你会跳过 Tester 和 Reviewer
-- 你会找借口不循环
+**脚本在后台自主循环，不依赖当前会话。** 你关掉这个会话也不影响。
 
-脚本在用户终端自主循环：
-1. 用 Claude -p 非交互模式拆任务（不是你这个会话）
-2. Codex Writer 在 worktree 里改代码
+循环内容：
+1. Claude -p 非交互模式拆任务（新进程，不是你）
+2. Codex Writer 在 worktree 改代码
 3. Tester 截图验证
 4. 3 Reviewer 评分
-5. 和议 → keep/reset → 下一轮
+5. 和议 → keep/reset → 30s 冷却 → 下一轮
 
-**用户监控：** `tail -f _hyper-loop/loop.log`
-**用户停止：** `touch _hyper-loop/STOP`
-**自动达标：** median >= 8.0 停止
-**自动回退：** 连续 5 轮失败 → 回退最佳轮次
+然后告诉用户：
+- **看进度：** `tail -f _hyper-loop/loop.log`
+- **停止：** `touch _hyper-loop/STOP`
+- **自动达标停止：** median >= 8.0
+- **自动回退：** 连续 5 轮失败 → 回退最佳轮次
+- **查看结果：** `cat _hyper-loop/results.tsv`
 
 ---
 
