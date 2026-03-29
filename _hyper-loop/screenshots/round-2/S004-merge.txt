@@ -1,0 +1,7 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+git add -A && commit: line 335-336 ✓
+squash merge: line 345 git merge --squash ✓
+patch 生成: line 339-340 ✓ (task1,3,4,5 有 .patch)
+stat 生成: line 341-342 ✓ (task1,3,4,5 有 .stat)
+task2 缺少 patch/stat: Writer2 可能 blocked 或无改动
+P1: stat 文件含 _ctx/ 和 WRITER_INIT.md 等辅助文件的 diff (无害但冗余)

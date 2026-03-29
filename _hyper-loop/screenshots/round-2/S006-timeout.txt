@@ -1,0 +1,4 @@
+=== S006: Writer 超时处理 ===
+默认超时: 900s (15分钟) line 198 ✓
+超时写 DONE.json: line 224 echo '{"status":"timeout"}' ✓
+标记为 failed: merge_writers line 317 status!=done → 跳过 ✓

@@ -1,0 +1,5 @@
+=== S002: auto_decompose 生成任务文件 ===
+任务文件数: 5 (task1-task5.md)
+每个文件包含 '修复任务' 和 '相关文件' 段落: ✓
+降级逻辑: line 760-779 生成默认 task1.md ✓
+路径引用: auto_decompose line 712-713 用 _hyper-loop/bdd-specs.md (文件存在) ✓

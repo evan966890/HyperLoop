@@ -1,0 +1,5 @@
+=== S013: 连续 5 轮失败自动回退 ===
+检查: line 915 CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0 ✓
+回退: line 919-922 读 archive git-sha.txt + checkout ✓
+重置: line 924 CONSECUTIVE_REJECTS=0 ✓
+P1: 回退条件要求 BEST_ROUND > 0，如果从未有 ACCEPTED 轮则不回退 (设计合理)

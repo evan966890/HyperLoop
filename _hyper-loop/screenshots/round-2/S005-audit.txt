@@ -1,0 +1,7 @@
+=== S005: diff 审计拦截越界修改 ===
+audit_writer_diff: line 239-293 ✓
+ALLOWED_FILES 提取: grep '相关文件' 后提取文件名 ✓
+越界检查: 逐文件对比 ✓
+HyperLoop 白名单: DONE.json|WRITER_INIT.md|_ctx/*|TASK.md (line 277) ✓
+返回非零退出码: return 1 (line 288) ✓
+跳过合并: merge_writers line 324-326 跳过 ✓

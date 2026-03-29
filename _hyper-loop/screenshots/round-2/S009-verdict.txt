@@ -1,0 +1,5 @@
+=== S009: 和议计算正确 ===
+compute_verdict: line 510-584 ✓
+测试: scores=[5.0,6.0,7.0] prev_median=5.0 → median=6.0, ACCEPTED ✓
+verdict.env 输出格式正确 ✓
+SCORES 加引号: line 580 SCORES=\"...\" ✓

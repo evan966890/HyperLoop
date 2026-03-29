@@ -1,0 +1,4 @@
+=== S016: macOS timeout 兼容 ===
+gtimeout 检测: line 17-18 ✓
+fallback timeout 函数: line 20 用 background PID + sleep + kill ✓
+不报 command not found ✓

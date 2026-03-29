@@ -1,0 +1,2 @@
+P1: cmd_status 重复定义 (line 690 和 950)，后者覆盖前者
+P1: stat 文件含 _ctx/ 辅助文件 diff (应排除)

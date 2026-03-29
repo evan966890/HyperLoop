@@ -1,0 +1,9 @@
+=== S007: Tester 启动并生成报告 ===
+run_tester: line 376-422 ✓
+启动 Claude: line 380-381 claude --dangerously-skip-permissions ✓
+等待超时: 900s (15分钟) line 404 ✓
+超时降级: 生成空报告 line 417-418 ✓
+P0 BUG: TESTER_INIT.md 不存在!
+  引用: line 381 ${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md
+  实际: _hyper-loop/context/agents/tester.md
+  影响: Tester Agent 拿不到角色定义

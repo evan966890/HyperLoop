@@ -1,0 +1,4 @@
+=== S014: STOP 文件优雅退出 ===
+检查: line 845-848 检测 STOP 文件 → 删除 → break ✓
+退出码: break 后 cmd_loop 正常退出 (隐式 exit 0) ✓
+删除: line 847 rm $STOP_FILE ✓

@@ -583,23 +583,27 @@ PYVERDICT
   echo "═══════════════════════════════════"
 }
 
-# ── 清理 ──
+# ── 清理（所有命令容错，不能因为清理失败终止循环）──
 cleanup_round() {
   local ROUND="$1"
 
-  tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
-    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
-  done
+  # 用 subshell + set +e 确保清理不会触发 set -e 退出
+  (
+    set +e
+    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
+      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+    done
 
-  for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
-    [[ -d "$WT" ]] || continue
-    local BRANCH
-    BRANCH=$(git -C "$WT" branch --show-current 2>/dev/null || true)
-    git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null || true
-    [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null || true
-  done
+    for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
+      [[ -d "$WT" ]] || continue
+      local BRANCH
+      BRANCH=$(git -C "$WT" branch --show-current 2>/dev/null || echo "")
+      git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null
+      [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null
+    done
 
-  cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null || true
+    cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
+  ) || true
 }
 
 # ── 记录结果 ──

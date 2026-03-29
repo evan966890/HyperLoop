@@ -1,0 +1,7 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+squash merge: line 345 ✓
+merge 失败处理: line 349-352 ✓
+merge --abort: line 350 ✓
+标记 deferred: line 351 'conflict, deferred' ✓
+FAILED 计数: line 352 ((FAILED++)) ✓
+脚本不崩溃: || true 保护 ✓

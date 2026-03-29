@@ -1,0 +1,7 @@
+=== S015: worktree 清理 ===
+cleanup_round: line 587-603 ✓
+worktree remove: line 598 git worktree remove --force ✓
+分支删除: line 599 git branch -D ✓
+tmux 关闭: line 590-591 grep + kill-window ✓
+注意: Round 2 worktree 目前仍存在 (/tmp/hyper-loop-worktrees-r2/)
+  — 因为 Round 2 尚在进行中，cleanup 尚未执行 (正常)

@@ -1,0 +1,7 @@
+=== S001: loop 命令启动死循环 ===
+验证方法: 静态分析 + bash -n 语法检查
+bash -n: PASS
+loop 输出格式: line 853 输出 'LOOP: Round N/M' ✓
+results.tsv 写入: record_result 函数 line 606-621 ✓
+循环退出: break 在 line 931 (median>=8.0) 和 line 848 (STOP) ✓
+issue: 输出格式是 'LOOP: Round N/M' 而非 BDD 要求的 'Round N/M' (含前缀 LOOP:)

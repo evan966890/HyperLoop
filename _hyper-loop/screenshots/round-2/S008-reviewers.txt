@@ -1,0 +1,10 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+run_reviewers: line 425-507 ✓
+3 Reviewers: gemini + claude + codex (line 450) ✓
+等待超时: 600s (10分钟) line 467 ✓
+JSON 写入: ${SCORES_DIR}/reviewer-{a,b,c}.json ✓
+降级提取: Python JSON 从 pane 输出提取 (line 482-500) ✓
+P0 BUG: REVIEWER_INIT.md 不存在!
+  引用: line 457 ${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md
+  实际: _hyper-loop/context/agents/reviewer.md
+  影响: 所有 Reviewer Agent 拿不到角色定义

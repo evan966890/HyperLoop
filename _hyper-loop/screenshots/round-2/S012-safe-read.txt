@@ -1,0 +1,6 @@
+=== S012: verdict.env 安全读取 ===
+record_result: line 613-616 用 grep + cut (不 source) ✓
+cmd_round: line 668-669 用 grep + cut ✓
+cmd_loop: line 890-891 用 grep + cut ✓
+测试: SCORES="1.0 2.0 3.0" 正确读取无报错 ✓
+无 'command not found' 错误 ✓
