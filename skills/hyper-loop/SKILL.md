@@ -195,12 +195,45 @@ _hyper-loop/
 
 ## 使用
 
+### 方式 1: 手动单轮（你控制每一步）
+
 ```bash
-/hyper-loop                     # Phase 0 → Phase 1 循环
-/hyper-loop --resume            # 恢复
+/hyper-loop                     # Phase 0
+# 然后每轮：
+# 1. 拆任务 → 写 task*.md
+# 2. PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round N
+# 3. 读 verdict.env → 决策 → 下一轮
 ```
 
-Phase 0 完成后，每轮循环就是：
-1. 你拆任务 → 写 task*.md
-2. 跑 `hyper-loop.sh round N`
-3. 读 verdict.env → 决策 → 下一轮
+### 方式 2: 无人值守循环（推荐，像 autoresearch）
+
+Phase 0 完成后，直接启动死循环：
+
+```bash
+PROJECT_ROOT=$(pwd) nohup ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh loop 100 \
+  > _hyper-loop/loop.log 2>&1 &
+```
+
+脚本自动：拆任务 → Writer → build → Tester → Reviewer → 和议 → keep/reset → 下一轮。
+
+**停止方法：** `touch _hyper-loop/STOP`（当前轮完成后优雅退出）
+
+**监控方法：**
+```bash
+# 实时看进度
+tail -f _hyper-loop/loop.log
+
+# 看累计结果
+PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh status
+
+# 达到 median >= 8.0 自动停止
+```
+
+### 方式 3: 从历史最佳轮次重新开始
+
+```bash
+PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh resume-from 5
+# 代码回退到 Round 5 的状态，然后继续 loop
+```
+
+连续 5 轮失败时脚本也会自动回退到历史最佳轮次。
