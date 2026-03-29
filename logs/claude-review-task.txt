@@ -1,0 +1,9 @@
+请阅读当前目录下所有文件（SKILL.md, templates/*.md, logs/CONTEXT.md），评审以下维度：
+
+1. 可执行性（1-10）：新 Claude Code 会话能否按 SKILL.md 步骤执行？哪些步骤模糊？
+2. CLI 命令正确性（1-10）：运行 codex --help 和 gemini --help 验证参数是否存在
+3. 无人值守可行性（1-10）：哪些地方会弹出交互提示？bypass 是否覆盖？
+4. 数据流完整性（1-10）：Orchestrator→Writer→Reviewer 的信息传递是否可靠？
+5. 模板质量（1-10）：placeholder 是否都有填充来源？
+
+每个维度给评分+具体问题列表+改进建议。最后给综合评分和是否可投入使用的判断。
