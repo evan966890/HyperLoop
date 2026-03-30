@@ -1,0 +1,6 @@
+=== S006: Writer timeout ===
+198:  local TIMEOUT="${2:-900}"  # 默认 15 分钟
+200:  echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
+221:    if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
+224:        [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"
+RESULT: PASS

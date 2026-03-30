@@ -1,0 +1,18 @@
+=== S002: auto_decompose path check ===
+--- Lines referencing bdd-specs.md and contract.md ---
+75:    echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+76:    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+152:   - contract.md = 评估契约（你的代码将按什么标准评分）
+153:   - bdd-specs.md = BDD 行为规格（你的验收标准）
+393:1. 先读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解所有 BDD 场景
+438:    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+439:    echo "- BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+719:- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+720:- 评估契约：${PROJECT_ROOT}/_hyper-loop/contract.md
+774:先读 _ctx/ 下所有文件，特别是 bdd-specs.md。
+797:  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
+
+BUG: Line 719 uses _hyper-loop/bdd-specs.md (missing /context/)
+BUG: Line 720 uses _hyper-loop/contract.md (missing /context/)
+BUG: Line 797 uses _hyper-loop/bdd-specs.md (missing /context/)
+RESULT: FAIL (P0)

@@ -1,0 +1,7 @@
+=== S005: Diff audit blocks out-of-scope changes ===
+Line 248-250: Extracts allowed files from TASK.md "相关文件" section PASS
+Line 268-286: Iterates changed files, checks against allowed list PASS
+Line 279-281: Exempts DONE.json, WRITER_INIT.md, _ctx/*, TASK.md PASS
+Line 291: Returns non-zero (return 1) on violations PASS
+Line 327-330: merge_writers skips on audit failure PASS
+VERDICT: PASS

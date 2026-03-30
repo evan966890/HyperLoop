@@ -1,0 +1,7 @@
+=== S015: Worktree cleanup ===
+Line 596-598: Kills tmux windows matching w-/tester/reviewer PASS
+Line 600-606: git worktree remove + branch -D for each PASS
+ISSUE: WORKTREE_BASE directory (/tmp/hyper-loop-worktrees-rN/) itself NOT removed
+  Only contents (task*/integration) are cleaned via git worktree remove
+  No rmdir/rm -rf of $WORKTREE_BASE found
+VERDICT: PARTIAL PASS — P1: base dir lingers

@@ -1,0 +1,10 @@
+=== S005: diff 审计拦截越界修改 ===
+
+audit_writer_diff() 函数 (line 242):
+- 从 TASK.md 提取 "相关文件" 列表 (line 248-250) ✓
+- 对比实际改动 (line 258) ✓
+- 越界文件 → return 1 (line 292) ✓
+- 调用处：merge_writers 在 audit 失败时跳过合并 (line 328-331) ✓
+- 允许 DONE.json/WRITER_INIT.md/_ctx/TASK.md (line 280) ✓
+
+PASS

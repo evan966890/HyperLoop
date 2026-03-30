@@ -1,0 +1,5 @@
+322:      ((FAILED++)) || true
+329:      ((FAILED++)) || true
+353:      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+354:      echo "  ✗ ${TASK_NAME} conflict, deferred"
+355:      ((FAILED++)) || true

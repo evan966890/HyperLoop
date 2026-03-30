@@ -1,0 +1,8 @@
+=== S003 验证: Writer worktree 创建 + trust + 启动 ===
+✓ worktree 创建: git worktree add (line 124)
+✓ Codex trust: ~/.codex/config.toml 写入 (line 130-131)
+✓ Codex 启动: codex --dangerously-bypass-approvals-and-sandbox (line 182)
+✓ _ctx 复制: cp -r context → _ctx (line 136)
+✓ WRITER_INIT.md 生成 (line 140-175)
+
+结论: PASS

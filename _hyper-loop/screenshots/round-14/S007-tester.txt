@@ -1,0 +1,5 @@
+=== S007: Tester ===
+run_tester: exists
+tmux start: 1
+15min timeout: 1
+Empty report on timeout: 1

@@ -1,0 +1,17 @@
+=== S014: STOP 文件优雅退出 ===
+验证: 检测 STOP → 不执行当前轮 → exit 0 → 删除 STOP
+
+cmd_loop() (line 852-856):
+  if [[ -f "$STOP_FILE" ]]; then
+    echo "检测到 STOP 文件，优雅退出"
+    rm "$STOP_FILE"
+    break
+  fi
+
+分析:
+  检查位置: while 循环开头，在任何轮次操作之前 ✓
+  当前轮不执行: break 在 init_dirs/auto_decompose 之前 ✓
+  脚本正常退出: break 后走到 summary 打印，然后 cmd_loop 返回 ✓
+  STOP 文件被删除: rm "$STOP_FILE" ✓
+
+结论: PASS

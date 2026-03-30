@@ -1,0 +1,10 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+
+merge_writers() 函数 (line 299):
+- git add -A && git commit (line 338-339) ✓
+- squash merge 到 integration 分支 (line 348) ✓
+- task*.patch 生成 (line 342-343) ✓
+- task*.stat 生成 (line 344-345) ✓
+- "already up to date" 不会发生（先 commit 再 merge）✓
+
+PASS

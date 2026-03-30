@@ -1,0 +1,4 @@
+=== S006 ===
+wait_writers timeout=900s (15min) at line 198
+Timeout DONE.json: status=timeout at line 224
+VERDICT: PASS

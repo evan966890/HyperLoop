@@ -1,0 +1,57 @@
+=== S005: audit_writer_diff ===
+# ── Diff 审计（autoresearch 启示：产出必须在可控范围内）──
+audit_writer_diff() {
+  local WT="$1"
+  local TASK_FILE="${WT}/TASK.md"
+
+  # 从 TASK.md 提取"相关文件"列表
+  local ALLOWED_FILES
+  ALLOWED_FILES=$(grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
+    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html)' | \
+    sed 's/^[[:space:]]*//' | sort -u || true)
+
+  if [[ -z "$ALLOWED_FILES" ]]; then
+    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计"
+    return 0
+  fi
+
+  # 获取实际改了哪些文件
+  local CHANGED_FILES
+  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+
+  if [[ -z "$CHANGED_FILES" ]]; then
+    echo "  ⚠ Writer 没有改任何文件"
+    return 0
+  fi
+
+  # 检查是否有越界改动
+  local VIOLATIONS=""
+  while IFS= read -r changed; do
+    local FOUND=false
+    while IFS= read -r allowed; do
+      [[ -z "$allowed" ]] && continue
+      if [[ "$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then
+        FOUND=true
+        break
+      fi
+    done <<< "$ALLOWED_FILES"
+
+    # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+    case "$changed" in
+      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+    esac
+
+    if ! $FOUND; then
+      VIOLATIONS="${VIOLATIONS}    越界: ${changed}\n"
+    fi
+  done <<< "$CHANGED_FILES"
+
+  if [[ -n "$VIOLATIONS" ]]; then
+    echo "  ✗ Diff 审计失败：Writer 改了 TASK.md 范围外的文件"
+    echo -e "$VIOLATIONS"
+    return 1
+  fi
+
+  echo "  ✓ Diff 审计通过"
+  return 0
+}

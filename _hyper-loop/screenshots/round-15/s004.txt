@@ -1,0 +1,7 @@
+=== S004: Writer diff commit ===
+验证项:
+1. git add -A && git commit: YES (line 338-339)
+2. squash merge 到 integration: YES (line 348)
+3. patch 文件生成: YES (line 342-343)
+4. stat 文件生成: YES (line 344-345)
+RESULT: PASS

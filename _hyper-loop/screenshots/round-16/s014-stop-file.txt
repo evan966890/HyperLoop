@@ -1,0 +1,10 @@
+211:        break
+217:      break
+226:      break
+274:        break
+412:      break
+475:    [[ "$DONE_COUNT" -ge 3 ]] && break
+824:# ── 死循环模式（autoresearch 启示：NEVER STOP）──
+827:  local STOP_FILE="${PROJECT_ROOT:-.}/_hyper-loop/STOP"
+834:  echo "║  创建 _hyper-loop/STOP 文件可优雅停止          "
+852:    if [[ -f "$STOP_FILE" ]]; then

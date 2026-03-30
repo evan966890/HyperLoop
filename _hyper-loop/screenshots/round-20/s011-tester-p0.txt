@@ -1,0 +1,4 @@
+=== S011: Tester P0 否决 ===
+Line 552-556: tester_p0 = "P0" in text and ("bug" or "fail") ✓
+Line 560-561: REJECTED_TESTER_P0 decision ✓
+VERDICT: PASS

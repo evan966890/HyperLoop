@@ -1,0 +1,11 @@
+=== S008 验证: 3 Reviewer 启动并产出评分 ===
+✓ 3 Reviewer 定义: gemini/claude/codex (line 453)
+✓ 10 分钟超时 (WAITED < 600) (line 470)
+✓ JSON 降级提取: 从 pane 输出提取 {"score":...} (line 485-503)
+✓ score 字段检测 (line 495)
+✗ P0: REVIEWER_INIT.md 路径错误
+  脚本引用: _hyper-loop/context/REVIEWER_INIT.md (line 460)
+  实际文件: _hyper-loop/context/agents/reviewer.md
+  后果: Reviewer 无法读到角色定义
+
+结论: FAIL (P0: init 文件路径错误)

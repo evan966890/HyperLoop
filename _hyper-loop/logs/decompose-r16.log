@@ -1,0 +1,9 @@
+Round 16 拆解完成，5 个任务已写入 `_hyper-loop/tasks/round-16/`:
+
+| 任务 | 优先级 | 内容 | 对应 BDD |
+|------|--------|------|----------|
+| task1 | **P0** | 恢复被 `script` 命令覆写的 hyper-loop.sh（43B → 987行） | S001 |
+| task2 | P1 | cleanup_round 追加 `rm -rf "$WORKTREE_BASE"` 删除空基目录 | S015 |
+| task3 | P1 | 删除重复 cmd_status 定义 + 修正 Tester 超时消息 "10分钟→15分钟" | S007 |
+| task4 | P1 | 统一 auto_decompose/archive_round 路径为 `_hyper-loop/context/` | S002 |
+| task5 | P1 | cmd_loop grep verdict.env 加 `|| true` 防护 + 默认值 | S012 |

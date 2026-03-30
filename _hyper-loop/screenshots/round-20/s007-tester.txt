@@ -1,0 +1,7 @@
+=== S007: Tester 启动并生成报告 ===
+Line 383-384: Claude subprocess started in tmux ✓
+Line 405: "等待 Tester 完成（最多 15 分钟）..."
+Line 407: WAITED -lt 900 (15 min actual timeout) ✓
+Line 416-422: Report file check + empty report on timeout ✓
+BUG (P1): Line 421 says "10 分钟" but actual timeout is 900s (15 min)
+VERDICT: PASS (with P1 bug)

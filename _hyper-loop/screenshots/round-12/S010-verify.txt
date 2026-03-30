@@ -1,0 +1,5 @@
+=== S010 ===
+Veto: any(s < 4.0) at line 550
+REJECTED_VETO at line 559
+Python test: [3.5,6,7] → veto=True ✓
+VERDICT: PASS

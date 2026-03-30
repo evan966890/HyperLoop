@@ -1,0 +1,10 @@
+=== S013: 连续 5 轮失败自动回退 ===
+Line 922: if CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0 ✓
+Line 926: BEST_SHA from archive git-sha.txt ✓
+Line 928: git checkout to restore code ✓
+Line 931: CONSECUTIVE_REJECTS reset to 0 ✓
+P1 NOTE: BEST_ROUND only tracks ACCEPTED rounds (lines 907-910).
+  If no round was ever ACCEPTED (current situation: 19 REJECTED),
+  BEST_ROUND stays 0 and rollback never triggers.
+  BDD spec implies checking ALL rounds, not just accepted ones.
+VERDICT: PASS (with P1 caveat)

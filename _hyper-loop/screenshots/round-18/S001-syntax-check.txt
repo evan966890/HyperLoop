@@ -1,0 +1,13 @@
+== S001: bash -n syntax check ==
+$ bash -n scripts/hyper-loop.sh (HEAD version)
+syntax ok
+
+== cmd_loop analysis (line 825-955) ==
+- Takes MAX_ROUNDS param (default 999)
+- While loop: line 850 "while [[ "$ROUND" -le "$MAX_ROUNDS" ]]"
+- Output: "LOOP: Round ${ROUND}/${MAX_ROUNDS}" (line 860-861)
+- record_result called inside loop (line 892, 886)
+- Loop exits on: MAX_ROUNDS reached, STOP file, or median >= 8.0
+- results.tsv gets N rows for N rounds via record_result
+
+VERDICT: PASS

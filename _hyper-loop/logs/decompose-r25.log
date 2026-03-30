@@ -1,0 +1,10 @@
+已生成 4 个任务文件到 `_hyper-loop/tasks/round-25/`：
+
+| 任务 | 优先级 | 问题 |
+|------|--------|------|
+| task1 | **P0** | REVIEWER_INIT.md / TESTER_INIT.md 路径不存在 → 24 轮 0.0 分根因 |
+| task2 | **P0** | 工作副本被 `script` 命令覆盖（43 字节），需从 git HEAD 恢复 |
+| task3 | P1 | auto_decompose + archive_round 路径缺少 `context/` 前缀 |
+| task4 | P2 | 重复 cmd_status 死代码 + tester 超时消息 "10分钟" vs 实际 15分钟 |
+
+**关键发现**: TASK-1 是 24 轮全部 REJECTED_VETO 的根本原因。脚本引用 `context/REVIEWER_INIT.md` 和 `context/TESTER_INIT.md`，但实际文件在 `context/agents/reviewer.md` 和 `context/agents/tester.md`。Agent 读不到角色定义 → 不产出有效评分 → 降级写 score=0 → 触发 veto。

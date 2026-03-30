@@ -1,0 +1,4 @@
+=== S014 ===
+STOP file check at line 852
+rm STOP + break at lines 854-855
+VERDICT: PASS

@@ -1,0 +1,10 @@
+97:  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
+236:      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+590:cleanup_round() {
+597:      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+604:      git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null
+605:      [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null
+663:    cleanup_round "$ROUND"
+688:  cleanup_round "$ROUND"
+886:      cleanup_round "$ROUND"
+918:      cleanup_round "$ROUND"

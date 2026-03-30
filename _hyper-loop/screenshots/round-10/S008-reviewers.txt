@@ -1,0 +1,10 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+Code analysis (lines 428-510):
+- 3 reviewers: gemini, claude, codex (line 453)
+- BUG P0: References REVIEWER_INIT.md which does NOT exist!
+  Expected: _hyper-loop/context/REVIEWER_INIT.md
+  Actual files: _hyper-loop/context/agents/reviewer.md
+- Waits up to 600s (10 min) (line 470)
+- Fallback: extracts JSON from pane output (lines 481-504)
+- Python extraction looks for {"score":...} in captured pane
+RESULT: FAIL (P0: REVIEWER_INIT.md missing)

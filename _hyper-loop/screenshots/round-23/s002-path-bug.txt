@@ -1,0 +1,18 @@
+=== S002: auto_decompose Path Bug ===
+
+CORRECT paths (in start_agent, line 75-76):
+  Line 75: echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+  Line 76: echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+
+WRONG paths (in auto_decompose prompt, line 719-720):
+  Line 719: - BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+  Line 720: - 评估契约：${PROJECT_ROOT}/_hyper-loop/contract.md
+
+WRONG path (in archive_round, line 797):
+  Line 797: cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/"
+
+Actual file locations:
+/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md
+/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/bdd-specs.md
+
+VERDICT: P1 BUG - auto_decompose 和 archive_round 引用错误路径

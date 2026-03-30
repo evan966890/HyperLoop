@@ -1,0 +1,19 @@
+$ xxd scripts/hyper-loop.sh
+00000000: 5363 7269 7074 2073 7461 7274 6564 206f  Script started o
+00000010: 6e20 4d6f 6e20 4d61 7220 3330 2030 373a  n Mon Mar 30 07:
+00000020: 3030 3a33 3220 3230 3236 0a              00:32 2026.
+
+$ ls -la scripts/hyper-loop.sh
+-rwxr-xr-x@ 1 xiaomimacmini3  staff  43  3月 30 07:00 scripts/hyper-loop.sh
+
+$ git show HEAD:scripts/hyper-loop.sh | wc -l
+987
+
+$ git diff HEAD -- scripts/hyper-loop.sh | head -5
+diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
+--- a/scripts/hyper-loop.sh
++++ b/scripts/hyper-loop.sh
+(working copy completely replaced with "Script started on Mon Mar 30 07:00:32 2026")
+
+DIAGNOSIS: The Unix `script` command overwrote hyper-loop.sh instead of logging to its own file.
+The 987-line script in git HEAD is intact but the working copy is destroyed.

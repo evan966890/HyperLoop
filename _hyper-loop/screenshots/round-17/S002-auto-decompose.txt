@@ -1,0 +1,10 @@
+=== S002 验证: auto_decompose 生成任务文件 ===
+✓ auto_decompose 函数存在 (line 706)
+✓ 用 claude -p 非交互模式拆解 (line 760)
+✓ 降级逻辑: TASK_COUNT=0 时生成默认 task1.md (line 767-786)
+✓ 默认文件包含"修复任务"和"相关文件" (line 771, 779)
+⚠ decompose prompt 中 bdd-specs.md 路径 = _hyper-loop/bdd-specs.md
+  实际文件在 _hyper-loop/context/bdd-specs.md (但两处都存在副本)
+⚠ contract.md 同样路径偏差
+
+结论: PASS (路径有副本兜底，降级逻辑完整)

@@ -1,0 +1,6 @@
+=== S001: Loop Command Output Format ===
+Line 860: echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+Line 850: while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+Line 940: ((ROUND++))
+Line 625-627: record_result writes to results.tsv
+VERDICT: PASS (format matches 'Round N/M')

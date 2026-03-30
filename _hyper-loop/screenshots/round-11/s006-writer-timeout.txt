@@ -1,0 +1,18 @@
+=== S006: Writer 超时处理 ===
+验证: 超时写 DONE.json + 标记 failed
+
+wait_writers() (line 196-238):
+  TIMEOUT="${2:-900}" → 默认 15 分钟 ✓
+  
+  超时处理 (line 222-225):
+    if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
+      for WT in "${WORKTREE_BASE}"/task*; do
+        [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"
+      done
+    → 正确写入 timeout 状态 ✓
+
+  merge_writers 中 (line 319):
+    STATUS 读取: python3 -c "...json.load(open('${WT}/DONE.json'))['status']..."
+    if [[ "$STATUS" != "done" ]]: 跳过非 done 的 writer ✓
+
+结论: PASS

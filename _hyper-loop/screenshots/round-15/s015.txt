@@ -1,0 +1,9 @@
+=== S015: worktree 清理 ===
+验证项:
+1. 子 worktree 删除: YES (line 604: git worktree remove --force)
+2. 分支删除: YES (line 605: git branch -D)
+3. tmux windows 关闭: YES (line 596-598)
+4. 基目录 /tmp/hyper-loop-worktrees-rN/ 删除: NO ← BUG
+  cleanup_round 只删子目录，不删基目录本身
+  需要添加: rm -rf "$WORKTREE_BASE" 2>/dev/null
+RESULT: FAIL (基目录残留)

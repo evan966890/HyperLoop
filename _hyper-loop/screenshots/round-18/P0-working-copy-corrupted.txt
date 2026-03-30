@@ -1,0 +1,16 @@
+== P0 BUG: 工作副本被破坏 ==
+
+$ ls -la scripts/hyper-loop.sh
+-rwxr-xr-x  43 bytes  (应为 ~33KB)
+
+$ cat scripts/hyper-loop.sh
+Script started on Mon Mar 30 04:15:42 2026
+
+$ git show HEAD:scripts/hyper-loop.sh | wc -l
+987
+
+工作副本被 `script` 命令的输出覆盖，只剩 1 行 43 字节。
+git HEAD 版本（987 行）完好。
+
+影响: 直接运行 scripts/hyper-loop.sh 会失败（没有 shebang，没有函数）
+修复: git checkout HEAD -- scripts/hyper-loop.sh

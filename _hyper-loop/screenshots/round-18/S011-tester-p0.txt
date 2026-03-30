@@ -1,0 +1,15 @@
+== S011: Tester P0 否决 ==
+
+Python code lines 553-556:
+  tester_p0 = False
+  report = Path(report_path)
+  if report.exists():
+      text = report.read_text()
+      tester_p0 = "P0" in text and ("bug" in text.lower() or "fail" in text.lower())
+
+Line 560-561: elif tester_p0: decision = "REJECTED_TESTER_P0" ✓
+
+注意: veto 检查优先于 tester_p0 (line 558 vs 560)
+  → 如果同时有 veto 和 P0，决策是 REJECTED_VETO（合理）
+
+VERDICT: PASS

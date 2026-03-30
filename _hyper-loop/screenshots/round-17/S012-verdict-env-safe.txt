@@ -1,0 +1,7 @@
+=== S012 验证: verdict.env 安全读取 ===
+✓ record_result 用 grep 而非 source (line 621-623)
+✓ cmd_round 用 grep 读取 DECISION/MEDIAN (line 675-676)
+✓ cmd_loop 用 grep 读取 (line 897-898)
+✓ 没有任何 source verdict.env 或 . verdict.env
+
+结论: PASS

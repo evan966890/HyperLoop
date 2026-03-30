@@ -1,0 +1,32 @@
+=== S013: 连续 5 轮失败自动回退 ===
+验证: 5 连败 → 回退到最佳轮次
+
+cmd_loop() 回退逻辑 (line 922-931):
+  if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+    BEST_SHA=$(cat ".../archive/round-${BEST_ROUND}/git-sha.txt")
+    git checkout "$BEST_SHA" -- .
+    CONSECUTIVE_REJECTS=0
+  fi
+
+BUG (P1): BEST_ROUND 追踪逻辑 (line 907-909):
+  if python3 -c "exit(0 if float('${MEDIAN}') > float('${BEST_MEDIAN}') else 1)"; then
+    BEST_ROUND=$ROUND
+    BEST_MEDIAN=$MEDIAN
+  fi
+  
+  问题: 使用严格 > 比较
+    → 当所有轮次 MEDIAN=0.0 时：float('0.0') > float('0.0') = False
+    → BEST_ROUND 永远为 0
+    → 回退条件 BEST_ROUND -gt 0 永远不满足
+
+  实际证据: results.tsv 显示 10 轮连续 0.0 分
+    但从未触发回退机制 ✓ (bug 确认)
+
+  BEST_ROUND 仅在 ACCEPTED 分支内更新 (line 904-909)
+    → 如果从未 ACCEPTED，BEST_ROUND 永远为 0
+
+NOT FIXED in integration (task4 因 merge conflict 未合并)
+task4 的修复方案: 将 BEST_ROUND 追踪移出 ACCEPTED 块，第一轮无条件设置
+
+结论: FAIL
+BUG: P1 - 全零分时回退机制失效

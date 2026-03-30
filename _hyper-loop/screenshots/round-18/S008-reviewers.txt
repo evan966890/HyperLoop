@@ -1,0 +1,11 @@
+== S008: 3 Reviewer 启动并产出评分 ==
+
+run_reviewers() at line 428:
+- 3 reviewers: reviewer-a (gemini), reviewer-b (claude), reviewer-c (codex) (line 453) ✓
+- Started in tmux windows (line 459-464) ✓
+- Wait up to 600s = 10 min (line 470) ✓
+- Scores in scores/round-N/reviewer-{a,b,c}.json (line 472-474) ✓
+- JSON has "score" field (expected by extraction at line 489) ✓
+- Fallback: extract from pane output (lines 481-503) ✓
+
+VERDICT: PASS

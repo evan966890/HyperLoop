@@ -1,0 +1,6 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+Line 338: git add -A in worktree ✓
+Line 339: git commit with --allow-empty fallback ✓
+Line 348: squash merge to integration branch ✓
+Line 342-345: .patch and .stat files generated ✓
+VERDICT: PASS

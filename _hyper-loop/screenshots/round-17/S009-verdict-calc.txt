@@ -1,0 +1,7 @@
+=== S009 验证: 和议计算正确 ===
+✓ Python 中位数计算 (line 546)
+  测试: [5.0, 6.0, 7.0] → median=6.0 ✓
+✓ ACCEPTED 条件: median > prev_median (line 564)
+✓ verdict.env 写入所有字段 (line 577-583)
+
+结论: PASS

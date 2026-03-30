@@ -1,0 +1,6 @@
+=== S009: 和议计算正确 ===
+Line 546: median = scores[n//2] for odd, average for even ✓
+Line 564: ACCEPTED if median > prev_median ✓
+Line 577-583: verdict.env written with all fields ✓
+Test: scores=[5.0,6.0,7.0] → sorted=[5.0,6.0,7.0] → n=3 → median=6.0 ✓
+VERDICT: PASS

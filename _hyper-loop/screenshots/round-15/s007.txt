@@ -1,0 +1,7 @@
+=== S007: Tester 启动并生成报告 ===
+验证项:
+1. Tester Claude 在 tmux 启动: YES (line 383-384)
+2. 15 分钟超时: YES (line 407: WAITED -lt 900)
+3. 超时生成空报告: YES (line 419-422)
+BUG: 超时消息说'10分钟'但实际 900s=15分钟 (P1, line 421)
+RESULT: PASS (with P1 note)

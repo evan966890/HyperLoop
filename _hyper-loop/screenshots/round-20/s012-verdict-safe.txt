@@ -1,0 +1,9 @@
+=== S012: verdict.env 安全读取 ===
+Line 619: "# 安全读取（不 source，用 grep）" ✓
+Line 621: R_DECISION=$(grep '^DECISION=' ... | cut -d= -f2) ✓
+Line 622: R_MEDIAN=$(grep '^MEDIAN=' ... | cut -d= -f2) ✓
+Line 623: R_SCORES=$(grep '^SCORES=' ... | cut -d= -f2- | tr -d '"') ✓
+Line 675: cmd_round also uses grep ✓
+Line 897: cmd_loop also uses grep ✓
+NO source/eval on verdict.env anywhere ✓
+VERDICT: PASS

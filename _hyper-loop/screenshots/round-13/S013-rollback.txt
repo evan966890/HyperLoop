@@ -1,0 +1,18 @@
+=== S013: 连续 5 轮失败自动回退 ===
+    # 连续 5 轮失败 → 回退到最佳轮次重新开始
+    if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+      echo ""
+      echo "⚠ 连续 ${CONSECUTIVE_REJECTS} 轮失败，回退到 Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+      local BEST_SHA
+      BEST_SHA=$(cat "${PROJECT_ROOT}/_hyper-loop/archive/round-${BEST_ROUND}/git-sha.txt" 2>/dev/null)
+      if [[ -n "$BEST_SHA" ]]; then
+        git -C "$PROJECT_ROOT" checkout "$BEST_SHA" -- . 2>/dev/null || true
+        echo "  ✓ 代码已回退"
+      fi
+      CONSECUTIVE_REJECTS=0
+    fi
+
+Logic: CONSECUTIVE_REJECTS >= 5 AND BEST_ROUND > 0
+Reads git-sha.txt from archive, does 'git checkout SHA -- .'
+Resets CONSECUTIVE_REJECTS to 0
+RESULT: PASS

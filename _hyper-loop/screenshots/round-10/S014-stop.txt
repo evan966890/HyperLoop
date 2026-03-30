@@ -1,0 +1,7 @@
+=== S014: STOP 文件优雅退出 ===
+Code analysis (lines 852-856):
+- Checks for STOP file at start of each loop iteration
+- Prints "检测到 STOP 文件，优雅退出"
+- Removes STOP file (rm "$STOP_FILE")
+- break exits the while loop → script exits normally
+RESULT: PASS

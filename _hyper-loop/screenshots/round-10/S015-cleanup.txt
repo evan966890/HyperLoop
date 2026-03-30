@@ -1,0 +1,8 @@
+=== S015: worktree 清理 ===
+Code analysis (lines 590-610):
+- Uses subshell + set +e for safety (line 594)
+- Kills tmux windows matching ^w-|^tester|^reviewer (line 596)
+- Removes worktrees via git worktree remove --force (line 604)
+- Deletes branches with git branch -D (line 605)
+- Copies verdict.env to archive (line 608)
+RESULT: PASS

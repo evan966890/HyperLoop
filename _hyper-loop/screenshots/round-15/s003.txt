@@ -1,0 +1,7 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+验证项:
+1. worktree 创建: YES (line 124: git worktree add)
+2. config.toml trust: YES (line 130-132)
+3. Codex 在 tmux 中启动: YES (line 179-182)
+4. _ctx/ 复制: YES (line 136)
+RESULT: PASS

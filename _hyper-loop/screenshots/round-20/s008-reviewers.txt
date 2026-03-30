@@ -1,0 +1,7 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+Line 453: 3 reviewers defined (gemini, claude, codex) ✓
+Line 455-466: Each started in tmux with review request ✓
+Line 468-478: 10 min timeout with polling ✓
+Line 481-503: Fallback JSON extraction from pane output ✓
+Line 499: "score" field check in extracted JSON ✓
+VERDICT: PASS

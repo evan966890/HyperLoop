@@ -1,0 +1,5 @@
+=== S011: Tester P0 否决 ===
+Input: scores=[5.0, 6.0, 7.0], report contains "P0" + "fail"
+Expected: DECISION=REJECTED_TESTER_P0
+Actual:   DECISION=REJECTED_TESTER_P0
+RESULT: PASS

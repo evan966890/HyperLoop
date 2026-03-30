@@ -1,0 +1,10 @@
+Round 22 已拆解为 4 个任务：
+
+| 任务 | 优先级 | 问题 | BDD 场景 |
+|------|--------|------|----------|
+| task1 | P0 | 工作副本被覆写，需 `git checkout HEAD` 恢复 | S001 |
+| task2 | P0 | `auto_decompose` + `archive_round` 路径缺少 `/context/`（21 轮 0 分根因） | S002 |
+| task3 | P1 | `BEST_ROUND`/`BEST_MEDIAN` 不跨重启持久化，回退逻辑失效 | S013 |
+| task4 | P1 | `cmd_status()` 重复定义 + Tester 超时文案 10→15 分钟 | S007 |
+
+**依赖关系**: task1 必须先执行（恢复工作副本），task2/3/4 互相独立可并行。

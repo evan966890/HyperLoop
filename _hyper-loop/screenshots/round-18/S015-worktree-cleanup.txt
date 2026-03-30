@@ -1,0 +1,16 @@
+== S015: worktree 清理 ==
+
+cleanup_round() at line 590:
+- Subshell + set +e 确保不会崩溃 (line 594-595) ✓
+- Kill tmux windows (line 596-598) ✓
+- git worktree remove --force (line 604) ✓
+- git branch -D (line 605) ✓
+
+** P2 BUG: WORKTREE_BASE 父目录未清理 **
+/tmp/hyper-loop-worktrees-rN/ 下的 taskM 子目录被 git worktree remove 删除，
+但父目录 /tmp/hyper-loop-worktrees-rN/ 本身可能残留（空目录）。
+Spec 要求 "/tmp/hyper-loop-worktrees-rN/ 不存在"。
+
+缺少: rm -rf "$WORKTREE_BASE" 或 rmdir "$WORKTREE_BASE"
+
+VERDICT: FAIL (P2 — 父目录可能残留)

@@ -1,0 +1,11 @@
+=== auto_decompose wrong path ===
+Line 719 references: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+Actual location: _hyper-loop/context/bdd-specs.md
+---
+=== auto_decompose wrong contract.md path ===
+Line 720 references: ${PROJECT_ROOT}/_hyper-loop/contract.md
+Actual location: _hyper-loop/context/contract.md
+---
+=== archive_round wrong bdd-specs.md path ===
+Line 797 references: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+Actual location: _hyper-loop/context/bdd-specs.md

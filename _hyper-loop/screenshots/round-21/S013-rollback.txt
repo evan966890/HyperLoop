@@ -1,0 +1,20 @@
+=== S013: 5-round rollback ===
+846:  local CONSECUTIVE_REJECTS=0
+847:  local BEST_ROUND=0
+848:  local BEST_MEDIAN=0
+887:      ((CONSECUTIVE_REJECTS++)) || true
+904:        CONSECUTIVE_REJECTS=0
+907:        if python3 -c "exit(0 if float('${MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+908:          BEST_ROUND=$ROUND
+909:          BEST_MEDIAN=$MEDIAN
+913:        ((CONSECUTIVE_REJECTS++)) || true
+922:    if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+924:      echo "⚠ 连续 ${CONSECUTIVE_REJECTS} 轮失败，回退到 Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+926:      BEST_SHA=$(cat "${PROJECT_ROOT}/_hyper-loop/archive/round-${BEST_ROUND}/git-sha.txt" 2>/dev/null)
+931:      CONSECUTIVE_REJECTS=0
+952:  echo "  最佳轮次: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+
+P1: BEST_ROUND/BEST_MEDIAN only tracked in-memory during loop run.
+If loop restarts after crash, BEST_ROUND=0, making rollback impossible.
+BDD spec S013 requires reading from archive, but code only uses local vars.
+RESULT: PARTIAL PASS (P1)

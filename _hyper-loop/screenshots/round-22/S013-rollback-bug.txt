@@ -1,0 +1,10 @@
+=== S013: 连续 5 轮失败自动回退 BUG ===
+BDD spec requires: When 5 consecutive REJECTED, rollback to best scoring round.
+Code behavior: BEST_ROUND only updated when DECISION=ACCEPTED.
+If all rounds are REJECTED (like current 21 rounds), BEST_ROUND=0.
+Rollback condition: [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]
+Since BEST_ROUND=0, rollback NEVER triggers.
+
+Evidence: All 21 rounds in results.tsv are REJECTED_VETO with 0.0 median.
+BEST_ROUND would remain 0 throughout the entire run.
+The 5-reject rollback feature is effectively dead code in the current scenario.

@@ -1,0 +1,22 @@
+=== S005: diff 审计拦截越界修改 ===
+验证: audit_writer_diff 正确识别越界文件
+
+audit_writer_diff() (line 241-296):
+  正则提取相关文件 (line 249):
+    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html)'
+  
+BUG (P1): 缺少 .sh|.md|.json|.toml|.yaml|.yml|.env 等扩展名
+  本项目主文件是 scripts/hyper-loop.sh
+  → 正则匹配不到 .sh 文件
+  → ALLOWED_FILES 永远为空
+  → 走进 "跳过审计" 分支 (line 253: return 0)
+  → 越界修改检测完全失效
+
+NOT FIXED in integration (task3 因 merge conflict 未合并)
+
+验证:
+  echo "scripts/hyper-loop.sh" | grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html)'
+  → (无输出) 确认 bug
+
+结论: FAIL
+BUG: P1 - audit 正则不覆盖 .sh 文件，审计对本项目形同虚设

@@ -1,0 +1,8 @@
+=== S005: diff 审计拦截越界修改 ===
+Line 242-296: audit_writer_diff() function complete
+Line 248-250: Extracts allowed files from TASK.md "相关文件" section ✓
+Line 268-286: Checks each changed file against allowed list ✓
+Line 279-281: Exempts DONE.json, WRITER_INIT.md, _ctx/*, TASK.md ✓
+Line 291: return 1 on violation ✓
+Line 327-330: Writer output skipped on audit failure ✓
+VERDICT: PASS

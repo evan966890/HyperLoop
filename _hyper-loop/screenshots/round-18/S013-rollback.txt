@@ -1,0 +1,19 @@
+== S013: 连续 5 轮失败自动回退 ==
+
+cmd_loop() lines 922-932:
+  if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+    BEST_SHA=$(cat ".../archive/round-${BEST_ROUND}/git-sha.txt")
+    git checkout "$BEST_SHA" -- .
+    CONSECUTIVE_REJECTS=0
+  fi
+
+BEST_ROUND tracking (lines 907-910):
+  Updated only when ACCEPTED and median > BEST_MEDIAN ✓
+
+** P1 边界情况 **
+如果所有轮次都被 REJECTED（当前 17 轮全是 REJECTED_VETO），
+BEST_ROUND 始终为 0，回退永远不会触发。
+这不违反 BDD spec（spec 的 Given 要求 archive/round-2/git-sha.txt 存在且得分最高），
+但在实际运行中 17 轮全败的情况下，连续失败回退机制无效。
+
+VERDICT: PASS (spec 的前置条件满足时功能正确)

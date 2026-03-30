@@ -1,0 +1,6 @@
+=== S009 ===
+compute_verdict at line 513
+Median calc: scores[n//2] for odd (line 546)
+ACCEPTED when median > prev_median (line 564)
+Python test: median([5,6,7])=6.0 ✓
+VERDICT: PASS

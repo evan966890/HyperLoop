@@ -1,0 +1,8 @@
+=== S008: 3 Reviewers ===
+Line 453: 3 reviewers (gemini, claude, codex) PASS
+Line 470-478: Wait up to 600s (10 min) PASS
+Line 481-503: Fallback JSON extraction from pane PASS
+Line 498: score field checked PASS
+BUT: REVIEWER_INIT.md does not exist!
+  $ ls _hyper-loop/context/REVIEWER_INIT.md → NOT FOUND
+VERDICT: FAIL — P1 BUG: REVIEWER_INIT.md missing

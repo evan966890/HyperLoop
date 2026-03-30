@@ -1,0 +1,10 @@
+$ python3 verdict-test: scores=[5,6,7] median=6.0 expected=6.0 -> PASS
+$ python3 verdict-test: scores=[3.5,6,7] veto=True expected=True -> PASS
+$ python3 verdict-test: scores=[4,5,6,7] median=5.5 expected=5.5 -> PASS
+$ python3 verdict-test: P0+fail -> True expected=True -> PASS
+$ python3 verdict-test: no P0 -> False expected=False -> PASS
+
+$ bash -c 'set -euo pipefail; R_DECISION=$(grep ...) ...'
+S012 bash strict mode: no errors
+DECISION=REJECTED_VETO MEDIAN=0.0 SCORES=1.0 2.0 3.0
+S012_EXIT=0

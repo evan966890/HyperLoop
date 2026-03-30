@@ -1,0 +1,14 @@
+== S014: STOP 文件优雅退出 ==
+
+cmd_loop() lines 852-855:
+  if [[ -f "$STOP_FILE" ]]; then
+    echo "检测到 STOP 文件，优雅退出"
+    rm "$STOP_FILE"
+    break
+  fi
+
+- 在循环体最开始检查 → 当前轮不执行 ✓
+- break → 跳出 while 循环 → 脚本正常结束 (exit 0) ✓
+- rm "$STOP_FILE" → 删除 STOP 文件 ✓
+
+VERDICT: PASS

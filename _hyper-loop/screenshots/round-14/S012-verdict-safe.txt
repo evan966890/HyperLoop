@@ -1,0 +1,8 @@
+=== S012: verdict.env safe read ===
+All reads use grep+cut (not source):
+675:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+676:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+897:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+898:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+No 'source verdict' or '. verdict' found: 0
+PASS

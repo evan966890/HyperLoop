@@ -1,0 +1,4 @@
+=== S006: Writer timeout ===
+Default timeout: 900s (15min)
+DONE.json timeout write: 1
+Timeout check: 1

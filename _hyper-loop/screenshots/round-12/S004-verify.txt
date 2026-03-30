@@ -1,0 +1,6 @@
+=== S004 ===
+merge_writers at line 299
+git add -A at line 338, commit at line 339
+squash merge at line 348
+.patch at line 342, .stat at line 344
+VERDICT: PASS

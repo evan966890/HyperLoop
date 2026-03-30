@@ -1,0 +1,16 @@
+=== S011: Tester P0 否决 ===
+验证: 报告含 "P0" + "fail" → REJECTED_TESTER_P0
+
+compute_verdict Python3 (line 552-556):
+  tester_p0 = False
+  report = Path(report_path)
+  if report.exists():
+      text = report.read_text()
+      tester_p0 = "P0" in text and ("bug" in text.lower() or "fail" in text.lower())
+
+  测试: 报告含 "P0" 和 "fail" → tester_p0 = True ✓
+  决策逻辑 (line 560-561):
+    elif tester_p0:
+        decision = "REJECTED_TESTER_P0" ✓
+
+结论: PASS

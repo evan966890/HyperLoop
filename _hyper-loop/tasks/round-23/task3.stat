@@ -1,0 +1,22 @@
+ DONE.json                                |   1 +
+ TASK.md                                  |  28 +
+ WRITER_INIT.md                           |  34 ++
+ _ctx/INSTALL.md                          | 136 +++++
+ _ctx/SKILL.md                            | 234 ++++++++
+ _ctx/agents/reviewer.md                  |  30 +
+ _ctx/agents/tester.md                    |  30 +
+ _ctx/bdd-specs.md                        | 114 ++++
+ _ctx/cli-reference-verified.md           | 107 ++++
+ _ctx/contract.md                         |   6 +
+ _ctx/design-context.md                   |  53 ++
+ _ctx/hooks/hooks.json                    |  36 ++
+ _ctx/hooks/pre-write-guard.sh            |  57 ++
+ _ctx/hooks/session-start.sh              |  40 ++
+ _ctx/hooks/stop-guard.sh                 |  42 ++
+ _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
+ _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
+ _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
+ _ctx/templates/WRITER_INIT.md            | 111 ++++
+ scripts/hyper-loop.sh                    |   6 +-
+ 21 files changed, 2814 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+$ bash -n scripts/hyper-loop.sh
+# Working copy CORRUPTED: only 43 bytes
+# Content: "Script started on Mon Mar 30 07:00:32 2026"
+# EXIT_CODE=0 (vacuously — empty script has no syntax errors)
+
+$ bash -n <(git show HEAD:scripts/hyper-loop.sh)
+# Committed version: 987 lines, 13221 tokens
+# EXIT_CODE=0 (genuine pass)
+
+$ wc -l scripts/hyper-loop.sh
+1
+
+$ wc -l <(git show HEAD:scripts/hyper-loop.sh)
+987

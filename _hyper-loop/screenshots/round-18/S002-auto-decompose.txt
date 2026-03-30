@@ -1,0 +1,18 @@
+== S002: auto_decompose 生成任务文件 ==
+
+auto_decompose() at line 706:
+- Creates TASK_DIR (line 709)
+- Uses claude -p to decompose (line 760-762)
+- Checks TASK_COUNT (line 764-765)
+- Fallback generates default task1.md (line 770-786) with "修复任务" and "相关文件" ✓
+
+** P1 BUG: 错误的文件路径 **
+Line 719: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+Line 720: ${PROJECT_ROOT}/_hyper-loop/contract.md
+正确路径应为:
+  ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+  ${PROJECT_ROOT}/_hyper-loop/context/contract.md
+
+Claude 拿到的 decompose prompt 引用了不存在的文件，导致任务拆解质量下降。
+
+VERDICT: FAIL (P1 — 路径错误导致 Claude 读不到 BDD spec 和 contract)

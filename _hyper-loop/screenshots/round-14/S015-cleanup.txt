@@ -1,0 +1,7 @@
+=== S015: worktree cleanup ===
+cleanup_round function: exists
+worktree remove: 1
+branch -D: 1
+tmux kill-window: 3
+subshell + set +e: yes
+PASS

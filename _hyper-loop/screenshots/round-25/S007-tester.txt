@@ -1,0 +1,14 @@
+=== S007: Tester 启动并生成报告 ===
+
+run_tester() 函数 (line 379):
+- start_agent "tester" 在 tmux 中启动 (line 383-384) ✓
+- 15 分钟超时 (line 407, WAITED -lt 900) ✓
+- 超时生成空报告而非崩溃 (line 419-421) ✓
+
+BUG FOUND (P0):
+  Line 384: 引用 _hyper-loop/context/TESTER_INIT.md
+  实际路径: _hyper-loop/context/templates/TESTER_INIT.md
+  Tester 无法读取角色初始化文件，start_agent 中 INIT 参数指向不存在的文件。
+
+BUG FOUND (P1):
+  Line 421: 注释说 "10 分钟" 但代码实际是 900s = 15 分钟。

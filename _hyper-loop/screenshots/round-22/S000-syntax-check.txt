@@ -1,0 +1,7 @@
+=== bash -n syntax check on committed version ===
+EXIT_CODE=0
+
+=== Working copy is CORRUPTED ===
+Script started on Mon Mar 30 07:00:32 2026
+Committed version: 987 lines
+Working copy: 1 line (script command log)

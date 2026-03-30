@@ -1,0 +1,6 @@
+=== S007 ===
+run_tester at line 379
+tmux via start_agent (line 383)
+Timeout: 900s wait loop (line 407)
+Empty report on timeout (lines 418-421)
+VERDICT: PASS

@@ -1,0 +1,5 @@
+=== S010: 一票否决 (score < 4.0) ===
+$ python3 test: scores=[3.5, 6.0, 7.0]
+Scores: [3.5, 6.0, 7.0], Median: 6.0, Veto: True, Decision: REJECTED_VETO
+
+VERDICT: PASS

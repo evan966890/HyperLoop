@@ -1,0 +1,9 @@
+== S009: 和议计算正确 ==
+
+compute_verdict() at line 513, Python code at line 539-584:
+- Sorts scores and computes median (line 545-546) ✓
+  - scores=[5.0, 6.0, 7.0] → sorted=[5.0, 6.0, 7.0] → n=3, median=scores[1]=6.0 ✓
+- DECISION = ACCEPTED if median > prev_median (line 564) ✓
+- Writes verdict.env with all fields (line 577-583) ✓
+
+VERDICT: PASS

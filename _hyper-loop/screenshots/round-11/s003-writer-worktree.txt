@@ -1,0 +1,23 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+验证: worktree 创建、trust 配置、Codex 启动
+
+实际 round-11 worktrees:
+  /private/tmp/hyper-loop-worktrees-r11/task1  [hyper-loop/r11-task1]
+  /private/tmp/hyper-loop-worktrees-r11/task2  [hyper-loop/r11-task2]
+  /private/tmp/hyper-loop-worktrees-r11/task3  [hyper-loop/r11-task3]
+  /private/tmp/hyper-loop-worktrees-r11/task4  [hyper-loop/r11-task4]
+  → 4 个 worktree 正确创建 ✓
+
+Trust 配置 (line 130-133):
+  printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$REAL_WT" >> ~/.codex/config.toml
+  → 正确写入 trust 配置 ✓
+
+_ctx/ 复制 (line 136-137):
+  cp -r "${PROJECT_ROOT}/_hyper-loop/context" "${WT}/_ctx"
+  → 正确复制上下文 ✓
+
+tmux 启动 (line 179-191):
+  tmux new-window → pipe-pane → send-keys → load-buffer → paste-buffer
+  → 正确在 tmux 中启动 ✓
+
+结论: PASS

@@ -1,0 +1,4 @@
+=== S014: STOP file graceful exit ===
+Line 852-856: Checks STOP file, rm, break PASS
+Loop exits normally after break → rest of cmd_loop prints summary PASS
+VERDICT: PASS

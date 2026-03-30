@@ -1,0 +1,8 @@
+=== S011: Tester P0 否决 ===
+  text contains P0: True
+  text contains bug/fail: True
+  tester_p0 = True
+  decision = REJECTED_TESTER_P0
+
+Code: lines 592-594, 598
+RESULT: PASS

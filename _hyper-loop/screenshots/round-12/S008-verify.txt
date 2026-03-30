@@ -1,0 +1,6 @@
+=== S008 ===
+run_reviewers at line 428
+3 reviewers: gemini/claude/codex (line 453)
+10 min timeout (line 470)
+JSON extraction fallback (lines 481-505)
+VERDICT: PASS

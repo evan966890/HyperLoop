@@ -1,0 +1,101 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+
+--- REVIEW_REQ 共用文件 (line 434-451) ---
+  local REVIEW_REQ="/tmp/hyper-loop-review-r${ROUND}.md"
+  {
+    echo "## 评审请求 Round $ROUND"
+    echo ""
+    echo "请读以下文件后打分："
+    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+    echo "- BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+    echo "- Tester 试用报告：${REPORT_FILE}"
+    echo "- 截图目录：${SCREENSHOT_DIR}/"
+    echo "- 本轮 diff："
+    for STAT in "${TASK_DIR}"/*.stat; do
+      [[ -f "$STAT" ]] && cat "$STAT"
+    done
+    echo ""
+    echo "输出要求：只输出一个 JSON，格式："
+    echo '{"score":数字,"issues":[{"severity":"P0","desc":"描述"}],"summary":"一句话"}'
+    echo ""
+    echo "把 JSON 写入文件 ${SCORES_DIR}/你的角色名.json 后输出：HYPERLOOP_REVIEW_DONE"
+  } > "$REVIEW_REQ"
+
+>>> P0 BUG: Line 450 says '你的角色名.json' — reviewers don't know their name!
+>>> Each reviewer gets the SAME shared file, no per-reviewer output path.
+>>> This is ROOT CAUSE of 12 consecutive rounds scoring 0.0.
+
+--- Round 13 changes (task2 merge): CLI fallback added ---
+  local GEMINI_REVIEWER_CLI="gemini --yolo"
+  local CLAUDE_REVIEWER_CLI="claude --dangerously-skip-permissions"
+  local CODEX_REVIEWER_CLI="codex --full-auto"
+  local DEFAULT_REVIEWER_CLI=""
+
+  if command -v claude >/dev/null 2>&1; then
+    DEFAULT_REVIEWER_CLI="$CLAUDE_REVIEWER_CLI"
+  elif command -v gemini >/dev/null 2>&1; then
+    DEFAULT_REVIEWER_CLI="$GEMINI_REVIEWER_CLI"
+  elif command -v codex >/dev/null 2>&1; then
+    DEFAULT_REVIEWER_CLI="$CODEX_REVIEWER_CLI"
+  else
+    echo "ERROR: Reviewer CLI 不可用（需要 claude / gemini / codex 至少一个）" >&2
+    exit 1
+  fi
+
+  local REVIEWER_A_CLI="$GEMINI_REVIEWER_CLI"
+  if ! command -v gemini >/dev/null 2>&1; then
+    REVIEWER_A_CLI="$DEFAULT_REVIEWER_CLI"
+    echo "  ⚠ gemini 未安装，reviewer-a 降级为 ${REVIEWER_A_CLI}"
+  fi
+
+  local REVIEWER_B_CLI="$CLAUDE_REVIEWER_CLI"
+  if ! command -v claude >/dev/null 2>&1; then
+    REVIEWER_B_CLI="$DEFAULT_REVIEWER_CLI"
+    echo "  ⚠ claude 未安装，reviewer-b 降级为 ${REVIEWER_B_CLI}"
+  fi
+
+  local REVIEWER_C_CLI="$CODEX_REVIEWER_CLI"
+  if ! command -v codex >/dev/null 2>&1; then
+    REVIEWER_C_CLI="$DEFAULT_REVIEWER_CLI"
+    echo "  ⚠ codex 未安装，reviewer-c 降级为 ${REVIEWER_C_CLI}"
+  fi
+
+  local REVIEWERS=(
+    "reviewer-a:${REVIEWER_A_CLI}"
+    "reviewer-b:${REVIEWER_B_CLI}"
+    "reviewer-c:${REVIEWER_C_CLI}"
+  )
+
+--- Degradation extraction (line 519-541) ---
+  # 降级：从 pane 输出提取 JSON
+  for NAME in reviewer-a reviewer-b reviewer-c; do
+    if [[ ! -f "${SCORES_DIR}/${NAME}.json" ]]; then
+      echo "  ⚠ ${NAME} 未写文件，从 pane 提取..."
+      tmux capture-pane -t "hyper-loop:${NAME}" -p -S - > "/tmp/hyper-loop-pane-${NAME}.txt" 2>/dev/null || true
+      python3 - "/tmp/hyper-loop-pane-${NAME}.txt" "${SCORES_DIR}/${NAME}.json" <<'PYEXTRACT' 2>/dev/null || true
+import json, sys
+from pathlib import Path
+text = Path(sys.argv[1]).read_text()
+decoder = json.JSONDecoder()
+last = None
+for i, ch in enumerate(text):
+    if ch != "{": continue
+    try:
+        obj, _ = decoder.raw_decode(text[i:])
+        if "score" in obj: last = obj
+    except: pass
+if last:
+    Path(sys.argv[2]).write_text(json.dumps(last, ensure_ascii=False, indent=2))
+    print(f"  ✓ extracted score: {last.get('score')}")
+else:
+    Path(sys.argv[2]).write_text('{"score":0,"issues":[],"summary":"未能获取评分"}')
+    print("  ✗ no score found")
+PYEXTRACT
+    fi
+  done
+
+--- Evidence: Round 12 all reviewers scored 0.0 ---
+{"score":0,"issues":[],"summary":"未能获取评分"}{"score":0,"issues":[],"summary":"未能获取评分"}{"score":0,"issues":[],"summary":"未能获取评分"}
+
+RESULT: FAIL — Reviewers cannot write score files because they don't know their name (reviewer-a/b/c)
+Task1 identified the fix but no patch was generated. Task2 only added CLI fallback.

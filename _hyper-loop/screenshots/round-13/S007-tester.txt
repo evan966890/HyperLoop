@@ -1,0 +1,51 @@
+=== S007: Tester 启动并生成报告 ===
+# ── Tester ──
+run_tester() {
+  local ROUND="$1"
+
+  echo "启动 Tester..."
+  start_agent "tester" "claude --dangerously-skip-permissions" \
+    "${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md" "$ROUND"
+
+  sleep 5
+  local TEST_REQ="/tmp/hyper-loop-test-req-r${ROUND}.md"
+  cat > "$TEST_REQ" <<TREQ
+## 试用请求 Round $ROUND
+
+App 已构建。请执行以下操作：
+
+1. 先读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解所有 BDD 场景
+2. 运行后台测试：cd ${PROJECT_ROOT} && ${BUILD_VERIFY:-echo 'no verify cmd'}
+3. 按 BDD spec 逐条验证，每个 Then 截图到 ${SCREENSHOT_DIR}/
+4. 写试用报告到 ${REPORT_FILE}
+5. 报告格式：每个场景 pass/fail + 截图路径 + P0/P1 bug 列表
+6. 完成后输出：HYPERLOOP_TEST_DONE
+TREQ
+
+  tmux load-buffer -b "test-req-r${ROUND}" "$TEST_REQ"
+  tmux paste-buffer -d -r -b "test-req-r${ROUND}" -t hyper-loop:tester
+  tmux send-keys -t hyper-loop:tester Enter
+
+  echo "等待 Tester 完成（最多 15 分钟）..."
+  local WAITED=0
+  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
+    sleep 15
+    ((WAITED += 15))
+    if ! tmux list-panes -t hyper-loop:tester >/dev/null 2>&1; then
+      echo "  ⚠ Tester 进程已退出"
+      break
+    fi
+  done
+
+  if [[ -f "$REPORT_FILE" ]]; then
+    echo "  ✓ 试用报告已生成: $REPORT_FILE"
+  else
+    echo "  ⚠ Tester 超时，生成空报告"
+    echo "# Round $ROUND 试用报告（Tester 超时）" > "$REPORT_FILE"
+    echo "Tester 未在 10 分钟内完成。需要人工验证。" >> "$REPORT_FILE"
+  fi
+
+  kill_agent "tester"
+}
+
+RESULT: PASS — Claude tester in tmux, 15min timeout, empty report on timeout

@@ -1,0 +1,11 @@
+=== S013 验证: 连续 5 轮失败自动回退 ===
+✓ CONSECUTIVE_REJECTS 计数 (line 846, 887, 913)
+✓ 阈值 >= 5 (line 922)
+✓ 从 archive git-sha.txt 恢复 (line 926-929)
+✓ CONSECUTIVE_REJECTS 重置 (line 931)
+✗ P1: BEST_ROUND 只在 ACCEPTED 分支追踪 (line 906-910)
+  如果所有轮次都被 reject，BEST_ROUND 始终为 0
+  回退条件 BEST_ROUND > 0 永远不满足 → 回退永远不触发
+  实际验证: 16 轮全部 REJECTED_VETO，没有触发任何回退
+
+结论: FAIL (P1: 全 reject 场景下回退不触发)

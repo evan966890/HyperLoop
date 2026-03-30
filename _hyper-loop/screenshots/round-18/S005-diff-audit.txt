@@ -1,0 +1,11 @@
+== S005: diff 审计拦截越界修改 ==
+
+audit_writer_diff() at line 242:
+- Extracts allowed files from TASK.md "### 相关文件" section (line 248-250) ✓
+- Gets changed files via git diff --name-only (line 258) ✓
+- Compares each changed file against allowed list (line 268-276) ✓
+- Exempts HyperLoop files: DONE.json, WRITER_INIT.md, _ctx/*, TASK.md (line 279-281) ✓
+- Returns 1 (non-zero) on violations (line 291) ✓
+- merge_writers skips on audit failure (line 327-330) ✓
+
+VERDICT: PASS

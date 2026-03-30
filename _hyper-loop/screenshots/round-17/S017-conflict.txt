@@ -1,0 +1,6 @@
+=== S017 验证: 多 Writer 同文件冲突处理 ===
+✓ merge --squash 失败时 merge --abort (line 353)
+✓ 输出 "conflict, deferred" (line 354)
+✓ 脚本不崩溃: FAILED++ 但继续循环 (line 355)
+
+结论: PASS

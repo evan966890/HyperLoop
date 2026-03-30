@@ -1,0 +1,15 @@
+== S016: macOS timeout 兼容 ==
+
+Lines 17-21:
+  if command -v gtimeout >/dev/null 2>&1; then
+    timeout() { gtimeout "$@"; }
+  elif ! command -v timeout >/dev/null 2>&1; then
+    timeout() { local T="$1"; shift; "$@" & local PID=$!; ... }
+  fi
+
+逻辑:
+1. 有 gtimeout → 用 gtimeout ✓
+2. 没有 gtimeout 也没有 timeout → 自定义 fallback ✓
+3. 有原生 timeout → 不覆盖 ✓
+
+VERDICT: PASS

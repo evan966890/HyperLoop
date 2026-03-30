@@ -1,0 +1,7 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+验证项:
+1. 第一个成功 merge: YES (line 348-349)
+2. 第二个 conflict → merge --abort: YES (line 353)
+3. deferred 标记: YES (line 354: 'conflict, deferred')
+4. 脚本不崩溃: YES (|| true 保护, FAILED++ 计数)
+RESULT: PASS

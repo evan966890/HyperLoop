@@ -1,0 +1,21 @@
+=== S007: Tester 启动并生成报告 ===
+验证: Tester Claude 子进程启动 + 报告生成 + 超时兜底
+
+run_tester() (line 379-425):
+  start_agent "tester" "claude --dangerously-skip-permissions" \
+    "${PROJECT_ROOT}/_hyper-loop/context/agents/tester.md" "$ROUND"
+  → FIXED in integration: 现在引用 agents/tester.md (文件存在) ✓
+
+  超时等待 (line 406-414):
+    while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; ...
+    → 15 分钟超时 ✓
+
+  超时兜底 (line 419-422):
+    echo "# Round $ROUND 试用报告（Tester 超时）" > "$REPORT_FILE"
+    → 生成空报告而非崩溃 ✓
+
+  进程退出检测 (line 410-412):
+    if ! tmux list-panes -t hyper-loop:tester >/dev/null 2>&1; break
+    → 提前退出检测 ✓
+
+结论: PASS (在 integration 分支上)

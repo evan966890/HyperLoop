@@ -1,0 +1,8 @@
+=== S013: 连续 5 轮失败自动回退 ===
+验证项:
+1. CONSECUTIVE_REJECTS >= 5 检查: YES (line 922)
+2. BEST_ROUND > 0 前提: YES (line 922)
+3. 从 archive git-sha.txt 读取 SHA: YES (line 926)
+4. git checkout 回退: YES (line 928)
+5. CONSECUTIVE_REJECTS 重置为 0: YES (line 931)
+RESULT: PASS

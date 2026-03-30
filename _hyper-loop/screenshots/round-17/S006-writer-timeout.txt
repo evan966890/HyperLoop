@@ -1,0 +1,7 @@
+=== S006 验证: Writer 超时处理 ===
+✓ 默认超时 900s = 15 分钟 (line 198)
+✓ 循环检测 DONE.json (line 209)
+✓ 超时写 {"status":"timeout"} (line 224)
+✓ timeout status ≠ "done" → merge_writers 跳过 (line 320-321)
+
+结论: PASS

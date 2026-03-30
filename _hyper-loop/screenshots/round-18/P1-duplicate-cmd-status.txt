@@ -1,0 +1,18 @@
+== P2 BUG: 重复的 cmd_status 定义 ==
+
+第一个定义: line 697-703
+  cmd_status() {
+    echo "tmux windows:"
+    tmux list-windows -t hyper-loop 2>/dev/null || echo "  (no session)"
+    echo ""
+    echo "results.tsv:"
+    cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+  }
+
+第二个定义: line 957-969 (覆盖第一个)
+  cmd_status() {
+    ... (更完整，包含最佳轮次显示)
+  }
+
+bash 使用最后一个定义，第一个是死代码。
+不影响功能，但代码质量问题。

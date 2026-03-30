@@ -1,0 +1,2 @@
+=== S009: compute_verdict ===
+Median=6.0, expected=6.0, match=True

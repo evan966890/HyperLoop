@@ -1,0 +1,6 @@
+=== S017: Multi-writer same-file conflict ===
+Line 348: merge --squash with 2>/dev/null PASS
+Line 353: merge --abort on failure PASS
+Line 354: "conflict, deferred" message PASS
+Line 355: ((FAILED++)) || true — no crash PASS
+VERDICT: PASS

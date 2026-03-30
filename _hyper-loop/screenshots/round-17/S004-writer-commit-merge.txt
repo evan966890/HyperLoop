@@ -1,0 +1,8 @@
+=== S004 验证: Writer 完成后 diff 被正确 commit ===
+✓ git add -A && git commit (line 338-339)
+✓ squash merge 到 integration 分支 (line 348)
+✓ task*.patch 生成 (line 342-343)
+✓ task*.stat 生成 (line 344-345)
+⚠ --allow-empty 意味着即使没改文件也会 commit
+
+结论: PASS

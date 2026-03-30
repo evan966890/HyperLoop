@@ -1,0 +1,10 @@
+Round 11 任务已拆解完成，4 个文件已写入 `_hyper-loop/tasks/round-11/`:
+
+| 文件 | 优先级 | 问题 | 关联场景 |
+|------|--------|------|----------|
+| task1.md | **P0** | TESTER_INIT.md / REVIEWER_INIT.md 路径不存在 → 改为 `agents/tester.md` / `agents/reviewer.md` | S007, S008 |
+| task2.md | **P1** | decompose / archive 中 bdd-specs.md / contract.md 路径缺少 `context/` 前缀 | S002 |
+| task3.md | **P1** | diff 审计正则缺少 `.sh` 等扩展名，审计形同虚设 | S005 |
+| task4.md | **P2** | cmd_status 重复定义 + 全零分时回退逻辑失效 | S013 |
+
+Task1 是最关键的 — 它直接解释了前 10 轮全部 0.0 分的根因（Reviewer/Tester 读不到角色文件）。

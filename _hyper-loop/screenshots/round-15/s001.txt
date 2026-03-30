@@ -1,0 +1,7 @@
+=== S001: loop 命令启动死循环 ===
+验证项:
+1. cmd_loop 函数存在: YES (line 825)
+2. 输出 'Round N/M': YES (line 860: 'LOOP: Round ${ROUND}/${MAX_ROUNDS}')
+3. record_result 在每轮调用: YES (line 885 build失败路径, line 892 成功路径)
+4. results.tsv 写入逻辑: YES (record_result line 613-628)
+RESULT: PASS

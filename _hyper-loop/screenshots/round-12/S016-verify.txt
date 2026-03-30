@@ -1,0 +1,6 @@
+=== S016 ===
+timeout function at lines 17-21
+Checks gtimeout first, then native timeout
+Fallback: sleep+kill implementation
+Runtime test: timeout is /opt/homebrew/bin/timeout ✓
+VERDICT: PASS

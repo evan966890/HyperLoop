@@ -1,0 +1,21 @@
+=== S012: verdict.env 安全读取 ===
+验证: 不 source，用 grep 提取
+
+record_result() (line 619-623):
+  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2) ✓
+  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2) ✓
+  R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"') ✓
+
+cmd_round() (line 675-676):
+  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2) ✓
+  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2) ✓
+
+cmd_loop() (line 897-898):
+  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2) ✓
+  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2) ✓
+  
+  注: integration 分支中 line 897-898 缩进修复为正常（之前是异常 2 空格缩进）
+
+不会出现 "command not found" 错误 ✓ (grep + cut 是安全操作)
+
+结论: PASS

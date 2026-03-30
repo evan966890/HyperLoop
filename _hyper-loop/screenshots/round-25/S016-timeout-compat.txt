@@ -1,0 +1,15 @@
+=== S016: macOS timeout 兼容 ===
+
+Lines 17-21:
+  if command -v gtimeout >/dev/null 2>&1; then
+    timeout() { gtimeout "$@"; }
+  elif ! command -v timeout >/dev/null 2>&1; then
+    timeout() { local T="$1"; shift; "$@" & local PID=$!; ... }
+  fi
+
+- 优先使用 gtimeout (coreutils) ✓
+- 若无 gtimeout 也无 timeout，定义 polyfill ✓
+- polyfill 用 background + sleep + kill 模拟 ✓
+- 不会报 "command not found" ✓
+
+PASS

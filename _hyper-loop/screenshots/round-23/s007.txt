@@ -1,0 +1,7 @@
+=== S007: Tester startup and report ===
+Line 383: start_agent "tester" with claude PASS
+Line 407-414: Waits up to 900s (15 min) PASS
+Line 416-422: Generates report or empty report on timeout PASS
+BUT: TESTER_INIT.md does not exist! (start_agent references it)
+  $ ls _hyper-loop/context/TESTER_INIT.md → NOT FOUND
+VERDICT: FAIL — P1 BUG: TESTER_INIT.md missing

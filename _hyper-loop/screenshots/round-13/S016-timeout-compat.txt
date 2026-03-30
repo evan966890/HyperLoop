@@ -1,0 +1,10 @@
+=== S016: macOS timeout 兼容 ===
+if command -v gtimeout >/dev/null 2>&1; then
+  timeout() { gtimeout "$@"; }
+elif ! command -v timeout >/dev/null 2>&1; then
+  timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
+fi
+
+/opt/homebrew/bin/timeout
+/opt/homebrew/bin/gtimeout
+RESULT: PASS — gtimeout > timeout > custom fallback

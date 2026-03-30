@@ -1,0 +1,9 @@
+16:# macOS 没有 timeout，用 coreutils 的 gtimeout
+17:if command -v gtimeout >/dev/null 2>&1; then
+18:  timeout() { gtimeout "$@"; }
+19:elif ! command -v timeout >/dev/null 2>&1; then
+20:  timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
+198:  local TIMEOUT="${2:-900}"  # 默认 15 分钟
+200:  echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
+221:    if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
+224:        [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"

@@ -1,0 +1,6 @@
+=== S004: Writer diff commit ===
+git add -A: 1
+git commit: 3
+squash merge: 1
+patch generation: 2
+stat generation: 3

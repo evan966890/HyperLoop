@@ -1,0 +1,5 @@
+Line 405: echo "等待 Tester 完成（最多 15 分钟）..."
+Line 407: while [[ "$WAITED" -lt 900 ]]; do           # 900s = 15 min — correct
+Line 421: echo "Tester 未在 10 分钟内完成。需要人工验证。"  # Says 10 min — WRONG
+
+Should say "15 分钟" to match actual 900s timeout.

@@ -1,0 +1,8 @@
+=== S001: loop 命令启动死循环 ===
+Line 825: cmd_loop() function exists
+Line 850: while loop with MAX_ROUNDS
+Line 860: echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}" ✓
+Line 627: printf to results.tsv per round ✓
+Line 946: ((ROUND++)) increments correctly ✓
+Line 852-855: STOP file check before each round ✓
+VERDICT: PASS

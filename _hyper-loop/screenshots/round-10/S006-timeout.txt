@@ -1,0 +1,7 @@
+=== S006: Writer 超时处理 ===
+Code analysis (lines 196-239):
+- Default timeout 900s (15 minutes) (line 198)
+- Polls every 10s for DONE.json (lines 205-229)
+- On timeout: writes {"status":"timeout"} to DONE.json (line 224)
+- Writer tmux windows killed after (lines 233-238)
+RESULT: PASS

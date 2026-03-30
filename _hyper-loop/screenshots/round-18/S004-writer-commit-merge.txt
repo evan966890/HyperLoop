@@ -1,0 +1,11 @@
+== S004: Writer 完成后 diff 被正确 commit ==
+
+merge_writers() at line 299:
+- Line 338-339: git add -A && git commit (先 commit Writer 的改动) ✓
+- Line 348: squash merge 到 integration 分支 ✓
+- Line 342-345: 生成 task*.patch 和 task*.stat ✓
+- Line 349: commit on integration branch with message ✓
+
+注意: commit 用了 --allow-empty，如果 Writer 没改文件也不会报错 (OK)
+
+VERDICT: PASS

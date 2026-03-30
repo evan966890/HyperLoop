@@ -1,0 +1,4 @@
+=== S005: diff audit ===
+audit_writer_diff function: exists
+return 1 on violation: 3
+Skip on audit fail: 1

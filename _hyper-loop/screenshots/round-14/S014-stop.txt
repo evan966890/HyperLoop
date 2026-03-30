@@ -1,0 +1,6 @@
+=== S014: STOP file ===
+STOP_FILE defined: ${PROJECT_ROOT}/_hyper-loop/STOP
+Check at loop start: 1
+rm STOP file: 1
+break on STOP: 1
+PASS

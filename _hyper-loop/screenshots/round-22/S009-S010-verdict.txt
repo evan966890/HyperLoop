@@ -1,0 +1,14 @@
+=== S009: Median calculation test ===
+Input: scores=[5.0, 6.0, 7.0], prev_median=5.0
+Expected: median=6.0, DECISION=ACCEPTED (6.0 > 5.0)
+Actual: median=6.0, decision=ACCEPTED, veto=False ✓
+
+=== S010: Veto test ===
+Input: scores=[3.5, 6.0, 7.0], prev_median=5.0
+Expected: DECISION=REJECTED_VETO (3.5 < 4.0)
+Actual: median=6.0, decision=REJECTED_VETO, veto=True ✓
+
+=== S011: Tester P0 detection ===
+Report contains "P0" and "fail"
+Expected: tester_p0=True
+Actual: tester_p0=True ✓

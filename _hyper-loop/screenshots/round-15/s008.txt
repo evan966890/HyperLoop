@@ -1,0 +1,8 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+验证项:
+1. 3 个 Reviewer: YES (line 453: reviewer-a gemini, reviewer-b claude, reviewer-c codex)
+2. tmux 启动: YES (line 459: start_agent)
+3. 10 分钟超时: YES (line 470: WAITED -lt 600)
+4. JSON 包含 score 字段: YES (PYEXTRACT line 497: 'if "score" in obj')
+5. 降级从 pane 提取: YES (line 481-504)
+RESULT: PASS

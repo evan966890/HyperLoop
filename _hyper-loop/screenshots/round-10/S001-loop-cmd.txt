@@ -1,0 +1,8 @@
+=== S001: loop 命令启动死循环 ===
+Code analysis (lines 825-955):
+- cmd_loop accepts MAX_ROUNDS parameter (default 999)
+- Outputs "LOOP: Round ${ROUND}/${MAX_ROUNDS}" at line 860
+- Loop runs from ROUND to MAX_ROUNDS with while condition
+- results.tsv written via record_result each round
+- Exit conditions: STOP file, median >= 8.0, ROUND > MAX_ROUNDS
+RESULT: PASS (structure correct)

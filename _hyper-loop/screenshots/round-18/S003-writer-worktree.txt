@@ -1,0 +1,9 @@
+== S003: Writer worktree 创建 + trust + 启动 ==
+
+start_writers() at line 101:
+- Worktree: line 124 "git worktree add $WT -b $BRANCH" → /tmp/hyper-loop-worktrees-rN/taskM ✓
+- Trust: line 130-132 writes to ~/.codex/config.toml ✓
+- Codex: line 182 "codex --dangerously-bypass-approvals-and-sandbox" in tmux ✓
+- _ctx/: line 136 "cp -r _hyper-loop/context ${WT}/_ctx" ✓
+
+VERDICT: PASS

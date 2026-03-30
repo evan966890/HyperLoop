@@ -1,0 +1,7 @@
+=== S003: Writer worktree creation ===
+start_writers function: exists
+worktree add: 2 calls
+codex config.toml trust: 4 refs
+_ctx copy: 1 refs
+tmux new-window for writer: 0
+0

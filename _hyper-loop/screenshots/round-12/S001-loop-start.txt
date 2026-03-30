@@ -1,0 +1,13 @@
+=== S001: Loop Output Format ===
+860:    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+
+Format: 'LOOP: Round ${ROUND}/${MAX_ROUNDS}'
+Line 860: Matches spec 'Round N/M'
+
+613:record_result() {
+662:    record_result "$ROUND"
+670:  record_result "$ROUND"
+885:      record_result "$ROUND"
+892:      record_result "$ROUND"
+
+VERDICT: PASS

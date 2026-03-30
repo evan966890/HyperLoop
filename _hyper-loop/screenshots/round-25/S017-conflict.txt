@@ -1,0 +1,19 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+
+merge_writers() (line 348-356):
+  if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+    git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" 2>/dev/null
+    echo "  ✓ ${TASK_NAME} merged"
+    ((MERGED++)) || true
+  else
+    git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+    echo "  ✗ ${TASK_NAME} conflict, deferred"
+    ((FAILED++)) || true
+  fi
+
+- 第一个 Writer 成功 merge ✓
+- 第二个冲突时 merge --abort ✓
+- 输出 "conflict, deferred" ✓
+- 脚本不崩溃 (|| true 保护) ✓
+
+PASS

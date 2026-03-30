@@ -1,0 +1,19 @@
+=== S013: 连续 5 轮失败自动回退 ===
+
+cmd_loop() (line 922-932):
+  if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+    BEST_SHA=$(cat ".../archive/round-${BEST_ROUND}/git-sha.txt")
+    git checkout "$BEST_SHA" -- .
+    CONSECUTIVE_REJECTS=0
+  fi
+
+- 连续 5 轮检测 ✓
+- git-sha.txt 读取 ✓
+- 代码回退 ✓
+- consecutive_rejects 重置 ✓
+
+注意: BEST_ROUND 只在 ACCEPTED 时更新 (line 907-909)。
+      如果从第一轮开始连续失败，BEST_ROUND=0，回退不会触发。
+      这符合 BDD spec 前提条件 "archive/round-2/git-sha.txt 存在且得分最高"。
+
+PASS (符合 spec 前提条件)

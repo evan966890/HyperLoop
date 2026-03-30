@@ -1,0 +1,30 @@
+=== S012: verdict.env 安全读取 ===
+All verdict.env reads use grep+cut, not source:
+573:    echo "DECISION=ERROR" > "${TASK_DIR}/verdict.env"
+577:  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+646:    cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
+653:  local VERDICT_FILE="${TASK_DIR}/verdict.env"
+659:  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)
+660:  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)
+661:  R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')
+698:    echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+699:    echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+712:  # 安全读取 verdict.env（不 source，用 grep 提取）
+713:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+714:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+838:  cp "${TASK_DIR}/verdict.env" "$ARCHIVE/" 2>/dev/null || true
+921:      echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+922:      echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+934:      # 安全读取 verdict.env（不 source，用 grep 提取）
+935:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+936:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+
+Test: parse verdict.env with special chars:
+REJECTED_VETO
+0.0
+1.0 2.0 3.0
+
+No 'source verdict.env' anywhere:
+0
+0
+RESULT: PASS

@@ -1,0 +1,6 @@
+=== S009: 和议计算正确 ===
+验证项:
+1. 中位数计算 [5.0,6.0,7.0]=6.0: VERIFIED (Python 验证通过)
+2. DECISION=ACCEPTED when median>prev_median: VERIFIED
+3. verdict.env 可安全读取: YES (不含 bash 特殊字符)
+RESULT: PASS

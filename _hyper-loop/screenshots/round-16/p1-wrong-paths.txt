@@ -1,0 +1,9 @@
+auto_decompose (line 719-720) references:
+  WRONG: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+  RIGHT: ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+  WRONG: ${PROJECT_ROOT}/_hyper-loop/contract.md
+  RIGHT: ${PROJECT_ROOT}/_hyper-loop/context/contract.md
+
+archive_round (line 797) references:
+  WRONG: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+  RIGHT: ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md

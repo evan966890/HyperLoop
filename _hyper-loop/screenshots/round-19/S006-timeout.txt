@@ -1,0 +1,45 @@
+=== S006: timeout ===
+wait_writers() {
+  local ROUND="$1"
+  local TIMEOUT="${2:-900}"  # 默认 15 分钟
+
+  echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
+
+  local START_TIME
+  START_TIME=$(date +%s)
+
+  while true; do
+    local ALL_DONE=true
+    for WT in "${WORKTREE_BASE}"/task*; do
+      [[ -d "$WT" ]] || continue
+      if [[ ! -f "${WT}/DONE.json" ]]; then
+        ALL_DONE=false
+        break
+      fi
+    done
+
+    if $ALL_DONE; then
+      echo "  ✓ 所有 Writer 已完成"
+      break
+    fi
+
+    local ELAPSED=$(( $(date +%s) - START_TIME ))
+    if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
+      echo "  ⚠ 超时，强制结束未完成的 Writer"
+      for WT in "${WORKTREE_BASE}"/task*; do
+        [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"
+      done
+      break
+    fi
+
+    sleep 10
+  done
+
+  # 关闭 writer windows
+  (
+    set +e
+    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep '^w-' | while read -r w; do
+      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+    done
+  ) || true
+}

@@ -1,0 +1,5 @@
+=== S009: Consensus calculation ===
+Line 546: median = scores[n//2] for odd, average for even PASS
+Line 564: ACCEPTED if median > prev_median PASS
+Line 577-583: verdict.env written with all fields PASS
+VERDICT: PASS

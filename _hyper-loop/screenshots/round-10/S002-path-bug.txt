@@ -1,0 +1,8 @@
+=== BUG DETAIL: auto_decompose wrong paths ===
+Line 719: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md → WRONG
+  Should be: ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+Line 720: ${PROJECT_ROOT}/_hyper-loop/contract.md → WRONG
+  Should be: ${PROJECT_ROOT}/_hyper-loop/context/contract.md
+Line 797 (archive_round): same wrong path for bdd-specs.md
+Impact: Claude decomposer gets wrong file paths in prompt
+  → Claude can't find BDD specs → decomposition quality degraded

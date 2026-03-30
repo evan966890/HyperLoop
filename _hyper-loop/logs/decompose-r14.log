@@ -1,0 +1,8 @@
+Round 14 拆解完成，4 个任务已写入 `_hyper-loop/tasks/round-14/`：
+
+| 任务 | 优先级 | 问题 | BDD |
+|------|--------|------|-----|
+| task1 | **P0** | `run_reviewers` 为每个 Reviewer 生成独立评审请求，用确切路径 `reviewer-a.json` 替换"你的角色名.json" — **13 轮 0.0 分根因** | S008 |
+| task2 | P1 | `auto_decompose` 路径统一为 `_hyper-loop/context/` | S002 |
+| task3 | P1 | 删除第一个重复的 `cmd_status()` 定义 | bash -n |
+| task4 | P1 | 从 git HEAD 恢复被 `script` 命令覆盖的工作区 `hyper-loop.sh` | bash -n |

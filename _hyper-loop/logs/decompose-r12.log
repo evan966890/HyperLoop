@@ -1,0 +1,10 @@
+已生成 4 个任务文件到 `_hyper-loop/tasks/round-12/`：
+
+| Task | 优先级 | 修改行范围 | 问题 | BDD 场景 |
+|------|--------|-----------|------|---------|
+| task1 | **P0** | 380-465 | TESTER_INIT.md / REVIEWER_INIT.md 路径不存在 → agents/tester.md, agents/reviewer.md | S007, S008 |
+| task2 | P1 | 240-260 | audit_writer_diff 正则缺 .sh/.md/.json 等扩展名 | S005 |
+| task3 | P1 | 695-800 | auto_decompose + archive_round 路径错误 + 删除重复 cmd_status() | S002 |
+| task4 | P1 | 893-935 | 回退逻辑 BEST_ROUND 全零时永不触发 | S013 |
+
+**关键设计决策**：吸取 Round 11 的教训（4 Writer 修改同一文件导致 merge 冲突），每个 task 的修改行范围严格不重叠，最大化并行 merge 成功率。

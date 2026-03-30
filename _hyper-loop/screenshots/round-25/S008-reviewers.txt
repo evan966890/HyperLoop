@@ -1,0 +1,13 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+
+run_reviewers() 函数 (line 428):
+- 3 个 Reviewer: gemini/claude/codex (line 453) ✓
+- tmux 启动 (via start_agent) ✓
+- 10 分钟超时 (line 470, WAITED -lt 600) ✓
+- JSON 包含 "score" 字段 (评审请求模板 line 448) ✓
+- pane 提取降级 (line 481-503, Python JSON 扫描) ✓
+
+BUG FOUND (P0):
+  Line 460: 引用 _hyper-loop/context/REVIEWER_INIT.md
+  实际路径: _hyper-loop/context/templates/REVIEWER_INIT.md
+  Reviewer 无法读取角色初始化文件。

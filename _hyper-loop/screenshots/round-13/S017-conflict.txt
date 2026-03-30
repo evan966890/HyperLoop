@@ -1,0 +1,13 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+    # squash merge
+    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" 2>/dev/null
+      echo "  ✓ ${TASK_NAME} merged"
+      ((MERGED++)) || true
+    else
+      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+      echo "  ✗ ${TASK_NAME} conflict, deferred"
+      ((FAILED++)) || true
+    fi
+  done
+RESULT: PASS — first merge wins, second gets 'conflict, deferred', no crash

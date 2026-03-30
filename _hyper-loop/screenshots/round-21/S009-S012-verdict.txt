@@ -1,0 +1,8 @@
+S009: median([5,6,7]) = 6.0 ✓
+S009: ACCEPTED (6.0 > 5.0) ✓
+S010: REJECTED_VETO (3.5 < 4.0) ✓
+S011: REJECTED_TESTER_P0 ✓
+S012: verdict.env safe read ✓
+
+All verdict tests PASSED
+RESULT: ALL PASS

@@ -1,0 +1,5 @@
+550:veto = any(s < 4.0 for s in scores)
+558:if veto:
+559:    decision = "REJECTED_VETO"
+573:print(f"  否决: {veto}")
+581:    f.write(f"VETO={veto}\n")

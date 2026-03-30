@@ -1,0 +1,21 @@
+=== S001: bash -n syntax check ===
+syntax ok
+=== Loop output pattern ===
+    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+=== results.tsv write ===
+    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
+    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+  echo "results.tsv:"
+  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+- 历史结果：${PROJECT_ROOT}/_hyper-loop/results.tsv
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    LAST_ROUND=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f1 || echo 0)
+    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+      PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+  echo "  结果: cat ${PROJECT_ROOT}/_hyper-loop/results.tsv"
+  echo "results.tsv:"
+  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+  if [[ -f "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" ]]; then
+    sort -t$'\t' -k2 -rn "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" | head -1

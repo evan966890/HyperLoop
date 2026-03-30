@@ -1,0 +1,9 @@
+$ command -v gtimeout
+/opt/homebrew/bin/gtimeout
+gtimeout=FOUND
+
+$ command -v timeout
+/opt/homebrew/bin/timeout
+timeout=FOUND
+
+$ bash -c 'if command -v gtimeout ...; timeout function defined successfully'

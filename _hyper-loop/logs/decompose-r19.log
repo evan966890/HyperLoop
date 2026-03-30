@@ -1,0 +1,10 @@
+已生成 4 个任务文件到 `_hyper-loop/tasks/round-19/`：
+
+| 任务 | 优先级 | 问题 | 关联 BDD |
+|------|--------|------|----------|
+| task1 | P1 | `auto_decompose` 路径缺 `context/`，Claude 读不到 BDD spec — **18 轮全 VETO 的根因** | S002 |
+| task2 | P2 | `archive_round` 路径同样缺 `context/` | S002 |
+| task3 | P2 | `cleanup_round` 未 rmdir WORKTREE_BASE 父目录 | S015 |
+| task4 | P2 | Tester 超时消息 "10分钟" vs 实际 15分钟 + 重复 `cmd_status` 死代码 | S007 |
+
+P0-1（工作副本被 `script` 命令覆盖）已通过 `git checkout HEAD -- scripts/hyper-loop.sh` 恢复。

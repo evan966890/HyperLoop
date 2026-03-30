@@ -1,0 +1,14 @@
+=== P0: scripts/hyper-loop.sh 工作副本被覆写 ===
+$ wc -l scripts/hyper-loop.sh
+       1 scripts/hyper-loop.sh
+
+$ xxd scripts/hyper-loop.sh
+00000000: 5363 7269 7074 2073 7461 7274 6564 206f  Script started o
+00000010: 6e20 4d6f 6e20 4d61 7220 3330 2030 343a  n Mon Mar 30 04:
+00000020: 3135 3a34 3220 3230 3236 0a              15:42 2026.
+
+文件仅 43 字节，内容是 unix 'script' 命令输出
+Git HEAD 版本有 987 行完好
+
+$ git show HEAD:scripts/hyper-loop.sh | wc -l
+     987

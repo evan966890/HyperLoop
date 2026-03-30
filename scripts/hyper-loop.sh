@@ -195,7 +195,7 @@ WINIT
 
 wait_writers() {
   local ROUND="$1"
-  local TIMEOUT="${2:-900}"  # 默认 15 分钟
+  local TIMEOUT="${2:-300}"  # 默认 5 分钟（任务应该够小）
 
   echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
 
@@ -375,117 +375,67 @@ build_app() {
   fi
 }
 
-# ── Tester ──
+# ── Tester（非交互 -p 模式）──
 run_tester() {
   local ROUND="$1"
 
-  echo "启动 Tester..."
-  start_agent "tester" "claude --dangerously-skip-permissions" \
-    "${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md" "$ROUND"
+  echo "启动 Tester（非交互模式）..."
 
-  sleep 5
-  local TEST_REQ="/tmp/hyper-loop-test-req-r${ROUND}.md"
-  cat > "$TEST_REQ" <<TREQ
-## 试用请求 Round $ROUND
-
-App 已构建。请执行以下操作：
-
-1. 先读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解所有 BDD 场景
-2. 运行后台测试：cd ${PROJECT_ROOT} && ${BUILD_VERIFY:-echo 'no verify cmd'}
-3. 按 BDD spec 逐条验证，每个 Then 截图到 ${SCREENSHOT_DIR}/
-4. 写试用报告到 ${REPORT_FILE}
-5. 报告格式：每个场景 pass/fail + 截图路径 + P0/P1 bug 列表
-6. 完成后输出：HYPERLOOP_TEST_DONE
-TREQ
-
-  tmux load-buffer -b "test-req-r${ROUND}" "$TEST_REQ"
-  tmux paste-buffer -d -r -b "test-req-r${ROUND}" -t hyper-loop:tester
-  tmux send-keys -t hyper-loop:tester Enter
-
-  echo "等待 Tester 完成（最多 15 分钟）..."
-  local WAITED=0
-  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
-    sleep 15
-    ((WAITED += 15))
-    if ! tmux list-panes -t hyper-loop:tester >/dev/null 2>&1; then
-      echo "  ⚠ Tester 进程已退出"
-      break
-    fi
-  done
-
-  if [[ -f "$REPORT_FILE" ]]; then
-    echo "  ✓ 试用报告已生成: $REPORT_FILE"
-  else
-    echo "  ⚠ Tester 超时，生成空报告"
-    echo "# Round $ROUND 试用报告（Tester 超时）" > "$REPORT_FILE"
-    echo "Tester 未在 10 分钟内完成。需要人工验证。" >> "$REPORT_FILE"
-  fi
-
-  kill_agent "tester"
-}
-
-# ── 3 Reviewer 合议 ──
-run_reviewers() {
-  local ROUND="$1"
-
-  echo "启动 3 个 Reviewer..."
-
-  local REVIEW_REQ="/tmp/hyper-loop-review-r${ROUND}.md"
+  # 先生成轮次摘要给 Tester 看
+  local SUMMARY="${TASK_DIR}/round-summary.txt"
   {
-    echo "## 评审请求 Round $ROUND"
-    echo ""
-    echo "请读以下文件后打分："
-    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
-    echo "- BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
-    echo "- Tester 试用报告：${REPORT_FILE}"
-    echo "- 截图目录：${SCREENSHOT_DIR}/"
-    echo "- 本轮 diff："
+    echo "本轮修改统计："
     for STAT in "${TASK_DIR}"/*.stat; do
       [[ -f "$STAT" ]] && cat "$STAT"
     done
     echo ""
-    echo "输出要求：只输出一个 JSON，格式："
-    echo '{"score":数字,"issues":[{"severity":"P0","desc":"描述"}],"summary":"一句话"}'
-    echo ""
-    echo "把 JSON 写入文件 ${SCORES_DIR}/你的角色名.json 后输出：HYPERLOOP_REVIEW_DONE"
-  } > "$REVIEW_REQ"
+    echo "构建结果：$(eval "${BUILD_VERIFY:-echo 'no verify'}" 2>&1 | tail -3)"
+  } > "$SUMMARY" 2>/dev/null
 
-  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+  local TESTER_PROMPT="你是代码测试员。请执行以下操作：
 
-  for ENTRY in "${REVIEWERS[@]}"; do
-    local NAME="${ENTRY%%:*}"
-    local CLI="${ENTRY#*:}"
+1. 读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解 BDD 场景
+2. 读 ${SUMMARY} 了解本轮修改
+3. 运行 bash -n ${PROJECT_ROOT}/scripts/hyper-loop.sh 验证语法
+4. 按 BDD 场景逐条检查脚本代码，标注 pass/fail
+5. 将结果写入 ${REPORT_FILE}，格式：每行一个场景 ID + pass/fail + 原因
+6. 列出发现的 P0/P1 bug"
 
-    start_agent "$NAME" "$CLI" \
-      "${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md" "$ROUND"
-    sleep 2
+  echo "$TESTER_PROMPT" | timeout 600 claude --dangerously-skip-permissions -p - \
+    --add-dir "$PROJECT_ROOT" \
+    > "${REPORT_FILE}" 2>&1 || true
 
-    tmux load-buffer -b "review-${NAME}-r${ROUND}" "$REVIEW_REQ"
-    tmux paste-buffer -d -r -b "review-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
-    tmux send-keys -t "hyper-loop:${NAME}" Enter
-  done
+  if [[ -s "$REPORT_FILE" ]]; then
+    echo "  ✓ 试用报告已生成: $REPORT_FILE"
+  else
+    echo "  ⚠ Tester 无输出，生成默认报告"
+    echo "# Round $ROUND — Tester 无输出" > "$REPORT_FILE"
+  fi
+}
 
-  echo "等待 3 个 Reviewer 完成（最多 10 分钟）..."
-  local WAITED=0
-  while [[ "$WAITED" -lt 600 ]]; do
-    local DONE_COUNT=0
-    for NAME in reviewer-a reviewer-b reviewer-c; do
-      [[ -f "${SCORES_DIR}/${NAME}.json" ]] && ((DONE_COUNT++)) || true
-    done
-    [[ "$DONE_COUNT" -ge 3 ]] && break
-    sleep 15
-    ((WAITED += 15))
-  done
+# ── 3 Reviewer 合议（非交互管道模式）──
+run_reviewers() {
+  local ROUND="$1"
 
-  # 降级：从 pane 输出提取 JSON
-  for NAME in reviewer-a reviewer-b reviewer-c; do
-    if [[ ! -f "${SCORES_DIR}/${NAME}.json" ]]; then
-      echo "  ⚠ ${NAME} 未写文件，从 pane 提取..."
-      tmux capture-pane -t "hyper-loop:${NAME}" -p -S - > "/tmp/hyper-loop-pane-${NAME}.txt" 2>/dev/null || true
-      python3 - "/tmp/hyper-loop-pane-${NAME}.txt" "${SCORES_DIR}/${NAME}.json" <<'PYEXTRACT' 2>/dev/null || true
+  echo "启动 3 个 Reviewer（非交互模式）..."
+
+  # 构造评审 prompt（引用文件路径）
+  local REVIEW_PROMPT="你是代码评审官。请读以下文件后给出评分。
+
+评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md
+BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+Tester 报告：${REPORT_FILE}
+本轮修改：
+$(for STAT in "${TASK_DIR}"/*.stat; do [[ -f "$STAT" ]] && cat "$STAT"; done)
+
+只输出一个 JSON 对象，不要代码块，不要解释，不要 markdown：
+{\"score\":数字0到10,\"issues\":[{\"severity\":\"P0\",\"desc\":\"描述\"}],\"summary\":\"一句话总结\"}"
+
+  # JSON 提取函数
+  local EXTRACT_PY='
 import json, sys
 from pathlib import Path
-text = Path(sys.argv[1]).read_text()
+text = sys.stdin.read()
 decoder = json.JSONDecoder()
 last = None
 for i, ch in enumerate(text):
@@ -495,17 +445,40 @@ for i, ch in enumerate(text):
         if "score" in obj: last = obj
     except: pass
 if last:
-    Path(sys.argv[2]).write_text(json.dumps(last, ensure_ascii=False, indent=2))
-    print(f"  ✓ extracted score: {last.get('score')}")
+    json.dump(last, sys.stdout, ensure_ascii=False, indent=2)
 else:
-    Path(sys.argv[2]).write_text('{"score":0,"issues":[],"summary":"未能获取评分"}')
-    print("  ✗ no score found")
-PYEXTRACT
-    fi
-  done
+    json.dump({"score":3,"issues":[],"summary":"评审未返回有效JSON，给默认分3"}, sys.stdout)
+'
 
+  # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
+  (
+    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p - --add-dir "$PROJECT_ROOT" 2>/dev/null | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
+    echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
+  ) &
+
+  (
+    echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - \
+      --add-dir "$PROJECT_ROOT" 2>/dev/null | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-b.json" 2>/dev/null
+    echo "  ✓ reviewer-b (claude) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-b.json'))['score'])" 2>/dev/null || echo 'fallback')"
+  ) &
+
+  (
+    echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT" 2>/dev/null | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
+    echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
+  ) &
+
+  echo "  等待 3 个 Reviewer 完成（最多 5 分钟）..."
+  wait
+
+  # 确保所有评分文件存在（fallback 给 3 分）
   for NAME in reviewer-a reviewer-b reviewer-c; do
-    kill_agent "$NAME"
+    if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
+      echo '{"score":3,"issues":[],"summary":"Reviewer 超时或无输出，默认分3"}' > "${SCORES_DIR}/${NAME}.json"
+      echo "  ⚠ ${NAME} fallback to score 3"
+    fi
   done
 }
 

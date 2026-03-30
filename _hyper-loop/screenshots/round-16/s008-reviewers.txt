@@ -1,0 +1,6 @@
+450:    echo "把 JSON 写入文件 ${SCORES_DIR}/你的角色名.json 后输出：HYPERLOOP_REVIEW_DONE"
+453:  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+472:    for NAME in reviewer-a reviewer-b reviewer-c; do
+481:  for NAME in reviewer-a reviewer-b reviewer-c; do
+495:        if "score" in obj: last = obj
+507:  for NAME in reviewer-a reviewer-b reviewer-c; do

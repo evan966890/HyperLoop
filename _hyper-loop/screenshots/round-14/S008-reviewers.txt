@@ -1,0 +1,5 @@
+=== S008: 3 Reviewers ===
+run_reviewers: exists
+3 reviewers defined: reviewer-a:gemini, reviewer-b:claude, reviewer-c:codex
+JSON extraction fallback: 1
+score field check: 3

@@ -1,0 +1,6 @@
+=== S001: bash -n syntax check ===
+syntax ok
+---
+cmd_loop defined: 1
+Round output format:     echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+results.tsv append: 16 references

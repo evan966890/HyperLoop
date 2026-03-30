@@ -1,0 +1,6 @@
+$ grep -n '^cmd_status()' /tmp/hyper-loop-r24-review.sh
+697:cmd_status() {     # First definition (simpler, 6 lines)
+957:cmd_status() {     # Second definition (richer, 12 lines — this one wins)
+
+The first definition (line 697-703) is dead code, silently overwritten by the second (line 957-968).
+The second version adds "最佳轮次" display.

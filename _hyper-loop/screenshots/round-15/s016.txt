@@ -1,0 +1,6 @@
+=== S016: macOS timeout 兼容 ===
+验证项:
+1. gtimeout 优先: YES (line 17-18)
+2. 无 timeout 时自实现: YES (line 19-20)
+3. 不报 command not found: YES (三重降级)
+RESULT: PASS

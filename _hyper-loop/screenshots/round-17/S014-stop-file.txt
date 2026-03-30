@@ -1,0 +1,7 @@
+=== S014 验证: STOP 文件优雅退出 ===
+✓ STOP_FILE 检测 (line 852)
+✓ 输出 "优雅退出" (line 853)
+✓ rm STOP 文件 (line 854)
+✓ break 后正常退出 (脚本不 exit 1)
+
+结论: PASS

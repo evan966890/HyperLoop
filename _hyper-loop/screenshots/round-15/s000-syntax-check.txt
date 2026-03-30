@@ -1,0 +1,5 @@
+=== bash -n syntax check ===
+$ bash -n /tmp/hyper-loop-r15-test.sh
+(no output)
+EXIT_CODE=0
+PASS: 语法检查通过

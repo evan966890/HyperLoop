@@ -1,0 +1,9 @@
+已生成 3 个任务文件到 `_hyper-loop/tasks/round-10/`:
+
+| 任务 | 优先级 | 问题 | 影响 |
+|------|--------|------|------|
+| task1 | **P1-001** (最高) | Tester/Reviewer init 文件路径缺少 `templates/` | 连续 9 轮 0.0 分的根因 — agent 读不到角色定义 |
+| task2 | P1-002 | `cmd_status()` 重复定义 | 死代码，可读性问题 |
+| task3 | P1-003 | verdict.env grep 行缩进 2→6 空格 | 维护风险，代码一致性 |
+
+task1 是突破口 — 修复路径后 Tester/Reviewer 才能正常工作，评分才有可能脱离 0.0。

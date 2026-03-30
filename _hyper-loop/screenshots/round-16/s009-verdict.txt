@@ -1,0 +1,20 @@
+513:compute_verdict() {
+535:    echo "DECISION=ERROR" > "${TASK_DIR}/verdict.env"
+539:  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+543:scores_str, prev_median_str, report_path, output_path = sys.argv[1:5]
+546:median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
+548:prev_median = float(prev_median_str)
+564:elif median > prev_median:
+565:    decision = "ACCEPTED"
+566:elif median == prev_median and median > 0:
+567:    decision = "ACCEPTED_UNCHANGED"
+571:print(f"  中位数: {median}")
+579:    f.write(f"MEDIAN={median}\n")
+608:    cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
+615:  local VERDICT_FILE="${TASK_DIR}/verdict.env"
+660:    echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+661:    echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+669:  compute_verdict "$ROUND" "$PREV_MEDIAN"
+674:  # 安全读取 verdict.env（不 source，用 grep 提取）
+675:  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+676:  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)

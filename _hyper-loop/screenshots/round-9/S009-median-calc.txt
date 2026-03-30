@@ -1,0 +1,9 @@
+=== S009: 和议计算正确 ===
+$ python3 test: scores=[5.0, 6.0, 7.0], prev_median=0
+Scores: [5.0, 6.0, 7.0]
+Median: 6.0
+Max diff: 2.0
+Veto: False
+Decision: ACCEPTED
+
+VERDICT: PASS — median=6.0, max_diff=2.0 (<=2.0 so not PENDING_USER), ACCEPTED

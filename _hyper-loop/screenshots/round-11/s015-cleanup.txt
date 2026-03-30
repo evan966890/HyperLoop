@@ -1,0 +1,29 @@
+=== S015: worktree 清理 ===
+验证: worktree 删除 + 分支删除 + tmux window 关闭
+
+cleanup_round() (line 589-610):
+  # subshell + set +e 确保安全
+  (
+    set +e
+    # 关闭 tmux windows
+    tmux list-windows ... | grep -E '^w-|^tester|^reviewer' | while read -r w; do
+      tmux kill-window -t "hyper-loop:${w}"
+    done
+
+    # 删除 worktrees 和分支
+    for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
+      git worktree remove "$WT" --force
+      git branch -D "$BRANCH"
+    done
+
+    # 归档 verdict.env
+    cp "${TASK_DIR}/verdict.env" ".../archive/round-${ROUND}/"
+  ) || true
+
+分析:
+  worktree 删除: git worktree remove --force ✓
+  分支删除: git branch -D ✓
+  tmux 关闭: tmux kill-window ✓
+  安全性: subshell + set +e + || true ✓
+
+结论: PASS

@@ -1,0 +1,85 @@
+=== S008: reviewers ===
+# ── 3 Reviewer 合议 ──
+run_reviewers() {
+  local ROUND="$1"
+
+  echo "启动 3 个 Reviewer..."
+
+  local REVIEW_REQ="/tmp/hyper-loop-review-r${ROUND}.md"
+  {
+    echo "## 评审请求 Round $ROUND"
+    echo ""
+    echo "请读以下文件后打分："
+    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+    echo "- BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+    echo "- Tester 试用报告：${REPORT_FILE}"
+    echo "- 截图目录：${SCREENSHOT_DIR}/"
+    echo "- 本轮 diff："
+    for STAT in "${TASK_DIR}"/*.stat; do
+      [[ -f "$STAT" ]] && cat "$STAT"
+    done
+    echo ""
+    echo "输出要求：只输出一个 JSON，格式："
+    echo '{"score":数字,"issues":[{"severity":"P0","desc":"描述"}],"summary":"一句话"}'
+    echo ""
+    echo "把 JSON 写入文件 ${SCORES_DIR}/你的角色名.json 后输出：HYPERLOOP_REVIEW_DONE"
+  } > "$REVIEW_REQ"
+
+  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+
+  for ENTRY in "${REVIEWERS[@]}"; do
+    local NAME="${ENTRY%%:*}"
+    local CLI="${ENTRY#*:}"
+
+    start_agent "$NAME" "$CLI" \
+      "${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md" "$ROUND"
+    sleep 2
+
+    tmux load-buffer -b "review-${NAME}-r${ROUND}" "$REVIEW_REQ"
+    tmux paste-buffer -d -r -b "review-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
+    tmux send-keys -t "hyper-loop:${NAME}" Enter
+  done
+
+  echo "等待 3 个 Reviewer 完成（最多 10 分钟）..."
+  local WAITED=0
+  while [[ "$WAITED" -lt 600 ]]; do
+    local DONE_COUNT=0
+    for NAME in reviewer-a reviewer-b reviewer-c; do
+      [[ -f "${SCORES_DIR}/${NAME}.json" ]] && ((DONE_COUNT++)) || true
+    done
+    [[ "$DONE_COUNT" -ge 3 ]] && break
+    sleep 15
+    ((WAITED += 15))
+  done
+
+  # 降级：从 pane 输出提取 JSON
+  for NAME in reviewer-a reviewer-b reviewer-c; do
+    if [[ ! -f "${SCORES_DIR}/${NAME}.json" ]]; then
+      echo "  ⚠ ${NAME} 未写文件，从 pane 提取..."
+      tmux capture-pane -t "hyper-loop:${NAME}" -p -S - > "/tmp/hyper-loop-pane-${NAME}.txt" 2>/dev/null || true
+      python3 - "/tmp/hyper-loop-pane-${NAME}.txt" "${SCORES_DIR}/${NAME}.json" <<'PYEXTRACT' 2>/dev/null || true
+import json, sys
+from pathlib import Path
+text = Path(sys.argv[1]).read_text()
+decoder = json.JSONDecoder()
+last = None
+for i, ch in enumerate(text):
+    if ch != "{": continue
+    try:
+        obj, _ = decoder.raw_decode(text[i:])
+        if "score" in obj: last = obj
+    except: pass
+if last:
+    Path(sys.argv[2]).write_text(json.dumps(last, ensure_ascii=False, indent=2))
+    print(f"  ✓ extracted score: {last.get('score')}")
+else:
+    Path(sys.argv[2]).write_text('{"score":0,"issues":[],"summary":"未能获取评分"}')
+    print("  ✗ no score found")
+PYEXTRACT
+    fi
+  done
+
+  for NAME in reviewer-a reviewer-b reviewer-c; do
+    kill_agent "$NAME"
+  done
+}

@@ -1,0 +1,6 @@
+=== S016: macOS timeout ===
+16:# macOS 没有 timeout，用 coreutils 的 gtimeout
+17:if command -v gtimeout >/dev/null 2>&1; then
+18:  timeout() { gtimeout "$@"; }
+20:  timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
+RESULT: PASS

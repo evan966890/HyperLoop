@@ -1,0 +1,6 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+Line 348: git merge --squash --no-edit first writer ✓
+Line 352-355: merge failure → merge --abort + "conflict, deferred" ✓
+Line 355: ((FAILED++)) counter incremented ✓
+Script continues loop for next task, no crash ✓
+VERDICT: PASS

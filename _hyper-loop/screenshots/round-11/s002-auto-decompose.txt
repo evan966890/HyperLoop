@@ -1,0 +1,23 @@
+=== S002: auto_decompose 生成任务文件 ===
+验证目标: auto_decompose 正确生成 task*.md
+
+auto_decompose() (line 706+):
+  mkdir -p "$TASK_DIR" ✓
+  使用 claude -p 拆解任务 ✓
+  降级逻辑: 失败时生成默认 task1.md (line 769-786) ✓
+
+BUG (P1): 路径引用错误
+  line 719: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+  line 720: ${PROJECT_ROOT}/_hyper-loop/contract.md
+  正确路径应为: ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+  正确路径应为: ${PROJECT_ROOT}/_hyper-loop/context/contract.md
+  → claude 拆解器无法找到 BDD 规格和契约，导致任务质量下降
+
+  archive_round (line 797):
+  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" → 同样路径错误
+
+round-11 实际结果: 4 个 task*.md 已生成 ✓ (说明 claude 用了其他上下文或降级)
+每个文件包含"修复任务"和"相关文件" ✓
+
+结论: PARTIAL PASS (功能可用但路径 bug 降低质量)
+BUG: P1 - auto_decompose 和 archive_round 引用错误路径 (NOT FIXED in integration)

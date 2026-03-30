@@ -1,0 +1,11 @@
+=== S013: 连续 5 轮失败自动回退 ===
+Code analysis (lines 921-932):
+- Checks CONSECUTIVE_REJECTS >= 5 AND BEST_ROUND > 0 (line 922)
+- BUG P1: When all 9 rounds have score 0.0, BEST_ROUND remains 0
+  because the tracking condition (line 907) requires median > BEST_MEDIAN
+  With BEST_MEDIAN=0 and all medians=0, 0 > 0 is false → BEST_ROUND stays 0
+  So the rollback condition [BEST_ROUND -gt 0] is NEVER met
+  Rollback is effectively dead code when all rounds score 0
+- When BEST_ROUND > 0: reads git-sha.txt from archive and checks out
+- Resets CONSECUTIVE_REJECTS=0 after rollback
+RESULT: PARTIAL PASS (logic correct when BEST_ROUND>0, but edge case when all scores are 0)

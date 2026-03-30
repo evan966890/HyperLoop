@@ -1,0 +1,17 @@
+=== Missing init files ===
+TESTER_INIT.md: ls: /Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/TESTER_INIT.md: No such file or directory
+REVIEWER_INIT.md: ls: /Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/REVIEWER_INIT.md: No such file or directory
+---
+Referenced at line 384: start_agent 'tester' ... TESTER_INIT.md
+Referenced at line 460: start_agent ... REVIEWER_INIT.md
+Available context files:
+agents
+bdd-specs.md
+cli-reference-verified.md
+contract.md
+design-context.md
+hooks
+hyper-loop.sh
+INSTALL.md
+SKILL.md
+templates

@@ -1,0 +1,5 @@
+=== S009: 和议计算正确 ===
+Input: scores=[5.0, 6.0, 7.0], prev_median=0
+Expected: median=6.0, DECISION=ACCEPTED
+Actual:   median=6.0, DECISION=ACCEPTED
+RESULT: PASS

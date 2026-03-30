@@ -1,0 +1,19 @@
+=== S009: 和议计算正确 ===
+验证: 中位数计算 + DECISION 逻辑
+
+compute_verdict() (line 512-587):
+  Python3 计算 (line 544-546):
+    scores = sorted([float(s) for s in scores_str.split()])
+    n = len(scores)
+    median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
+
+  测试用例: scores=[5.0, 6.0, 7.0]
+    sorted = [5.0, 6.0, 7.0], n=3
+    median = scores[1] = 6.0 ✓
+    DECISION: 如果 > prev_median → ACCEPTED ✓
+
+  测试用例: scores=[5.0, 7.0]
+    sorted = [5.0, 7.0], n=2
+    median = (5.0+7.0)/2 = 6.0 ✓
+
+结论: PASS

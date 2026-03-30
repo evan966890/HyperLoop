@@ -1,0 +1,6 @@
+=== S005 ===
+audit_writer_diff at line 242
+Extracts allowed files from TASK.md (line 248)
+Returns 1 on violation (line 291)
+Merge skipped on failure (line 327-330)
+VERDICT: PASS

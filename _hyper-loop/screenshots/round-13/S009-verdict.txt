@@ -1,0 +1,55 @@
+=== S009: 和议计算正确 ===
+Test: scores=[5.0, 6.0, 7.0]
+  median = 6.0
+  veto = False
+  decision = ACCEPTED (median > 0 prev)
+
+Python verdict code (lines 577-622):
+  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+import sys, json
+from pathlib import Path
+
+scores_str, prev_median_str, report_path, output_path = sys.argv[1:5]
+scores = sorted([float(s) for s in scores_str.split()])
+n = len(scores)
+median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
+max_diff = max(scores) - min(scores)
+prev_median = float(prev_median_str)
+
+veto = any(s < 4.0 for s in scores)
+
+tester_p0 = False
+report = Path(report_path)
+if report.exists():
+    text = report.read_text()
+    tester_p0 = "P0" in text and ("bug" in text.lower() or "fail" in text.lower())
+
+if veto:
+    decision = "REJECTED_VETO"
+elif tester_p0:
+    decision = "REJECTED_TESTER_P0"
+elif max_diff > 2.0:
+    decision = "PENDING_USER"
+elif median > prev_median:
+    decision = "ACCEPTED"
+elif median == prev_median and median > 0:
+    decision = "ACCEPTED_UNCHANGED"
+else:
+    decision = "REJECTED_NO_IMPROVEMENT"
+
+print(f"  中位数: {median}")
+print(f"  分歧: {max_diff}")
+print(f"  否决: {veto}")
+print(f"  Tester P0: {tester_p0}")
+print(f"  决策: {decision}")
+
+with open(output_path, 'w') as f:
+    f.write(f"DECISION={decision}\n")
+    f.write(f"MEDIAN={median}\n")
+    f.write(f"MAX_DIFF={max_diff}\n")
+    f.write(f"VETO={veto}\n")
+    f.write(f"TESTER_P0={tester_p0}\n")
+    f.write(f"SCORES=\"{' '.join(str(s) for s in scores)}\"\n")
+PYVERDICT
+
+RESULT: PASS — median=6.0, DECISION=ACCEPTED when prev_median=0

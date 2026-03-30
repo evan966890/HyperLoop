@@ -1,0 +1,6 @@
+=== S014: STOP 文件优雅退出 ===
+Line 852-855: Check for STOP file before each round ✓
+Line 853: "检测到 STOP 文件，优雅退出" ✓
+Line 854: rm "$STOP_FILE" deletes STOP file ✓
+Line 855: break exits loop (exit 0 at end of script) ✓
+VERDICT: PASS

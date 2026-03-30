@@ -1,0 +1,5 @@
+=== S009: Median calculation ===
+Input: [5.0, 6.0, 7.0]
+Median: 6.0
+Expected: 6.0
+PASS

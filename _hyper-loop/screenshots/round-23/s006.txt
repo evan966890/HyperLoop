@@ -1,0 +1,5 @@
+=== S006: Writer timeout handling ===
+Line 198: Default 900s (15 min) PASS
+Line 221-226: After timeout, writes {"status":"timeout"} to DONE.json PASS
+Line 319: merge_writers reads status, skips non-"done" PASS
+VERDICT: PASS

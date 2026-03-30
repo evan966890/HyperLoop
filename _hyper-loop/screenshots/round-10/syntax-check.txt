@@ -1,0 +1,2 @@
+=== S-SYNTAX: bash -n syntax check ===
+RESULT: syntax ok

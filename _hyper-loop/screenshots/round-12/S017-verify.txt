@@ -1,0 +1,6 @@
+=== S017 ===
+merge --squash with error handling at line 348
+merge --abort on conflict at line 353
+'conflict, deferred' message at line 354
+Loop continues (no exit/crash)
+VERDICT: PASS

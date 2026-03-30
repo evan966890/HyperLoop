@@ -1,0 +1,5 @@
+=== S011: Tester P0 否决 ===
+验证项:
+1. 报告含 'P0' + 'fail' → tester_p0=True: VERIFIED
+2. DECISION=REJECTED_TESTER_P0: VERIFIED (line 559)
+RESULT: PASS

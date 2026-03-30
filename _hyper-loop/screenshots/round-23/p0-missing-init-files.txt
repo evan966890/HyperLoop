@@ -1,0 +1,19 @@
+=== P0: TESTER_INIT.md and REVIEWER_INIT.md missing ===
+
+Context directory listing:
+  _hyper-loop/context/bdd-specs.md              ✓
+  _hyper-loop/context/cli-reference-verified.md ✓
+  _hyper-loop/context/contract.md               ✓
+  _hyper-loop/context/design-context.md         ✓
+  _hyper-loop/context/INSTALL.md                ✓
+  _hyper-loop/context/SKILL.md                  ✓
+  _hyper-loop/context/TESTER_INIT.md            ✗ MISSING
+  _hyper-loop/context/REVIEWER_INIT.md          ✗ MISSING
+
+Impact:
+  - run_tester (line 384) passes TESTER_INIT.md path to start_agent
+  - run_reviewers (line 460) passes REVIEWER_INIT.md path to start_agent  
+  - start_agent (line 74) generates inject file referencing INIT path
+  - Agent reads nonexistent file → no role context → degraded behavior
+
+Root cause: Files were never created or were deleted during previous rounds

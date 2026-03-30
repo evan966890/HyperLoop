@@ -1,0 +1,10 @@
+Round 17 拆解完成，4 个任务已写入 `_hyper-loop/tasks/round-17/`:
+
+| 任务 | 优先级 | 问题 | 关键影响 |
+|------|--------|------|----------|
+| **task1** | P0 | 恢复被 `script` 命令覆写的 `hyper-loop.sh` + 清理 `started` 文件 | 脚本不可用，循环无法运行 |
+| **task2** | P0 | 修复 Tester/Reviewer INIT 文件路径（`TESTER_INIT.md` → `agents/tester.md`） | **16 轮 0 分的根因** — Agent 无角色定义 |
+| **task3** | P1 | 统一 `auto_decompose` 和 `archive_round` 中的 bdd-specs/contract 路径到 `context/` | Claude 拆解任务时读不到完整上下文 |
+| **task4** | P1 | 删除重复 `cmd_status` + 修正超时消息 10→15 分钟 | 死代码 + 消息误导 |
+
+**task2 是打破 0 分循环的关键** — Agent 模板文件存在于 `context/agents/` 下但脚本引用了不存在的路径。

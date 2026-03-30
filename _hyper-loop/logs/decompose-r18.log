@@ -1,0 +1,11 @@
+Round 18 拆解完成，5 个任务已写入 `_hyper-loop/tasks/round-18/`:
+
+| 任务 | 优先级 | 问题 | 关联场景 |
+|------|--------|------|----------|
+| task1 | P0-1 | `hyper-loop.sh` 工作副本被 `script` 覆盖，需 `git checkout HEAD` 恢复 | S001 |
+| task2 | P0-2 | Tester/Reviewer 角色定义路径错误 (`TESTER_INIT.md` → `agents/tester.md`) | S007, S008 |
+| task3 | P0-3 | `merge_writers` 的 echo 污染 stdout，导致 `INTEGRATION_WT` 包含垃圾 | S004 |
+| task4 | P1-1+P1-2 | `BEST_ROUND` 只追踪 ACCEPTED 致回退失效 + `cmd_status` 重复定义 | S013 |
+| task5 | P1-3 | `archive_round` 拷贝 `bdd-specs.md` 路径不准确 | S013 关联 |
+
+task1 是前置依赖（恢复文件），task2-5 可并行执行。P0-2 极可能是 17 轮全零分的根因——Agent 读不到角色定义。

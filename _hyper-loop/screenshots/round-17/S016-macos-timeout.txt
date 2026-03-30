@@ -1,0 +1,6 @@
+=== S016 验证: macOS timeout 兼容 ===
+✓ gtimeout 优先 (line 17-18)
+✓ fallback: 自定义 timeout 函数 (line 20)
+✓ command -v 检测 (line 17, 19)
+
+结论: PASS

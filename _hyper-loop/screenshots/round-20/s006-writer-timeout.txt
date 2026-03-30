@@ -1,0 +1,5 @@
+=== S006: Writer 超时处理 ===
+Line 198: TIMEOUT defaults to 900s (15 min) ✓
+Line 221-226: Timeout writes {"status":"timeout"} to DONE.json ✓
+Line 321-325: status!=done causes skip in merge_writers ✓
+VERDICT: PASS

@@ -1,0 +1,11 @@
+=== S001: loop 命令启动死循环 ===
+$ grep -n 'Round.*/' scripts/hyper-loop.sh
+860:    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+
+$ grep -n 'while.*ROUND.*MAX_ROUNDS' scripts/hyper-loop.sh
+850:  while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+
+$ grep -n 'results.tsv' scripts/hyper-loop.sh | grep record
+627:    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+
+VERDICT: PASS — loop outputs "Round N/MAX", enters while loop, records to results.tsv

@@ -1,0 +1,27 @@
+=== S001: loop 命令启动死循环 ===
+cmd_loop() function:
+77:    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
+665:    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+686:  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+687:    PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+739:  echo "results.tsv:"
+740:  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+759:- 历史结果：${PROJECT_ROOT}/_hyper-loop/results.tsv
+863:cmd_loop() {
+864:  local MAX_ROUNDS="${1:-999}"
+871:  echo "║  HyperLoop LOOP 模式 — 最多 ${MAX_ROUNDS} 轮             "
+878:  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+880:    LAST_ROUND=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f1 || echo 0)
+888:  while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+898:    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+909:    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+910:      PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+979:    ((ROUND++))
+991:  echo "  结果: cat ${PROJECT_ROOT}/_hyper-loop/results.tsv"
+999:  echo "results.tsv:"
+1000:  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+1003:  if [[ -f "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" ]]; then
+1005:    sort -t$'\t' -k2 -rn "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" | head -1
+1012:  loop)         cmd_loop "${2:-999}" ;;
+
+RESULT: PASS — cmd_loop accepts MAX_ROUNDS, outputs 'Round N/MAX', record_result writes to results.tsv

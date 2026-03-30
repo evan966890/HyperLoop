@@ -1,0 +1,7 @@
+=== S002: auto_decompose ===
+Function exists: 1
+Fallback task1.md: 1
+BUG: wrong path for bdd-specs.md:
+719:- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+797:  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
+Should be: _hyper-loop/context/bdd-specs.md

@@ -1,0 +1,65 @@
+=== S004: merge_writers ===
+# ── 合并 ──
+merge_writers() {
+  local ROUND="$1"
+  local INTEGRATION_BRANCH="hyper-loop/r${ROUND}-integration"
+  local INTEGRATION_WT="${WORKTREE_BASE}/integration"
+  local BASE_SHA
+  BASE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
+
+  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" 2>/dev/null
+
+  local MERGED=0
+  local FAILED=0
+
+  echo "合并 Writer 产出..."
+
+  for WT in "${WORKTREE_BASE}"/task*; do
+    [[ -d "$WT" ]] || continue
+    local TASK_NAME
+    TASK_NAME=$(basename "$WT")
+
+    local STATUS
+    STATUS=$(python3 -c "import json; print(json.load(open('${WT}/DONE.json'))['status'])" 2>/dev/null || echo "unknown")
+    if [[ "$STATUS" != "done" ]]; then
+      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过"
+      ((FAILED++)) || true
+      continue
+    fi
+
+    # Diff 审计：检查 Writer 是否只改了指定范围的文件
+    if ! audit_writer_diff "$WT"; then
+      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并"
+      ((FAILED++)) || true
+      continue
+    fi
+
+    local BRANCH
+    BRANCH=$(git -C "$WT" branch --show-current)
+
+    # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
+    # 必须先 commit 才能 merge
+    git -C "$WT" add -A 2>/dev/null
+    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty 2>/dev/null || true
+
+    # 保存 diff（对比 worktree 创建时的 parent commit）
+    git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
+      git -C "$WT" diff HEAD > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null
+    git -C "$WT" diff --stat HEAD~1 > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null || \
+      git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
+
+    # squash merge
+    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" 2>/dev/null
+      echo "  ✓ ${TASK_NAME} merged"
+      ((MERGED++)) || true
+    else
+      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+      echo "  ✗ ${TASK_NAME} conflict, deferred"
+      ((FAILED++)) || true
+    fi
+  done
+
+  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped"
+  echo "$INTEGRATION_WT"
+}

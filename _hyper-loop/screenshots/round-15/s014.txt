@@ -1,0 +1,7 @@
+=== S014: STOP 文件优雅退出 ===
+验证项:
+1. STOP 文件检测: YES (line 852)
+2. 当前轮不执行: YES (break 在循环开头)
+3. exit 0: YES (循环结束后正常退出)
+4. STOP 文件被删除: YES (line 854: rm)
+RESULT: PASS

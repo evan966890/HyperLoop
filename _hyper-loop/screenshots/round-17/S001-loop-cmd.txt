@@ -1,0 +1,9 @@
+=== S001 验证: loop 命令启动死循环 ===
+✓ bash -n syntax ok (committed version)
+✓ cmd_loop 函数存在 (line 825)
+✓ 循环条件: while ROUND <= MAX_ROUNDS (line 850)
+✓ 输出 "LOOP: Round N/MAX" (line 860)
+✓ record_result 写 results.tsv (line 627)
+⚠ 输出格式 "LOOP: Round N/MAX" vs BDD 期望 "Round 1/3" — 微小差异
+
+结论: PASS (with minor format deviation)

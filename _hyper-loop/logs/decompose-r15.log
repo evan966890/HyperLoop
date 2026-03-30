@@ -1,0 +1,10 @@
+已写入 4 个任务文件到 `_hyper-loop/tasks/round-15/`:
+
+| 任务 | 优先级 | 问题 | 关联场景 |
+|------|--------|------|----------|
+| task1 | P0 | 恢复被覆盖的工作副本 (43B → 987行) | S001 |
+| task2 | P0 | auto_decompose 路径错误 — **14轮0分根因** | S002 |
+| task3 | P0 | archive_round 路径错误 | S013 |
+| task4 | P1 | cmd_status() 重复定义 | S001 |
+
+**核心判断**: task2 是连续 14 轮 REJECTED_VETO 的根因 — 分解器读不到 bdd-specs.md 和 contract.md，生成的任务没有针对性，Reviewer 自然给 0 分。修复后分解质量应大幅提升。

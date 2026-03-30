@@ -1,0 +1,6 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+Line 124: git worktree add creates /tmp/hyper-loop-worktrees-rN/taskM ✓
+Line 130-131: ~/.codex/config.toml trust injection ✓
+Line 182: codex --dangerously-bypass-approvals-and-sandbox in tmux ✓
+Line 136: cp -r context -> _ctx/ ✓
+VERDICT: PASS

@@ -1,0 +1,6 @@
+=== S006: Writer 超时处理 ===
+验证项:
+1. 默认超时 900s=15分钟: YES (line 198)
+2. 超时写 DONE.json status=timeout: YES (line 224)
+3. 标记为 failed: YES (merge_writers line 324 status≠done → 跳过)
+RESULT: PASS

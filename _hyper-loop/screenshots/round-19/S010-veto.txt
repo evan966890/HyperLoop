@@ -1,0 +1,2 @@
+=== S010: veto ===
+Veto=True, decision=REJECTED_VETO

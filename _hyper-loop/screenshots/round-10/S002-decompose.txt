@@ -1,0 +1,12 @@
+=== S002: auto_decompose 生成任务文件 ===
+Code analysis (lines 706-789):
+- Creates task dir, generates decompose prompt
+- Uses claude -p to decompose (line 760-762)
+- Fallback: if 0 tasks, creates default task1.md (lines 767-786)
+- BUG P1: Lines 719-720 reference wrong paths:
+  WRONG: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+  RIGHT: ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+  WRONG: ${PROJECT_ROOT}/_hyper-loop/contract.md
+  RIGHT: ${PROJECT_ROOT}/_hyper-loop/context/contract.md
+- Fallback works correctly when claude -p fails
+RESULT: PASS (fallback works, but paths are wrong → P1)

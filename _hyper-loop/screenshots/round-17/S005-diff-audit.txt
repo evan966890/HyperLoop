@@ -1,0 +1,8 @@
+=== S005 验证: diff 审计拦截越界修改 ===
+✓ audit_writer_diff 函数 (line 242)
+✓ 从 TASK.md 提取"相关文件"列表 (line 248)
+✓ 越界文件检测 + VIOLATIONS (line 267-286)
+✓ 返回非零 return 1 (line 291)
+✓ merge_writers 中审计失败则跳过 (line 327-329)
+
+结论: PASS

@@ -1,0 +1,5 @@
+=== S012 ===
+grep-based reading at lines 621-623, 675-676, 897-898
+No 'source' or '. verdict.env' anywhere
+Python test: grep extraction ✓
+VERDICT: PASS

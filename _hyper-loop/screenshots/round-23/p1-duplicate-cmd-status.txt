@@ -1,0 +1,7 @@
+=== P1: Duplicate cmd_status definition ===
+
+Line 697: cmd_status() {    ← first definition (simpler)
+Line 957: cmd_status() {    ← second definition (with best round)
+
+In bash, the second definition silently overwrites the first.
+Line 697 is dead code. Should be removed.

@@ -1,0 +1,5 @@
+=== S011 ===
+P0 check: 'P0' in text AND ('bug' OR 'fail') at line 556
+REJECTED_TESTER_P0 at line 561
+Python test: P0+fail → detected ✓
+VERDICT: PASS

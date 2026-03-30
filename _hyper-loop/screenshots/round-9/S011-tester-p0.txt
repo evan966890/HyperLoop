@@ -1,0 +1,7 @@
+=== S011: Tester P0 否决 ===
+$ python3 test: text with "P0" and "fail"
+P0 detected: True
+$ python3 test: text without "P0"
+P0 not detected: True
+
+VERDICT: PASS

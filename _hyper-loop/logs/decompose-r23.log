@@ -1,0 +1,10 @@
+Round 23 拆解完毕，4 个任务文件已写入 `_hyper-loop/tasks/round-23/`：
+
+| 任务 | 优先级 | 修复内容 | 关联 BDD |
+|------|--------|----------|----------|
+| task1 | P0 | 恢复被 `script` 命令覆盖的工作副本 | S001 |
+| task2 | P0 | Tester/Reviewer 初始化文件路径 `TESTER_INIT.md` → `agents/tester.md` | S007, S008 |
+| task3 | P1 | auto_decompose + archive_round 中 bdd-specs/contract 路径缺 `context/` | S002 |
+| task4 | P1 | S013 回退逻辑（BEST_ROUND 需在 REJECTED 时也更新）+ cmd_status 重复定义 | S013 |
+
+任务间无依赖（task2-4 都改 hyper-loop.sh 不同位置），task1 是恢复工作副本的前置条件但各 Writer 在独立 worktree 中工作所以并行安全。

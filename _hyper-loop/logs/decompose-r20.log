@@ -1,0 +1,10 @@
+Round 20 拆解完成，4 个任务已写入 `_hyper-loop/tasks/round-20/`:
+
+| 任务 | 优先级 | 问题 | BDD |
+|------|--------|------|-----|
+| task1 | **P0** | `run_tester()` 的 TESTER_INIT.md 路径缺少 `templates/` | S007 |
+| task2 | **P0** | `run_reviewers()` 的 REVIEWER_INIT.md 路径缺少 `templates/` | S008 |
+| task3 | P1 | STOP 文件退出用 `break` 而非 `exit 0` | S014 |
+| task4 | P1 | `auto_decompose` prompt 中 bdd-specs/contract 路径与 `start_agent` 不一致 | S002 |
+
+**根因分析**: 19 轮全部 0 分 REJECTED_VETO 的根因是 task1 + task2 — Tester 和 Reviewer 读不到角色定义文件，无法正常工作，fallback 给 0 分触发一票否决。修复这两个 P0 后评分流程应能恢复正常。

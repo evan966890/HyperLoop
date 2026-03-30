@@ -1,0 +1,6 @@
+=== S015: worktree 清理 ===
+Line 590-610: cleanup_round() with subshell + set +e ✓
+Line 596-598: Kill tmux windows matching w-|tester|reviewer ✓
+Line 600-606: Remove worktrees and delete branches ✓
+Line 608: Archive verdict.env ✓
+VERDICT: PASS

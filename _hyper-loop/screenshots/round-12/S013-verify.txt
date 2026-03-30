@@ -1,0 +1,5 @@
+=== S013 ===
+5-reject check at line 922
+Rollback via git-sha.txt at line 926
+CONSECUTIVE_REJECTS=0 reset at line 931
+VERDICT: PASS

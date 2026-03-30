@@ -1,0 +1,6 @@
+=== S012: verdict.env 安全读取 ===
+Input: verdict.env with MEDIAN=0.0, SCORES="1.0 2.0 3.0"
+Method: grep + cut (no source)
+Expected: no "command not found"
+Actual: DECISION=REJECTED_VETO, MEDIAN=0.0, SCORES=1.0 2.0 3.0
+RESULT: PASS

@@ -1,0 +1,6 @@
+=== S013: Consecutive 5 rejects rollback ===
+Threshold check: CONSECUTIVE_REJECTS >= 5
+BEST_ROUND > 0 guard: yes
+git checkout to BEST_SHA: 1
+CONSECUTIVE_REJECTS reset: 3
+PASS

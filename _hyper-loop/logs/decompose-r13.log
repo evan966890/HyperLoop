@@ -1,0 +1,10 @@
+Round 13 任务已拆解完成，4 个文件写入 `_hyper-loop/tasks/round-13/`：
+
+| 任务 | 优先级 | 问题 | BDD |
+|------|--------|------|-----|
+| task1 | **P0** | Reviewer 评审请求共用一个文件，`你的角色名` 歧义导致 12 轮全部 0 分 → 为每个 Reviewer 生成独立请求文件含精确输出路径 | S008, S009 |
+| task2 | **P0** | `gemini --yolo` / `codex --full-auto` 可能未安装导致 Agent 启动即死 → 添加 CLI 可用性检查 + 降级到 claude | S008 |
+| task3 | **P1** | `auto_decompose` heredoc 内 `\$f` 转义错误，拆解器看不到上轮评分 → 提取为函数/变量 | S002 |
+| task4 | **P1** | `BEST_ROUND=0` 时回退永不触发 + `cmd_status` 重复定义 → 重置计数器 + 删除死代码 | S013, S001 |
+
+另外注意：`scripts/hyper-loop.sh` 工作副本已被 `script` 命令输出覆盖（仅 1 行），需要先 `git checkout scripts/hyper-loop.sh` 恢复再跑下一轮。

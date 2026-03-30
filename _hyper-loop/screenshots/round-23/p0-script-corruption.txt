@@ -1,0 +1,19 @@
+=== P0: scripts/hyper-loop.sh CORRUPTED ===
+
+Working copy (1 line):
+  "Script started on Mon Mar 30 07:00:32 2026"
+
+Committed version (HEAD): 987 lines, full script
+
+Evidence:
+  - `started` file exists at project root (Unix `script` command artifact)
+  - `started` content: "Script started on Mon Mar 30 07:00:33 2026"
+  - hyper-loop.sh content: "Script started on Mon Mar 30 07:00:32 2026"
+  - File was overwritten by `script` command output
+
+Impact:
+  - BUILD_CMD `bash -n scripts/hyper-loop.sh` STILL PASSES (syntactically valid)
+  - But script is non-functional (no functions, no case statement)
+  - All subsequent rounds will silently succeed build check but script does nothing
+
+Fix: git checkout HEAD -- scripts/hyper-loop.sh

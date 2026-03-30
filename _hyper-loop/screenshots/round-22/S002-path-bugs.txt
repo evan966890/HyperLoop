@@ -1,0 +1,15 @@
+=== auto_decompose wrong path references ===
+Line 719: ${PROJECT_ROOT}/_hyper-loop/bdd-specs.md  (WRONG - file not at this path)
+Line 720: ${PROJECT_ROOT}/_hyper-loop/contract.md    (WRONG - file not at this path)
+Actual:   ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+Actual:   ${PROJECT_ROOT}/_hyper-loop/context/contract.md
+
+=== archive_round wrong path ===
+Line 797: cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/"  (WRONG)
+Should:   cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/"
+
+=== Agent init files wrong paths ===
+Line 384: TESTER_INIT.md at ${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md (NOT FOUND)
+Line 460: REVIEWER_INIT.md at ${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md (NOT FOUND)
+Actual:   ${PROJECT_ROOT}/_hyper-loop/context/agents/tester.md
+Actual:   ${PROJECT_ROOT}/_hyper-loop/context/agents/reviewer.md

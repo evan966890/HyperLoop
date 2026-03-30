@@ -1,0 +1,5 @@
+=== S016: macOS timeout ===
+gtimeout check: 3
+fallback timeout function: 2
+gtimeout available on this system: yes
+PASS

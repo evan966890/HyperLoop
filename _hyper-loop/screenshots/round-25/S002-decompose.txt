@@ -1,0 +1,15 @@
+=== S002: auto_decompose 生成任务文件 ===
+
+auto_decompose() 函数 (line 706):
+- 创建 TASK_DIR ✓
+- 用 claude -p 生成 task*.md ✓
+- 降级生成默认 task1.md ✓ (line 770)
+
+BUG FOUND (P0):
+  Line 719: _hyper-loop/bdd-specs.md → 实际路径是 _hyper-loop/context/bdd-specs.md
+  Line 720: _hyper-loop/contract.md → 实际路径是 _hyper-loop/context/contract.md
+  Claude 拆解 prompt 引用了不存在的文件，导致任务拆解缺少 BDD 和契约上下文。
+
+BUG FOUND (P1):
+  Line 731: heredoc 内 \$f 在 $() 命令替换中产生字面量 "$f"
+  "上一轮评分" 段落显示 "$f: $f" 而非实际文件名和内容。

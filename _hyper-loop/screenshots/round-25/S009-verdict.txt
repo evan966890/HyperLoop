@@ -1,0 +1,10 @@
+=== S009: 和议计算正确 ===
+
+compute_verdict() 函数 (line 513):
+- 中位数计算 (Python, line 546) ✓
+  scores = sorted([5.0, 6.0, 7.0]) → median = scores[1] = 6.0 ✓
+- ACCEPTED 判定 (median > prev_median, line 564) ✓
+- verdict.env 写入 (line 577-583) ✓
+  格式: DECISION=X, MEDIAN=X, SCORES="x y z" ✓
+
+PASS

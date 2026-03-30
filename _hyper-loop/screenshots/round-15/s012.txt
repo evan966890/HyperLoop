@@ -1,0 +1,7 @@
+=== S012: verdict.env 安全读取 ===
+验证项:
+1. 全部用 grep 读取: YES (line 621,622,675,676,897,898)
+2. 无 source verdict.env: VERIFIED (grep 搜索确认)
+3. 不会出现 'command not found': YES (SCORES 值被引号包裹不执行)
+NOTE: grep 无 || true 防护 (如果文件异常可能触发 set -e)
+RESULT: PASS

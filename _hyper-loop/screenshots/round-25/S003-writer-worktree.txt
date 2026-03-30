@@ -1,0 +1,10 @@
+=== S003: Writer worktree 创建 + trust + 启动 ===
+
+start_writers() 函数 (line 101):
+- git worktree add "$WT" -b "$BRANCH" (line 124) ✓
+- Codex trust 写入 ~/.codex/config.toml (line 131-132) ✓
+- tmux new-window + codex 启动 (line 179-182) ✓
+- cp -r context → _ctx/ (line 136) ✓
+- WRITER_INIT.md 生成 (line 140-175) ✓
+
+PASS

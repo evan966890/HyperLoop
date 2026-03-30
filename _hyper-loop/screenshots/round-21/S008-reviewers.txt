@@ -1,0 +1,22 @@
+=== S008: 3 Reviewers ===
+41:  SCORES_DIR="${PROJECT_ROOT}/_hyper-loop/scores/round-${ROUND}"
+448:    echo '{"score":数字,"issues":[{"severity":"P0","desc":"描述"}],"summary":"一句话"}'
+453:  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+455:  for ENTRY in "${REVIEWERS[@]}"; do
+472:    for NAME in reviewer-a reviewer-b reviewer-c; do
+480:  # 降级：从 pane 输出提取 JSON
+481:  for NAME in reviewer-a reviewer-b reviewer-c; do
+483:      echo "  ⚠ ${NAME} 未写文件，从 pane 提取..."
+495:        if "score" in obj: last = obj
+499:    print(f"  ✓ extracted score: {last.get('score')}")
+501:    Path(sys.argv[2]).write_text('{"score":0,"issues":[],"summary":"未能获取评分"}')
+502:    print("  ✗ no score found")
+507:  for NAME in reviewer-a reviewer-b reviewer-c; do
+526:    S=$(python3 -c "import json; print(json.load(open('${SCORE_FILE}'))['score'])" 2>/dev/null || echo "0")
+543:scores_str, prev_median_str, report_path, output_path = sys.argv[1:5]
+544:scores = sorted([float(s) for s in scores_str.split()])
+545:n = len(scores)
+546:median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
+547:max_diff = max(scores) - min(scores)
+550:veto = any(s < 4.0 for s in scores)
+RESULT: PASS

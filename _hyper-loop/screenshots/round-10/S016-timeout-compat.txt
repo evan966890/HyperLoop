@@ -1,0 +1,6 @@
+=== S016: macOS timeout 兼容 ===
+Code analysis (lines 17-21):
+- Checks for gtimeout first (coreutils)
+- Verified: gtimeout found at /opt/homebrew/bin/gtimeout
+- Fallback: if neither exists, defines shell function using bg process + sleep + kill
+RESULT: PASS (gtimeout available on this system)

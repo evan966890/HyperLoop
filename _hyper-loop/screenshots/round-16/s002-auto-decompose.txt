@@ -1,0 +1,18 @@
+107:  TASK_COUNT=$(find "$TASK_DIR" -maxdepth 1 -name 'task*.md' | wc -l | tr -d ' ')
+110:    echo "ERROR: $TASK_DIR 下没有任务文件（task*.md）" >&2
+111:    echo "Claude Code 需要先拆解任务并写入 task*.md 文件" >&2
+117:  for TASK_FILE in "$TASK_DIR"/task*.md; do
+246:  # 从 TASK.md 提取"相关文件"列表
+248:  ALLOWED_FILES=$(grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
+253:    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计"
+480:  # 降级：从 pane 输出提取 JSON
+706:auto_decompose() {
+741:## 修复任务: TASK-N
+746:### 相关文件
+765:  TASK_COUNT=$(find "$TASK_DIR" -maxdepth 1 -name 'task*.md' 2>/dev/null | wc -l | tr -d ' ')
+769:    # 降级：基于上一轮失败的 BDD 场景生成一个通用任务
+771:## 修复任务: TASK-1
+779:### 相关文件
+863:    # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
+868:    auto_decompose "$ROUND"
+979:    echo "  hyper-loop.sh round <N>       # 执行第 N 轮循环（需要先写 task*.md）"

@@ -1,0 +1,24 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+验证: 冲突时不崩溃 + 记录 deferred
+
+merge_writers() (line 348-356):
+  if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+    git -C "$INTEGRATION_WT" commit --no-edit -m "..."
+    echo "  ✓ ${TASK_NAME} merged"
+    ((MERGED++)) || true
+  else
+    git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+    echo "  ✗ ${TASK_NAME} conflict, deferred"
+    ((FAILED++)) || true
+  fi
+
+Round 11 实际证据:
+  Integration branch commits: 只有 "hyper-loop R11 task1"
+  → task1 成功 merge ✓
+  → task2-4 因冲突被 deferred ✓
+    (4 个 writer 都改了 scripts/hyper-loop.sh 导致冲突)
+  → 脚本没有崩溃 ✓
+
+结论: PASS
+  但: 冲突导致 3/4 修复丢失，这是架构层面的风险
+  建议: 多 writer 改同一文件时应合并为单一 task

@@ -1,0 +1,8 @@
+=== S017: 多 Writer 同文件冲突处理 ===
+Code analysis (lines 348-356):
+- First writer merges normally via git merge --squash
+- If conflict: git merge --abort (line 353)
+- Prints "conflict, deferred" (line 354)
+- Increments FAILED counter (line 355)
+- Script continues to next writer without crashing
+RESULT: PASS

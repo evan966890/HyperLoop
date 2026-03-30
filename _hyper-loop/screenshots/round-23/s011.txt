@@ -1,0 +1,4 @@
+=== S011: Tester P0 veto ===
+Line 553-556: Checks "P0" in text AND ("bug" or "fail") PASS
+Line 560-561: REJECTED_TESTER_P0 PASS
+VERDICT: PASS

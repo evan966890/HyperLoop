@@ -1,0 +1,8 @@
+已拆解 4 个任务到 `_hyper-loop/tasks/round-24/`:
+
+| 任务 | 优先级 | 问题 | 影响的 BDD 场景 |
+|------|--------|------|----------------|
+| task1 | P0 | 恢复被 `script` 命令覆盖的 hyper-loop.sh + 删除 `started` 文件 | S001 |
+| task2 | P0 | TESTER_INIT.md/REVIEWER_INIT.md 路径缺 `templates/` 子目录 (L384, L460) | S007, S008 |
+| task3 | P1 | auto_decompose + archive_round 路径缺 `context/` 子目录 (L719-720, L797) | S002 |
+| task4 | P1 | 删除重复 cmd_status() (L697-703) + cleanup_round 补 rmdir (L589-610) | S015 |

@@ -1,0 +1,14 @@
+auto_decompose() line 719-720:
+  - BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/bdd-specs.md        # <-- missing context/
+  - 评估契约：${PROJECT_ROOT}/_hyper-loop/contract.md              # <-- missing context/
+
+Other references (correct):
+  line 75: ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md        # correct
+  line 76: ${PROJECT_ROOT}/_hyper-loop/context/contract.md         # correct
+  line 393: ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md       # correct
+
+archive_round() line 797:
+  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/"       # also missing context/
+
+NOTE: Files exist at BOTH paths (root-level copies exist), so this is not a hard failure.
+But it creates maintenance risk if root copies diverge from context/ copies.

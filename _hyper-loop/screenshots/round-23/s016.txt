@@ -1,0 +1,4 @@
+=== S016: macOS timeout compatibility ===
+Line 17-21: gtimeout check → fallback timeout() function PASS
+Fallback uses background process + sleep + kill — correct PASS
+VERDICT: PASS

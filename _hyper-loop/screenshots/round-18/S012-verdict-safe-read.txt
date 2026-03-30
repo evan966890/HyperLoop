@@ -1,0 +1,18 @@
+== S012: verdict.env 安全读取 ==
+
+record_result() at line 613:
+  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)  ✓
+  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)      ✓
+  R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')  ✓
+
+cmd_round() at line 675-676:
+  DECISION=$(grep '^DECISION=' ... | cut -d= -f2)  ✓
+  MEDIAN=$(grep '^MEDIAN=' ... | cut -d= -f2)      ✓
+
+cmd_loop() at lines 897-898:
+  DECISION=$(grep '^DECISION=' ... | cut -d= -f2)  ✓
+  MEDIAN=$(grep '^MEDIAN=' ... | cut -d= -f2)      ✓
+
+所有读取都用 grep + cut，不再用 source → 不会有 "command not found" ✓
+
+VERDICT: PASS

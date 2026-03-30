@@ -1,0 +1,7 @@
+TESTER_INIT.md: NOT FOUND at _hyper-loop/context/TESTER_INIT.md
+REVIEWER_INIT.md: NOT FOUND at _hyper-loop/context/REVIEWER_INIT.md
+Referenced by: run_tester (line 384), run_reviewers (line 459)
+
+Working copy corruption:
+scripts/hyper-loop.sh = 1 line ('Script started on Mon Mar 30 04:15:42 2026')
+Expected: 987 lines (HEAD version intact)

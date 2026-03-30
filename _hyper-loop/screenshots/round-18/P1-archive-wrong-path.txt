@@ -1,0 +1,10 @@
+== P2 BUG: archive_round 引用错误路径 ==
+
+Line 797:
+  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/"
+
+正确路径:
+  cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/"
+
+因为有 `|| true`，cp 失败后静默跳过，归档里缺少 bdd-specs.md。
+不影响主流程，但归档不完整。

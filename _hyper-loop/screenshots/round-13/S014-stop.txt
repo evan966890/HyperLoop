@@ -1,0 +1,8 @@
+=== S014: STOP 文件优雅退出 ===
+    # 检查停止信号
+    if [[ -f "$STOP_FILE" ]]; then
+      echo "检测到 STOP 文件，优雅退出"
+      rm "$STOP_FILE"
+      break
+    fi
+RESULT: PASS — checks STOP file, rm + break, exit 0

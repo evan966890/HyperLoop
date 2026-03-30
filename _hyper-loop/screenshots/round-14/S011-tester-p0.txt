@@ -1,0 +1,5 @@
+=== S011: Tester P0 ===
+Report: "Found P0 bug: build fails"
+P0 detected: True
+Decision: REJECTED_TESTER_P0
+PASS

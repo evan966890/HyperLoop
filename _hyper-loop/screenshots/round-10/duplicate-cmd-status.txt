@@ -1,0 +1,6 @@
+=== BUG: duplicate cmd_status() ===
+Line 697: first definition (simple, 6 lines)
+Line 957: second definition (extended, 12 lines)
+The second definition silently overrides the first.
+Not a crash bug (bash uses last definition) but indicates dead code.
+Impact: P2 (cosmetic/maintenance)

@@ -1,0 +1,10 @@
+=== S005: diff 审计拦截越界修改 ===
+Code analysis (lines 242-296):
+- Extracts allowed files from TASK.md "### 相关文件" section
+- Regex: (rs|svelte|ts|js|tsx|jsx|css|py|go|html)
+- BUG P1: .sh, .md, .json, .toml, .env extensions NOT in regex
+  For this project (Bash), hyper-loop.sh is the primary target
+  but .sh won't be matched → audit always returns 0 (bypass)
+- HyperLoop files (DONE.json etc) are whitelisted (line 279-281)
+- Returns non-zero on violations (line 293)
+RESULT: PASS (logic correct for listed extensions, but P1 coverage gap)

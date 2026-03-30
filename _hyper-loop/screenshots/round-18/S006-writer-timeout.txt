@@ -1,0 +1,8 @@
+== S006: Writer 超时处理 ==
+
+wait_writers() at line 196:
+- Default timeout 900s = 15 min (line 198) ✓
+- Writes DONE.json with status=timeout (line 224) ✓
+- merge_writers line 319-323: status != "done" → FAILED++ ✓
+
+VERDICT: PASS

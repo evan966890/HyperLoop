@@ -1,0 +1,22 @@
+=== S008: 3 Reviewer 启动并产出评分 ===
+验证: 3 Reviewer 启动 + JSON 评分 + 降级提取
+
+run_reviewers() (line 428-510):
+  REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
+  → 3 个 Reviewer 正确定义 ✓
+
+  Init 文件路径 (line 460):
+    "${PROJECT_ROOT}/_hyper-loop/context/agents/reviewer.md"
+    → FIXED in integration ✓
+
+  等待逻辑 (line 468-478):
+    10 分钟等待，检查 3 个 JSON 文件 ✓
+
+  降级提取 (line 481-503):
+    从 tmux pane 输出用 python3 提取 JSON ✓
+    提取失败时写入默认 {"score":0,...} ✓
+
+  JSON 要求 "score" 字段 (line 498):
+    if "score" in obj: last = obj ✓
+
+结论: PASS (在 integration 分支上)

@@ -1,0 +1,12 @@
+242:audit_writer_diff() {
+266:  # 检查是否有越界改动
+267:  local VIOLATIONS=""
+284:      VIOLATIONS="${VIOLATIONS}    越界: ${changed}\n"
+288:  if [[ -n "$VIOLATIONS" ]]; then
+289:    echo "  ✗ Diff 审计失败：Writer 改了 TASK.md 范围外的文件"
+290:    echo -e "$VIOLATIONS"
+291:    return 1
+327:    if ! audit_writer_diff "$WT"; then
+328:      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并"
+374:    return 1
+664:    return 1

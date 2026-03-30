@@ -1,0 +1,5 @@
+=== S016: macOS timeout 兼容 ===
+Line 17-18: gtimeout preferred if available ✓
+Line 19-20: Fallback to custom timeout function ✓
+Line 20: Fallback uses background process + sleep + kill ✓
+VERDICT: PASS

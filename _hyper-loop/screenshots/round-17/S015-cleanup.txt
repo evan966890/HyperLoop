@@ -1,0 +1,8 @@
+=== S015 验证: worktree 清理 ===
+✓ cleanup_round 函数 (line 590)
+✓ worktree remove --force (line 604)
+✓ branch -D (line 605)
+✓ tmux kill-window (line 597)
+✓ subshell + set +e 防清理失败终止 (line 594)
+
+结论: PASS

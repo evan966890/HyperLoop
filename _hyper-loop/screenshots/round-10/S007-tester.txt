@@ -1,0 +1,11 @@
+=== S007: Tester 启动并生成报告 ===
+Code analysis (lines 379-425):
+- Starts Tester claude in tmux (line 383-384)
+- BUG P0: References TESTER_INIT.md which does NOT exist!
+  Expected: _hyper-loop/context/TESTER_INIT.md
+  Actual files: _hyper-loop/context/agents/tester.md
+  start_agent will try to read a non-existent file
+- Waits up to 900s for report (line 407)
+- Timeout fallback: generates empty report (lines 419-421)
+- Report file: reports/round-N-test.md
+RESULT: FAIL (P0: TESTER_INIT.md missing)

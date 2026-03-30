@@ -1,0 +1,6 @@
+=== S017: Multi-writer conflict ===
+merge --abort on fail: 1
+conflict deferred msg: 1
+FAILED++ on conflict: 3
+Script continues (no exit on conflict): yes
+PASS

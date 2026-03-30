@@ -1,0 +1,22 @@
+=== S004: Writer 完成后 diff 被正确 commit ===
+验证: git add + commit + squash merge
+
+merge_writers() (line 299-361):
+  git -C "$WT" add -A (line 338) ✓
+  git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" (line 339) ✓
+  git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit (line 348) ✓
+  
+patch/stat 生成 (line 342-345):
+  git diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" ✓
+  git diff --stat HEAD~1 > "${TASK_DIR}/${TASK_NAME}.stat" ✓
+
+round-11 实际结果:
+  task1.patch (97624B), task1.stat ✓
+  task2.patch (98042B), task2.stat ✓
+  task3.patch (97231B), task3.stat ✓
+  task4.patch (100172B), task4.stat ✓
+
+注意: Integration 分支只有 task1 的 commit (9acb33b)
+  task2-4 因 merge conflict 被 deferred (见 S017)
+
+结论: PASS (commit 和 merge 逻辑正确；冲突处理见 S017)

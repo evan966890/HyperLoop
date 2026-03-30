@@ -1,0 +1,10 @@
+=== S002: auto_decompose 生成任务文件 ===
+验证项:
+1. auto_decompose 函数存在: YES (line 706)
+2. 生成 task*.md: YES (通过 claude -p 非交互模式)
+3. 降级生成默认 task1.md: YES (line 768-786)
+4. 每文件包含'修复任务'和'相关文件': YES (模板 line 741-752)
+BUG: line 719 用 _hyper-loop/bdd-specs.md 而非 _hyper-loop/context/bdd-specs.md (P1)
+BUG: line 720 用 _hyper-loop/contract.md 而非 _hyper-loop/context/contract.md (P1)
+注: 两个路径的文件都存在，非阻塞性
+RESULT: PASS (with P1 note)

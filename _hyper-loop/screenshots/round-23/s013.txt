@@ -1,0 +1,6 @@
+=== S013: 5 consecutive failures → rollback ===
+Line 922: if CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0 PASS
+Line 926-929: Reads git-sha.txt, git checkout -- . PASS
+Line 931: Resets CONSECUTIVE_REJECTS=0 PASS
+Edge case: If no round ever accepted, BEST_ROUND=0, rollback skipped (acceptable)
+VERDICT: PASS

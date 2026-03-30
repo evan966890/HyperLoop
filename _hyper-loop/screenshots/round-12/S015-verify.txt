@@ -1,0 +1,7 @@
+=== S015 ===
+cleanup_round at line 590
+worktree remove --force at line 604
+branch -D at line 605
+tmux kill-window at line 597
+Wrapped in set+e subshell (line 594)
+VERDICT: PASS

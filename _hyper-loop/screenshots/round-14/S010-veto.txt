@@ -1,0 +1,5 @@
+=== S010: Veto ===
+Input: [3.5, 6.0, 7.0]
+Veto (score < 4.0): True
+Decision: REJECTED_VETO
+PASS

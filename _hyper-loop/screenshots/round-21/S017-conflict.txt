@@ -1,0 +1,11 @@
+=== S017: merge conflict handling ===
+309:  local FAILED=0
+322:      ((FAILED++)) || true
+329:      ((FAILED++)) || true
+353:      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+354:      echo "  ✗ ${TASK_NAME} conflict, deferred"
+355:      ((FAILED++)) || true
+359:  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped"
+660:    echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+883:      echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+RESULT: PASS

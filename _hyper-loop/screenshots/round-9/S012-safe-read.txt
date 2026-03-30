@@ -1,0 +1,8 @@
+=== S012: verdict.env 安全读取 ===
+$ grep-based reading:
+DECISION=REJECTED_VETO MEDIAN=0.0 SCORES=1.0 2.0 3.0
+$ grep with bash injection attempt "$(rm -rf /)":
+DECISION=ACCEPTED MEDIAN=7.5 SCORES=5.0 $(rm -rf /) 8.0
+grep-based reading is safe — no command execution
+
+VERDICT: PASS — grep extracts values as plain text, no bash eval

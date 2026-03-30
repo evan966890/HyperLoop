@@ -1,0 +1,7 @@
+=== S005: diff 审计拦截越界修改 ===
+验证项:
+1. audit_writer_diff 函数存在: YES (line 242)
+2. 越界时 return 1: YES (line 291)
+3. merge_writers 跳过: YES (line 327-330)
+4. 白名单含 DONE.json/WRITER_INIT.md/_ctx/*: YES (line 280)
+RESULT: PASS

@@ -1,0 +1,10 @@
+=== S015: worktree 清理 ===
+
+cleanup_round() 函数 (line 590):
+- subshell + set +e 确保容错 (line 594) ✓
+- tmux window 关闭 (line 596-598) ✓
+- git worktree remove --force (line 604) ✓
+- git branch -D (line 605) ✓
+- verdict.env 归档复制 (line 608) ✓
+
+PASS

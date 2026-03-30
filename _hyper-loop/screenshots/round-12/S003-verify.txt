@@ -1,0 +1,7 @@
+=== S003 ===
+start_writers at line 101
+Worktree: git worktree add at line 124
+Trust: config.toml at line 131
+Codex: codex --dangerously-bypass at line 182
+_ctx copy: line 136
+VERDICT: PASS

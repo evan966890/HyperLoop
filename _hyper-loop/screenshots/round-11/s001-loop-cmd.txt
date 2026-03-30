@@ -1,0 +1,20 @@
+=== S001: loop 命令启动死循环 ===
+验证: bash -n scripts/hyper-loop.sh → EXIT_CODE=0
+
+cmd_loop() 入口 (line 825):
+  MAX_ROUNDS="${1:-999}"
+  → 接受轮次参数 ✓
+
+输出格式 (line 860-861):
+  "LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+  → 格式正确 ✓
+
+循环退出条件 (line 850):
+  while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; ...
+  → 跑满后正常退出 ✓
+
+record_result 追加到 results.tsv (line 625-627):
+  printf '%s\t%s\t%s\t%s\n' "$ROUND" "${R_MEDIAN:-0}" "${R_SCORES:-}" "${R_DECISION:-ERROR}" >> results.tsv
+  → 正确追加 ✓
+
+结论: PASS

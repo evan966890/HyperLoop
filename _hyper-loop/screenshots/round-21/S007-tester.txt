@@ -1,0 +1,20 @@
+=== S007: Tester launch + report ===
+42:  REPORT_FILE="${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md"
+49:    "$(dirname "$REPORT_FILE")"
+198:  local TIMEOUT="${2:-900}"  # 默认 15 分钟
+379:run_tester() {
+396:4. 写试用报告到 ${REPORT_FILE}
+405:  echo "等待 Tester 完成（最多 15 分钟）..."
+407:  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
+416:  if [[ -f "$REPORT_FILE" ]]; then
+417:    echo "  ✓ 试用报告已生成: $REPORT_FILE"
+419:    echo "  ⚠ Tester 超时，生成空报告"
+420:    echo "# Round $ROUND 试用报告（Tester 超时）" > "$REPORT_FILE"
+421:    echo "Tester 未在 10 分钟内完成。需要人工验证。" >> "$REPORT_FILE"
+440:    echo "- Tester 试用报告：${REPORT_FILE}"
+539:  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+667:  run_tester "$ROUND"
+693:  echo "报告: $REPORT_FILE"
+889:      run_tester "$ROUND"
+P1: Line 421 says '10分钟' but actual timeout is 900s=15min
+RESULT: PASS (with P1 inconsistency)

@@ -1,0 +1,7 @@
+=== S002: auto_decompose 生成任务文件 ===
+Line 706: auto_decompose() function exists
+Line 760: claude -p called with --add-dir for decomposition
+Line 765: TASK_COUNT check after decomposition
+Line 767-786: Fallback to default task1.md if no tasks generated ✓
+Line 770-785: Default task has "修复任务" and "相关文件" ✓
+VERDICT: PASS

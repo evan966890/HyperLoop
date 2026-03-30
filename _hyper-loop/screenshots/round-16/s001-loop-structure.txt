@@ -1,0 +1,20 @@
+77:    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
+627:    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+648:  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+649:    PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+701:  echo "results.tsv:"
+702:  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+721:- 历史结果：${PROJECT_ROOT}/_hyper-loop/results.tsv
+825:cmd_loop() {
+826:  local MAX_ROUNDS="${1:-999}"
+833:  echo "║  HyperLoop LOOP 模式 — 最多 ${MAX_ROUNDS} 轮             "
+840:  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+842:    LAST_ROUND=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f1 || echo 0)
+850:  while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+860:    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+871:    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+872:      PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+953:  echo "  结果: cat ${PROJECT_ROOT}/_hyper-loop/results.tsv"
+961:  echo "results.tsv:"
+962:  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+965:  if [[ -f "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" ]]; then

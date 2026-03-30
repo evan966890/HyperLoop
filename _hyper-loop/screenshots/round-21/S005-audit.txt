@@ -1,0 +1,21 @@
+=== S005: diff audit ===
+155:3. **只修改 TASK.md 中指定的文件**——改其他文件会被 diff 审计拒绝
+160:- 不改 TASK.md 没提到的文件（会被审计拒绝）
+241:# ── Diff 审计（autoresearch 启示：产出必须在可控范围内）──
+253:    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计"
+254:    return 0
+263:    return 0
+267:  local VIOLATIONS=""
+284:      VIOLATIONS="${VIOLATIONS}    越界: ${changed}\n"
+288:  if [[ -n "$VIOLATIONS" ]]; then
+289:    echo "  ✗ Diff 审计失败：Writer 改了 TASK.md 范围外的文件"
+290:    echo -e "$VIOLATIONS"
+291:    return 1
+294:  echo "  ✓ Diff 审计通过"
+295:  return 0
+326:    # Diff 审计：检查 Writer 是否只改了指定范围的文件
+328:      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并"
+371:    return 0
+374:    return 1
+664:    return 1
+RESULT: PASS
