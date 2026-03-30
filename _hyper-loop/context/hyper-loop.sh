@@ -303,7 +303,7 @@ merge_writers() {
   local BASE_SHA
   BASE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
 
-  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" 2>/dev/null
+  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" >&2 2>/dev/null
 
   local MERGED=0
   local FAILED=0
@@ -336,7 +336,7 @@ merge_writers() {
     # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
     # 必须先 commit 才能 merge
     git -C "$WT" add -A 2>/dev/null
-    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty 2>/dev/null || true
+    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty >&2 2>/dev/null || true
 
     # 保存 diff（对比 worktree 创建时的 parent commit）
     git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
@@ -345,8 +345,8 @@ merge_writers() {
       git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
 
     # squash merge
-    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
-      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" 2>/dev/null
+    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit >&2 2>/dev/null; then
+      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" >&2 2>/dev/null
       echo "  ✓ ${TASK_NAME} merged" >&2
       ((MERGED++)) || true
     else
