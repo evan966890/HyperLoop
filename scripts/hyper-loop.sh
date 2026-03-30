@@ -452,7 +452,7 @@ else:
 
   # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
   (
-    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p - --add-dir "$PROJECT_ROOT" 2>/dev/null | \
+    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p "" --include-directories "$PROJECT_ROOT" 2>/dev/null | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
     echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
