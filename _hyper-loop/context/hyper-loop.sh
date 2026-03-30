@@ -177,7 +177,7 @@ WINIT
     # 启动 Writer（一次性）
     local WRITER_NAME="w-${TASK_NAME}"
     tmux new-window -t hyper-loop -n "$WRITER_NAME"
-    tmux pipe-pane -o -t "hyper-loop:${WRITER_NAME}" "cat >> '${LOG_DIR}/${WRITER_NAME}.log'"
+    tmux pipe-pane -o -t "hyper-loop:${WRITER_NAME}" "cat >> '${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log'"
     tmux send-keys -t "hyper-loop:${WRITER_NAME}" \
       "cd ${WT} && codex --dangerously-bypass-approvals-and-sandbox" Enter
 
@@ -403,7 +403,7 @@ run_tester() {
 
   echo "$TESTER_PROMPT" | timeout 600 claude --dangerously-skip-permissions -p - \
     --add-dir "$PROJECT_ROOT" 2>&1 | \
-    tee "${LOG_DIR}/tester-r${ROUND}-raw.log" > "${REPORT_FILE}" || true
+    tee "${LOG_DIR}/round-${ROUND}_tester_bdd-verify_claude.log" > "${REPORT_FILE}" || true
 
   if [[ -s "$REPORT_FILE" ]]; then
     echo "  ✓ 试用报告已生成: $REPORT_FILE"
@@ -453,7 +453,7 @@ else:
   # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
   (
     echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p "" --include-directories "$PROJECT_ROOT" 2>&1 | \
-      tee "${LOG_DIR}/reviewer-a-r${ROUND}-raw.log" | \
+      tee "${LOG_DIR}/round-${ROUND}_reviewer-a_scoring_gemini.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
     echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
@@ -461,14 +461,14 @@ else:
   (
     echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - \
       --add-dir "$PROJECT_ROOT" 2>&1 | \
-      tee "${LOG_DIR}/reviewer-b-r${ROUND}-raw.log" | \
+      tee "${LOG_DIR}/round-${ROUND}_reviewer-b_scoring_claude.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-b.json" 2>/dev/null
     echo "  ✓ reviewer-b (claude) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-b.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
 
   (
     timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" "$REVIEW_PROMPT" 2>&1 | \
-      tee "${LOG_DIR}/reviewer-c-r${ROUND}-raw.log" | \
+      tee "${LOG_DIR}/round-${ROUND}_reviewer-c_scoring_codex.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
     echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
@@ -746,7 +746,7 @@ DPROMPT
   mkdir -p "${PROJECT_ROOT}/_hyper-loop/logs"
   cat "$DECOMPOSE_PROMPT" | claude --dangerously-skip-permissions -p - \
     --add-dir "$PROJECT_ROOT" \
-    > "${PROJECT_ROOT}/_hyper-loop/logs/decompose-r${ROUND}.log" 2>&1 || true
+    > "${PROJECT_ROOT}/_hyper-loop/logs/round-${ROUND}_decomposer_task-split_claude.log" 2>&1 || true
 
   local TASK_COUNT
   TASK_COUNT=$(find "$TASK_DIR" -maxdepth 1 -name 'task*.md' 2>/dev/null | wc -l | tr -d ' ')
