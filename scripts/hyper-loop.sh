@@ -195,7 +195,7 @@ WINIT
 
 wait_writers() {
   local ROUND="$1"
-  local TIMEOUT="${2:-300}"  # 默认 5 分钟（任务应该够小）
+  local TIMEOUT="${2:-900}"  # 默认 15 分钟（BDD S006 要求）
 
   echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
 
@@ -250,7 +250,7 @@ audit_writer_diff() {
     sed 's/^[[:space:]]*//' | sort -u || true)
 
   if [[ -z "$ALLOWED_FILES" ]]; then
-    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计"
+    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计" >&2
     return 0
   fi
 
@@ -308,7 +308,7 @@ merge_writers() {
   local MERGED=0
   local FAILED=0
 
-  echo "合并 Writer 产出..."
+  echo "合并 Writer 产出..." >&2
 
   for WT in "${WORKTREE_BASE}"/task*; do
     [[ -d "$WT" ]] || continue
@@ -318,14 +318,14 @@ merge_writers() {
     local STATUS
     STATUS=$(python3 -c "import json; print(json.load(open('${WT}/DONE.json'))['status'])" 2>/dev/null || echo "unknown")
     if [[ "$STATUS" != "done" ]]; then
-      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过"
+      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过" >&2
       ((FAILED++)) || true
       continue
     fi
 
     # Diff 审计：检查 Writer 是否只改了指定范围的文件
     if ! audit_writer_diff "$WT"; then
-      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并"
+      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并" >&2
       ((FAILED++)) || true
       continue
     fi
@@ -347,16 +347,16 @@ merge_writers() {
     # squash merge
     if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
       git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" 2>/dev/null
-      echo "  ✓ ${TASK_NAME} merged"
+      echo "  ✓ ${TASK_NAME} merged" >&2
       ((MERGED++)) || true
     else
       git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
-      echo "  ✗ ${TASK_NAME} conflict, deferred"
+      echo "  ✗ ${TASK_NAME} conflict, deferred" >&2
       ((FAILED++)) || true
     fi
   done
 
-  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped"
+  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped" >&2
   echo "$INTEGRATION_WT"
 }
 
@@ -579,6 +579,9 @@ cleanup_round() {
     done
 
     cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
+
+    # S015: 删除 worktree 父目录
+    rm -rf "${WORKTREE_BASE}" 2>/dev/null
   ) || true
 }
 
