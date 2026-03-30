@@ -335,6 +335,9 @@ merge_writers() {
 
     # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
     # 必须先 commit 才能 merge
+    # 先删除 HyperLoop 元数据文件，防止多 Writer squash merge 冲突（P0-1 修复）
+    rm -f "${WT}/DONE.json" "${WT}/WRITER_INIT.md" "${WT}/TASK.md" 2>/dev/null
+    rm -rf "${WT}/_ctx" 2>/dev/null
     git -C "$WT" add -A 2>/dev/null
     git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty >&2 2>/dev/null || true
 
@@ -624,8 +627,9 @@ cmd_round() {
   echo ""
 
   local PREV_MEDIAN=0
-  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
-    PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    PREV_MEDIAN=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f2 || echo 0)
+    [[ -z "$PREV_MEDIAN" ]] && PREV_MEDIAN=0
   fi
 
   start_writers "$ROUND"
@@ -712,25 +716,25 @@ $(if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))" ]]; then
 fi)
 
 ## 要求
-读取上述文件，找出当前最严重的问题。
+读取上述文件，找出当前最严重的问题（P0 优先），拆成 3-5 个独立子任务。
 
 **关键规则：**
-1. 如果所有问题都指向同一个文件（如 scripts/hyper-loop.sh），只生成 **1 个任务文件** (task1.md)，把所有同类问题合并为一个扫描修复任务
-2. 如果问题分布在不同文件且互不冲突，可以拆成 2-5 个任务
+1. 每个任务必须修改**不同的文件**（或同一文件的**不重叠区域**），确保多 Writer 并行不冲突
+2. 如果多个问题都在同一个文件的同一区域，合并为 1 个任务，不要拆开
 3. 任务描述必须是"扫描修复同类问题"而不是"修第 N 行"——比如"找到所有向 stdout 输出非返回值的 echo/git 命令，全部加 >&2"
 4. 用 grep/搜索命令定位所有实例，不要只改报告中提到的那几行
 
-只生成 1 个任务文件保存到 ${TASK_DIR}/task1.md（除非确实有跨文件的独立任务）。
+每个任务写成独立文件保存到 ${TASK_DIR}/taskN.md。
 
 任务文件格式：
 \`\`\`
-## 修复任务: TASK-1
+## 修复任务: TASK-N
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
 [优先级] 具体问题描述（同类问题合并描述）
 ### 相关文件
-- 具体文件路径
+- 具体文件路径 (行号范围)
 ### 修复策略
 用 grep/搜索先找到所有同类实例，一次性全部修复。不要只修报告提到的几行。
 ### 约束
@@ -781,7 +785,7 @@ archive_round() {
   local ARCHIVE="${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}"
   mkdir -p "$ARCHIVE"
 
-  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
+  cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
   cp -r "${PROJECT_ROOT}/_hyper-loop/scores/round-${ROUND}" "$ARCHIVE/scores" 2>/dev/null || true
   cp "${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md" "$ARCHIVE/" 2>/dev/null || true
   cp "${TASK_DIR}/verdict.env" "$ARCHIVE/" 2>/dev/null || true
@@ -857,8 +861,9 @@ cmd_loop() {
     auto_decompose "$ROUND"
 
     local PREV_MEDIAN=0
-    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
-      PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+      PREV_MEDIAN=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f2 || echo 0)
+      [[ -z "$PREV_MEDIAN" ]] && PREV_MEDIAN=0
     fi
 
     start_writers "$ROUND"
