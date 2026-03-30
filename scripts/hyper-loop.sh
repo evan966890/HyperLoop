@@ -465,7 +465,7 @@ else:
   ) &
 
   (
-    timeout 300 codex exec "$REVIEW_PROMPT" 2>/dev/null | \
+    timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" "$REVIEW_PROMPT" 2>/dev/null | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
     echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
