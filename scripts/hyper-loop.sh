@@ -259,7 +259,7 @@ audit_writer_diff() {
   CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
 
   if [[ -z "$CHANGED_FILES" ]]; then
-    echo "  ⚠ Writer 没有改任何文件"
+    echo "  ⚠ Writer 没有改任何文件" >&2
     return 0
   fi
 
@@ -286,12 +286,12 @@ audit_writer_diff() {
   done <<< "$CHANGED_FILES"
 
   if [[ -n "$VIOLATIONS" ]]; then
-    echo "  ✗ Diff 审计失败：Writer 改了 TASK.md 范围外的文件"
-    echo -e "$VIOLATIONS"
+    echo "  ✗ Diff 审计失败：Writer 改了 TASK.md 范围外的文件" >&2
+    echo -e "$VIOLATIONS" >&2
     return 1
   fi
 
-  echo "  ✓ Diff 审计通过"
+  echo "  ✓ Diff 审计通过" >&2
   return 0
 }
 
@@ -709,21 +709,29 @@ $(if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))" ]]; then
 fi)
 
 ## 要求
-读取上述文件，找出当前最严重的问题（P0 优先），拆成 3-5 个独立子任务。
-每个任务写成一个独立的 markdown 文件，保存到 ${TASK_DIR}/taskN.md。
+读取上述文件，找出当前最严重的问题。
 
-每个文件格式：
+**关键规则：**
+1. 如果所有问题都指向同一个文件（如 scripts/hyper-loop.sh），只生成 **1 个任务文件** (task1.md)，把所有同类问题合并为一个扫描修复任务
+2. 如果问题分布在不同文件且互不冲突，可以拆成 2-5 个任务
+3. 任务描述必须是"扫描修复同类问题"而不是"修第 N 行"——比如"找到所有向 stdout 输出非返回值的 echo/git 命令，全部加 >&2"
+4. 用 grep/搜索命令定位所有实例，不要只改报告中提到的那几行
+
+只生成 1 个任务文件保存到 ${TASK_DIR}/task1.md（除非确实有跨文件的独立任务）。
+
+任务文件格式：
 \`\`\`
-## 修复任务: TASK-N
+## 修复任务: TASK-1
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[优先级] 具体问题描述
+[优先级] 具体问题描述（同类问题合并描述）
 ### 相关文件
-- 具体文件路径 (行号范围)
+- 具体文件路径
+### 修复策略
+用 grep/搜索先找到所有同类实例，一次性全部修复。不要只修报告提到的几行。
 ### 约束
 - 只修指定文件
-- 不改 CSS
 ### 验收标准
 引用 BDD 场景 SXXX
 \`\`\`
