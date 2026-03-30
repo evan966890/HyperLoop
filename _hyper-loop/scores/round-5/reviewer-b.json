@@ -1,26 +1,34 @@
 {
-  "score": 5,
+  "score": 6.5,
   "issues": [
     {
       "severity": "P0",
-      "desc": "merge_writers 内 6 处 echo 状态消息污染 stdout，调用方 INTEGRATION_WT=$(merge_writers) 捕获多行文本导致 build_app cd 必败，每轮 DECISION=BUILD_FAILED，Tester/Reviewer 永远不执行，循环完全无效"
+      "desc": "merge_writers 日志 echo 污染 stdout，INTEGRATION_WT 捕获多行字符串导致 build_app cd 必然失败，整个循环无法正常运行"
     },
     {
       "severity": "P1",
-      "desc": "cleanup_round 未 rmdir 删除 /tmp/hyper-loop-worktrees-rN/ 父目录，BDD S015 失败"
+      "desc": "Writer 超时默认 300s 与 BDD S006 要求的 900s 不符"
     },
     {
       "severity": "P1",
-      "desc": "cmd_status() 在 L670 和 L930 重复定义，前者是死代码"
+      "desc": "cleanup_round 未删除 /tmp/hyper-loop-worktrees-rN/ 父目录，空目录残留"
     },
     {
       "severity": "P1",
-      "desc": "archive_round L770 归档 bdd-specs.md 路径缺少 context/ 前缀，归档永远缺失该文件"
+      "desc": "PREV_MEDIAN 空值未兜底，results.tsv 为空时 python float('') 崩溃"
     },
     {
       "severity": "P1",
-      "desc": "auto_decompose prompt L692-693 引用 _hyper-loop/bdd-specs.md 和 contract.md 路径缺少 context/ 前缀"
+      "desc": "archive_round 引用 bdd-specs.md 路径缺少 context/ 段，cp 静默失败"
+    },
+    {
+      "severity": "P1",
+      "desc": "cmd_status 重复定义（L670 和 L932），死代码"
+    },
+    {
+      "severity": "P1",
+      "desc": "fallback 分数注释写 3 分实际代码给 5 分，注释误导"
     }
   ],
-  "summary": "bash -n 通过且 14/17 BDD 场景逻辑正确，但 P0 级 stdout 污染导致 build_app 每轮必败，整个循环实质无效，未达到无人值守跑 50 轮的核心目标"
+  "summary": "14/17 BDD 通过但 P0 stdout 污染致 build 必崩，加 6 个 P1，系统无法无人值守运行，未达 7.5 阈值"
 }

@@ -1,6 +1,6 @@
 本轮修改统计：
  DONE.json                                |   1 +
- TASK.md                                  |  32 +
+ TASK.md                                  |  22 +
  WRITER_INIT.md                           |  34 ++
  _ctx/INSTALL.md                          | 136 +++++
  _ctx/SKILL.md                            | 234 ++++++++
@@ -20,9 +20,9 @@
  _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
  _ctx/templates/WRITER_INIT.md            | 111 ++++
  scripts/hyper-loop.sh                    |   6 +-
- 21 files changed, 2818 insertions(+), 3 deletions(-)
+ 21 files changed, 2808 insertions(+), 3 deletions(-)
  DONE.json                                |   1 +
- TASK.md                                  |  25 +
+ TASK.md                                  |  18 +
  WRITER_INIT.md                           |  34 ++
  _ctx/INSTALL.md                          | 136 +++++
  _ctx/SKILL.md                            | 234 ++++++++
@@ -41,10 +41,10 @@
  _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
  _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
  _ctx/templates/WRITER_INIT.md            | 111 ++++
- scripts/hyper-loop.sh                    |   8 +-
- 21 files changed, 2813 insertions(+), 3 deletions(-)
+ scripts/hyper-loop.sh                    |   4 +-
+ 21 files changed, 2803 insertions(+), 2 deletions(-)
  DONE.json                                |   1 +
- TASK.md                                  |  26 +
+ TASK.md                                  |  18 +
  WRITER_INIT.md                           |  34 ++
  _ctx/INSTALL.md                          | 136 +++++
  _ctx/SKILL.md                            | 234 ++++++++
@@ -63,8 +63,8 @@
  _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
  _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
  _ctx/templates/WRITER_INIT.md            | 111 ++++
- scripts/hyper-loop.sh                    |   2 +-
- 21 files changed, 2810 insertions(+), 1 deletion(-)
+ scripts/hyper-loop.sh                    |   8 -
+ 21 files changed, 2801 insertions(+), 8 deletions(-)
  DONE.json                                |   1 +
  TASK.md                                  |  31 +
  WRITER_INIT.md                           |  34 ++
@@ -88,7 +88,7 @@
  scripts/hyper-loop.sh                    |  53 +-
  21 files changed, 2858 insertions(+), 9 deletions(-)
  DONE.json                                |   1 +
- TASK.md                                  |  29 +
+ TASK.md                                  |  17 +
  WRITER_INIT.md                           |  34 ++
  _ctx/INSTALL.md                          | 136 +++++
  _ctx/SKILL.md                            | 234 ++++++++
@@ -107,7 +107,7 @@
  _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
  _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
  _ctx/templates/WRITER_INIT.md            | 111 ++++
- scripts/hyper-loop.sh                    |  15 +-
- 21 files changed, 2823 insertions(+), 4 deletions(-)
+ scripts/hyper-loop.sh                    |  19 +-
+ 21 files changed, 2810 insertions(+), 9 deletions(-)
 
 构建结果：syntax ok

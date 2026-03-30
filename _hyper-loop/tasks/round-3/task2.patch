@@ -7,39 +7,29 @@ index 0000000..2f940c7
 +{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..20c1fd8
+index 0000000..305c3b9
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,19 @@
 +## 修复任务: TASK-2
 +### 上下文
 +先读 _ctx/ 下所有文件。
 +### 问题
-+[P1] reviewer-c 的 codex 命令同时通过 stdin 管道和命令行参数传递 prompt：
-+```bash
-+echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT"
-+```
-+`codex exec` 优先读取命令行参数，stdin 被忽略。且长 prompt 作为命令行参数可能超出 ARG_MAX 限制导致 reviewer-c 失败，触发 fallback 给 3 分（拉低总评分导致 REJECTED_VETO）。
++[P1] Reviewer fallback 分数与日志输出不一致。L479 的 fallback JSON 写入 `"score":5`，但 L480 的 echo 输出 `"fallback to score 3"`。运维人员看日志会被误导。
++
++需要统一：JSON 已写 score 5（中立分），日志应改为 `"fallback to score 5"`。
++
 +### 相关文件
-+- scripts/hyper-loop.sh (L468, run_reviewers 函数中 reviewer-c 的启动命令)
-+### 修复方案
-+去掉命令行参数，改为纯 stdin 管道模式（与 reviewer-a 和 reviewer-b 保持一致）：
-+```bash
-+echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never 2>/dev/null | \
-+```
-+如果 codex exec 不支持纯 stdin 读取，替代方案是写临时文件：
-+```bash
-+local CODEX_PROMPT_FILE="/tmp/hyper-loop-reviewer-c-r${ROUND}.md"
-+echo "$REVIEW_PROMPT" > "$CODEX_PROMPT_FILE"
-+timeout 300 codex exec -a never "$(cat "$CODEX_PROMPT_FILE")" 2>/dev/null | \
-+```
-+但首选方案是纯 stdin 管道。
++- scripts/hyper-loop.sh (L476-482)
++
 +### 约束
-+- 只修改 scripts/hyper-loop.sh 中 run_reviewers 函数的 reviewer-c 部分 (L467-471)
-+- 不改 reviewer-a 和 reviewer-b 的逻辑
-+- 不改 CSS
++- 只修改 L480 的 echo 输出文本，将 "score 3" 改为 "score 5"
++- 不改动 fallback JSON 的 score 值（5 分是设计意图：中立分）
++- 不改动其他代码
++- 修改后 `bash -n scripts/hyper-loop.sh` 必须通过
++
 +### 验收标准
-+引用 BDD 场景 S008: 3 个 Reviewer 均正常启动并产出评分 JSON，reviewer-c 不再因参数冲突而 fallback
++引用 BDD 场景 S008: fallback 生成的 JSON score 字段值与日志输出的分数一致
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2931,15 +2921,15 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index b8f455b..476439d 100755
+index 9ec2447..d01d8b5 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -465,7 +465,7 @@ else:
-   ) &
- 
-   (
--    echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT" 2>/dev/null | \
-+    echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never 2>/dev/null | \
-       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
-     echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
-   ) &
+@@ -477,7 +477,7 @@ else:
+   for NAME in reviewer-a reviewer-b reviewer-c; do
+     if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
+       echo '{"score":5,"issues":[],"summary":"Reviewer 超时或无输出，中立分5"}' > "${SCORES_DIR}/${NAME}.json"
+-      echo "  ⚠ ${NAME} fallback to score 3"
++      echo "  ⚠ ${NAME} fallback to score 5"
+     fi
+   done
+ }

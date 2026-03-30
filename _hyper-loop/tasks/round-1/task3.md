@@ -3,44 +3,34 @@
 先读 _ctx/ 下所有文件。
 
 ### 问题
-[P0] `run_reviewers` 中 reviewer-c (Codex) 的 CLI 调用有语法问题：
+[P0] cmd_status() 函数定义了 3 次，造成死代码；cmd_round 缺少 archive_round 调用。
 
-```bash
-echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT" 2>/dev/null | \
-  python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
-```
+问题 A: cmd_status 重复定义
+- 第 670-676 行: 第一个定义（简版）
+- 第 932-944 行: 第二个定义（完整版，含最佳轮次）
+- 后定义覆盖前定义，第 670 行版本是死代码
+- Reviewer 审查时会因死代码扣分
 
-问题分析：
-1. `echo "$REVIEW_PROMPT"` 管道传给 `codex exec`，但 `codex exec` 的 prompt 是位置参数，不从 stdin 读取
-2. `codex exec` 的 stdout 才会通过管道传给 `python3`，而不是 `echo` 的 stdout
-3. 如果 `$REVIEW_PROMPT` 过长（包含 stat 输出），作为命令行参数可能超出 ARG_MAX 限制
-4. `-a never` 应改为与其他 codex 调用一致的 `--full-auto` 或 `--dangerously-bypass-approvals-and-sandbox`
-
-对比 reviewer-a/b 的正确写法（stdin → `-p -`）：
-- reviewer-a: `echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p - ...`
-- reviewer-b: `echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - ...`
+问题 B: cmd_round 缺少 archive_round
+- cmd_loop 在每轮结束时调 archive_round（第 892 行），保存 git-sha.txt 等
+- cmd_round（第 607-668 行）只调 cleanup_round，没调 archive_round
+- S013 回退功能依赖 archive/round-N/git-sha.txt 存在
+- 混用 round 和 loop 命令时回退功能会断
 
 ### 相关文件
-- scripts/hyper-loop.sh (行 467-471, reviewer-c 的子 shell)
+- scripts/hyper-loop.sh (第 670-676 行: 重复的 cmd_status 第一个定义)
+- scripts/hyper-loop.sh (第 607-668 行: cmd_round 函数)
 
 ### 修复方案
-将 reviewer-c 改为写临时文件 + codex 读文件模式（codex 不支持 `-p -`）：
-```bash
-(
-    local CODEX_PROMPT_FILE="/tmp/hyper-loop-codex-review-r${ROUND}.txt"
-    echo "$REVIEW_PROMPT" > "$CODEX_PROMPT_FILE"
-    timeout 300 codex --dangerously-bypass-approvals-and-sandbox --quiet "$CODEX_PROMPT_FILE" 2>/dev/null | \
-      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
-    echo "  ✓ reviewer-c (codex) done: ..."
-) &
-```
-如果 codex 命令不可用或 CLI 参数不确定，应加降级逻辑（fallback 给默认分 3）。
+1. 删除第 670-676 行的第一个 cmd_status() 定义
+2. 在 cmd_round 的 `cleanup_round "$ROUND"`（约第 661 行）前加 `archive_round "$ROUND"`
 
 ### 约束
-- 只修 scripts/hyper-loop.sh 的 run_reviewers 函数中 reviewer-c 部分
-- 不改 reviewer-a 和 reviewer-b
-- 不改 CSS
+- 只修 scripts/hyper-loop.sh
+- 只删第一个 cmd_status + 给 cmd_round 加 archive_round 调用
+- 不改 cmd_loop 或第二个 cmd_status
 
 ### 验收标准
-引用 BDD 场景 S008: 3 个 Reviewer 各自生成 scores JSON，JSON 包含 "score" 字段
-验证：`bash -n scripts/hyper-loop.sh` 语法通过
+引用 BDD 场景 S001: 循环跑满 N 轮后正常退出
+引用 BDD 场景 S013: archive/round-N/git-sha.txt 存在时代码可回退
+验证：`bash -n scripts/hyper-loop.sh` 通过；`grep -c 'cmd_status()' scripts/hyper-loop.sh` 应为 1

@@ -7,42 +7,32 @@ index 0000000..59bc666
 +{"status":"done","files_changed":["scripts/hyper-loop.sh"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..3af5e61
+index 0000000..f15a50b
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,22 @@
 +## 修复任务: TASK-1
 +### 上下文
-+先读 _ctx/ 下所有文件，特别是 bdd-specs.md 中 S002 场景和 contract.md。
-+
++先读 _ctx/ 下所有文件。
 +### 问题
-+[P0] auto_decompose 和 archive_round 中 BDD spec / contract 路径缺少 `context/` 段
++[P0] `auto_decompose()` 和 `archive_round()` 引用了错误的文件路径，缺少 `context/` 目录段。
 +
-+auto_decompose (L692-693) 写的是:
-+- `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md`
-+- `${PROJECT_ROOT}/_hyper-loop/contract.md`
++`auto_decompose()` L692-693 中 bdd-specs.md 和 contract.md 的路径写成了 `_hyper-loop/bdd-specs.md` 和 `_hyper-loop/contract.md`，实际文件在 `_hyper-loop/context/bdd-specs.md` 和 `_hyper-loop/context/contract.md`。Claude 拿到不存在的路径，任务拆解大概率失败。
 +
-+正确路径应该是:
-+- `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`
-+- `${PROJECT_ROOT}/_hyper-loop/context/contract.md`
-+
-+同样，archive_round (L770) 也写错了:
-+- `cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md"` → 应改为 `_hyper-loop/context/bdd-specs.md`
-+
-+影响: Claude 拆解器拿到错误路径找不到核心规格文件，拆解质量严重下降，每轮都受影响。归档时 BDD spec 拷贝失败（被 `|| true` 吞掉），archive 不完整。
++`archive_round()` L770 同样引用了 `_hyper-loop/bdd-specs.md`（缺少 `context/`），导致归档时 cp 静默失败，归档目录缺少 bdd-specs.md。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (L692-694) — auto_decompose 中的路径
-+- scripts/hyper-loop.sh (L770) — archive_round 中的路径
++- scripts/hyper-loop.sh (L688-694, auto_decompose 函数的 DPROMPT heredoc)
++- scripts/hyper-loop.sh (L770, archive_round 函数的 cp 命令)
 +
 +### 约束
-+- 只修 scripts/hyper-loop.sh 中的路径字符串
-+- 不改逻辑结构，不改 CSS
-+- 搜索全文件确保没有其他遗漏的错误路径
++- 只修 scripts/hyper-loop.sh
++- 不改其他逻辑，只修路径字符串
++- 不改 CSS
 +
 +### 验收标准
-+- S002: auto_decompose 生成任务文件时能正确引用 bdd-specs.md 和 contract.md
-+- archive_round 能正确拷贝 bdd-specs.md 到归档目录
++- S002: auto_decompose 生成任务文件 — prompt 中的路径指向真实存在的文件
++- 归档后 archive/round-N/ 下有 bdd-specs.md 副本
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2934,7 +2924,7 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index b8f455b..5a10e1c 100755
+index 9ec2447..79034eb 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
 @@ -689,8 +689,8 @@ auto_decompose() {

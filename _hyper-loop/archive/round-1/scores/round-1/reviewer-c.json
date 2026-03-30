@@ -1,1 +1,22 @@
-{"score": 3, "issues": [], "summary": "\u8bc4\u5ba1\u672a\u8fd4\u56de\u6709\u6548JSON\uff0c\u7ed9\u9ed8\u8ba4\u52063"}
+{
+  "score": 6.0,
+  "issues": [
+    {
+      "severity": "P0",
+      "desc": "scripts/hyper-loop.sh:821-823 每次进入 cmd_loop() 都把 CONSECUTIVE_REJECTS、BEST_ROUND、BEST_MEDIAN 重置为 0，且没有从 results.tsv/archive 恢复历史最佳状态，导致进程重启后 S013 的“连续 5 轮失败自动回退”实际上失效，这和“50 轮无人值守不崩溃”的核心目标直接冲突。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:379-413 的 run_tester() 直接用 claude -p 管道执行，没有按 BDD S007 在 tmux 中启动 Tester，也没有复用 start_agent()/角色初始化模板，测试链路与规格不一致。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:417-483 的 run_reviewers() 同样绕过了 tmux 和 pane 输出兜底提取逻辑，未满足 S008；另外 fallback 实际写入的是 score=5，却打印“fallback to score 3”，会误导排障。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:196-239 的 wait_writers() 默认超时是 300 秒，cmd_round()/cmd_loop() 调用时也没有覆盖成 900 秒，与 S006 约定的 15 分钟不一致，慢任务会被更早误判为 timeout。"
+    }
+  ],
+  "summary": "脚本框架和多数基础能力已经到位，但评测编排和失败恢复这两条关键链路仍未满足 BDD/契约要求，当前还不足以支撑稳定的 50 轮无人值守运行。"
+}

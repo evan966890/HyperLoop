@@ -1,24 +1,29 @@
 ## 修复任务: TASK-2
 ### 上下文
 先读 _ctx/ 下所有文件。
-
 ### 问题
-[P1-002] cmd_status() 函数被定义了两次，第一个成为死代码
-
-第 697-703 行定义了一个简单版 `cmd_status()`，第 957-969 行定义了一个更完整的版本
-（含"最佳轮次"显示）。Bash 后定义覆盖前定义，第一个永远不会被执行。
+[P1] `PREV_MEDIAN` 空串导致 Python 崩溃：当 results.tsv 存在但为空（0 字节）时，`tail -1 | cut -f2` 返回空串（exit 0），`|| echo 0` 不会触发。随后 Python `float("")` 抛 ValueError，`set -e` 下脚本直接崩溃。影响两处：line 624-625（cmd_round）和 line 849-850（cmd_loop）。这直接违反"无人值守跑 50 轮不崩溃"的核心目标。
 
 ### 相关文件
-- scripts/hyper-loop.sh (第 697-703 行: 第一个 cmd_status 定义 — 需删除)
-- scripts/hyper-loop.sh (第 957-969 行: 第二个 cmd_status 定义 — 保留)
+- scripts/hyper-loop.sh (623-626, 848-851)
+
+### 修复方向
+在赋值后立即加默认值保护：
+```bash
+PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+PREV_MEDIAN=${PREV_MEDIAN:-0}
+```
+或改用 `-s`（文件非空）代替 `-f`（文件存在）：
+```bash
+if [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+```
 
 ### 约束
-- 只改 scripts/hyper-loop.sh
-- 删除第 697-703 行的第一个 `cmd_status()` 定义（含函数体）
-- 保留第 957-969 行的第二个定义不动
-- 不改其他逻辑、不改 CSS
+- 只修 scripts/hyper-loop.sh
+- 不改 CSS
+- 两处 PREV_MEDIAN 赋值都要修
 
 ### 验收标准
-- `grep -c 'cmd_status()' scripts/hyper-loop.sh` 结果为 1（只剩一个定义）
-- `bash -n scripts/hyper-loop.sh` 语法检查通过
-- 引用 BDD 场景 S001: 循环仍能正常运行（status 命令不受影响）
+引用 BDD 场景 S009：compute_verdict 被调用 → verdict.env 可以被安全读取（不崩 bash）
+- results.tsv 为空文件时，PREV_MEDIAN 回退为 0，脚本不崩溃
+- results.tsv 正常有数据时，行为不变

@@ -1,42 +1,34 @@
 diff --git a/DONE.json b/DONE.json
 new file mode 100644
-index 0000000..2f940c7
+index 0000000..59bc666
 --- /dev/null
 +++ b/DONE.json
 @@ -0,0 +1 @@
-+{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
++{"status":"done","files_changed":["scripts/hyper-loop.sh"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..f1f2a2b
+index 0000000..d80630e
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,18 @@
 +## 修复任务: TASK-3
 +### 上下文
-+先读 _ctx/ 下所有文件，特别是 bdd-specs.md 中 S008 场景。
-+
++先读 _ctx/ 下所有文件。
 +### 问题
-+[P1] reviewer-c 的 codex 命令同时通过 stdin pipe 和命令行参数传入 prompt
-+
-+位置: scripts/hyper-loop.sh L468
-+```
-+echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT"
-+```
-+
-+问题: prompt 同时通过 stdin 管道和命令行参数 `"$REVIEW_PROMPT"` 传入。`codex exec` 的行为取决于它优先读哪个输入源，可能导致 prompt 被截断、重复、或忽略。对比 reviewer-a (L454) 和 reviewer-b (L461) 都只用 stdin 管道传入。
++[P1] `cmd_status()` 函数重复定义两次（L670-676 和 L932-944），bash 中后定义覆盖前定义，第一个是死代码。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (L467-471) — reviewer-c 的 codex 启动块
++- scripts/hyper-loop.sh (L670-676, 第一个 cmd_status 定义)
++- scripts/hyper-loop.sh (L932-944, 第二个 cmd_status 定义，功能更完整)
 +
 +### 约束
-+- 只修 L468 的 codex 命令调用方式
-+- 保持与 reviewer-a/reviewer-b 一致的 stdin pipe 模式
-+- `codex exec -a never` 后面不要再传 prompt 参数，只从 stdin 读取
++- 只修 scripts/hyper-loop.sh
++- 删除 L670-676 的第一个定义，保留 L932-944 的第二个定义（功能更完整，含最佳轮次显示）
 +- 不改 CSS
 +
 +### 验收标准
-+- S008: 3 个 Reviewer 都能正常启动并产出评分 JSON
-+- reviewer-c 的 prompt 传入方式与 reviewer-a/b 保持一致（仅 stdin pipe）
++- 脚本中只有一个 `cmd_status()` 定义
++- `bash -n scripts/hyper-loop.sh` 通过
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2928,15 +2920,21 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index b8f455b..476439d 100755
+index 9ec2447..3a1388b 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -465,7 +465,7 @@ else:
-   ) &
+@@ -667,14 +667,6 @@ cmd_round() {
+   echo "评分: $SCORES_DIR/"
+ }
  
-   (
--    echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT" 2>/dev/null | \
-+    echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never 2>/dev/null | \
-       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
-     echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
-   ) &
+-cmd_status() {
+-  echo "tmux windows:"
+-  tmux list-windows -t hyper-loop 2>/dev/null || echo "  (no session)"
+-  echo ""
+-  echo "results.tsv:"
+-  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+-}
+-
+ # ── 自动拆解下一轮任务（基于上一轮结果）──
+ auto_decompose() {
+   local ROUND="$1"

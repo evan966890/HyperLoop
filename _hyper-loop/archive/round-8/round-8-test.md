@@ -1,162 +1,85 @@
-# Round 8 试用报告
+# Round 8 — Tester 报告
 
-**Tester**: Claude Opus 4.6
-**日期**: 2026-03-30
-**脚本版本**: HyperLoop v5.3 (985 行)
-**语法检查**: `bash -n` PASS (exit 0)
+测试时间: 2026-03-30
+测试方法: bash -n 语法检查 + 逐场景代码审查
+语法检查: **PASS** (bash -n 无错误)
 
 ---
 
-## BDD 场景验证
+## BDD 场景逐条验证
 
-### S001: loop 命令启动死循环 — PASS
-- `cmd_loop` 输出 `LOOP: Round ${ROUND}/${MAX_ROUNDS}` (line 857)
-- 循环可跑满 N 轮后正常退出 (while + ROUND++ + break at MAX_ROUNDS)
-- `record_result` 每轮追加到 results.tsv (line 622-624)
-- 截图: `screenshots/round-8/s001-loop.txt`
+| 场景 | 结果 | 说明 |
+|------|------|------|
+| S001 | **PASS** | `cmd_loop` (L801) 接收 MAX_ROUNDS 参数，输出 "Round N/M"，循环跑满后正常退出，record_result 写 results.tsv |
+| S002 | **PASS** | `auto_decompose` (L682) 用 `claude -p` 拆解任务，路径 `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md` 正确，fallback 在 L743-764 生成默认 task1.md |
+| S003 | **PASS** | `start_writers` (L101) 创建 `/tmp/hyper-loop-worktrees-rN/taskM`，L130 写 `~/.codex/config.toml` trust，L179 在 tmux window 启动 Codex，L136 复制 `_ctx/` |
+| S004 | **PASS** | `merge_writers` (L299) 先 `git add -A && git commit` (L338-339)，squash merge 到 integration 分支 (L348)，生成 .patch/.stat (L342-345)，状态输出到 stderr 不污染 stdout 返回值 |
+| S005 | **PASS** | `audit_writer_diff` (L242) 检查越界文件，违规返回 `return 1`，merge_writers (L327-330) 跳过审计失败的 Writer |
+| S006 | **PASS** | `wait_writers` (L196) 默认超时 900s (15分钟)，超时写 `{"status":"timeout"}` (L224)，merge_writers 检查 status!=done 跳过 (L320) |
+| S007 | **PASS** | `run_tester` (L379) 用 `timeout 600 claude -p` 非交互模式运行，10分钟内生成报告，L408-413 空输出时生成默认报告 |
+| S008 | **PASS** | `run_reviewers` (L417) 并行启动 3 个 Reviewer（gemini/claude/codex），timeout 300s，EXTRACT_PY 提取 JSON 中的 score 字段，L477-482 fallback 给分 5 |
+| S009 | **PASS** | `compute_verdict` (L486) Python 脚本排序后取中位数 (L519)，3 个评分 [5,6,7] → median=6.0，median > prev_median → ACCEPTED，verdict.env 用 key=value 格式 |
+| S010 | **PASS** | L523 `veto = any(s < 4.0 for s in scores)`，scores=[3.5,6,7] → veto=True → REJECTED_VETO (L531-532)，record_result 写入 results.tsv |
+| S011 | **PASS** | L526-529 检查报告中 "P0" + ("bug"/"fail")，匹配时 REJECTED_TESTER_P0 (L533-534) |
+| S012 | **PASS** | record_result (L589) 用 `grep + cut` 安全读取，cmd_round (L651) 和 cmd_loop (L875) 同样用 grep 提取，不 source verdict.env，无 "command not found" 风险 |
+| S013 | **PASS** | L900 检查 `consecutive_rejects >= 5 && BEST_ROUND > 0`，从 archive git-sha.txt 恢复代码 (L904-907)，重置 counter=0 (L909) |
+| S014 | **PASS** | L830 循环顶部检查 STOP 文件，break 后正常退出 (exit 0)，L832 删除 STOP 文件 |
+| S015 | **PASS** | `cleanup_round` (L562) 用 subshell+set +e 容错，L577 删除 worktree，L578 删除分支，L584 `rm -rf ${WORKTREE_BASE}` 删除父目录，L569 关闭 tmux windows |
+| S016 | **PASS** | L17-21 依次检查 gtimeout → timeout → 纯 bash fallback (background+sleep+kill)，macOS 兼容 |
+| S017 | **PASS** | merge_writers L348 squash merge 失败时 L352-354 执行 merge --abort 并标记 conflict deferred，`((FAILED++)) || true` 不崩溃 |
 
-### S002: auto_decompose 生成任务文件 — PASS (with P1 note)
-- 生成到 `_hyper-loop/tasks/round-N/` (line 705-706)
-- 每个文件包含"修复任务"和"相关文件"段落 (模板 line 738-750)
-- Claude -p 失败时降级生成默认 task1.md (line 764-783)
-- **P1**: line 716 引用 `_hyper-loop/bdd-specs.md` 而非 `_hyper-loop/context/bdd-specs.md`，路径不一致 (虽然两处文件都存在)
-- 截图: `screenshots/round-8/s002-decompose.txt`
+---
 
-### S003: Writer worktree 创建 + trust + 启动 — PASS
-- `git worktree add` 创建到 `/tmp/hyper-loop-worktrees-rN/taskM` (line 124)
-- `~/.codex/config.toml` 写入 trust 配置 (line 130-132)
-- Codex 在 tmux window 中启动 (line 179-182)
-- `_ctx/` 目录复制到 worktree (line 136)
-- 截图: `screenshots/round-8/s003-worktree.txt`
+## 发现的 Bug
 
-### S004: Writer 完成后 diff 被正确 commit — PASS
-- `git add -A && git commit` 在 merge 前执行 (line 335-336)
-- squash merge 到 integration 分支 (line 345)
-- `.patch` 和 `.stat` 文件生成 (line 339-342)
-- 截图: `screenshots/round-8/s004-merge.txt`
+### P1: archive_round 归档 bdd-specs.md 路径错误 (L773)
 
-### S005: diff 审计拦截越界修改 — PASS
-- 从 TASK.md 提取 `### 相关文件` 列表 (line 245-247)
-- 比对 `git diff --name-only` (line 255)
-- 越界时返回 exit 1 (line 288)
-- Writer 产出被跳过不合并 (line 324-326)
-- 截图: `screenshots/round-8/s005-audit.txt`
+```bash
+cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
+```
 
-### S006: Writer 超时处理 — PASS
-- 900s 超时后写 `{"status":"timeout"}` 到 DONE.json (line 224)
-- merge_writers 视 timeout 为 failed 跳过 (line 317-319)
-- 截图: `screenshots/round-8/s006-timeout.txt`
+实际路径是 `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`。由于 `|| true` 静默失败，BDD 规格永远不会被归档。
 
-### S007: Tester 启动并生成报告 — PASS
-- Tester 在 tmux 中启动 (start_agent, line 380-381)
-- 等待 900s (15分钟, line 404)
-- 超时时生成空报告而非崩溃 (line 416-418)
-- 截图: `screenshots/round-8/s007-tester.txt`
+**修复**: 改为 `cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true`
 
-### S008: 3 Reviewer 启动并产出评分 — PASS
-- 3 个 Reviewer 在 tmux 中启动: gemini/claude/codex (line 450)
-- 等待 600s (10分钟, line 467)
-- JSON 包含 "score" 字段 (评审请求模板, line 446)
-- 降级从 pane 输出提取 JSON (Python JSONDecoder, line 482-500)
-- 截图: `screenshots/round-8/s008-reviewers.txt`
+### P1: build_app 改变 cwd 未恢复 (L367)
 
-### S009: 和议计算正确 — PASS
-- 中位数计算: `sorted + n//2` (line 543)
-- 验证: `[5.0, 6.0, 7.0]` → median=6.0 正确
-- `DECISION = ACCEPTED` 当 median > prev_median (line 562)
-- verdict.env 可安全读取 (line 574-580)
-- 截图: `screenshots/round-8/s009-verdict.txt`
+```bash
+build_app() {
+  local BUILD_DIR="$1"
+  cd "$BUILD_DIR"   # ← 改变了 shell 工作目录，函数返回后不恢复
+```
 
-### S010: 一票否决 (score < 4.0) — PASS
-- `any(s < 4.0 for s in scores)` → veto=True (line 547)
-- 验证: `[3.5, 6.0, 7.0]` → REJECTED_VETO 正确
-- 记录到 results.tsv (record_result, line 609-625)
-- 截图: `screenshots/round-8/s010-veto.txt`
+后续函数都用绝对路径所以目前不会出错，但这是一个隐患。
 
-### S011: Tester P0 否决 — PASS
-- `"P0" in text and ("bug" in text.lower() or "fail" in text.lower())` (line 553)
-- 触发 `REJECTED_TESTER_P0` (line 558)
-- 截图: `screenshots/round-8/s011-tester-p0.txt`
+**修复**: 用 `(cd "$BUILD_DIR" && eval ...)` subshell 或末尾 `cd "$PROJECT_ROOT"`
 
-### S012: verdict.env 安��读取 — PASS
-- 全面使用 `grep '^KEY=' | cut -d= -f2` 替代 `source` (line 618-620, 672-673, 894-895)
-- 验证: SCORES="1.0 2.0 3.0" 提取无 "command not found" 错误
-- 截图: `screenshots/round-8/s012-verdict-safe.txt`
+### P1: git worktree add 静默失败 (L124)
 
-### S013: 连续 5 轮失败自动回退 — PASS
-- `CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0` 触发回退 (line 919)
-- `git checkout $BEST_SHA -- .` 恢复代码 (line 925)
-- `CONSECUTIVE_REJECTS=0` 重置计数器 (line 928)
-- 截图: `screenshots/round-8/s013-rollback.txt`
+```bash
+git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>/dev/null
+```
 
-### S014: STOP 文件优雅退出 — PASS
-- STOP 文件检测在循环顶部 (line 849)
-- 当前轮不执行 (break 在任何工作之前)
-- `rm $STOP_FILE` 删除文件 (line 851)
-- 脚本正常退出 exit 0 (break → 函数自然返回)
-- 截图: `screenshots/round-8/s014-stop.txt`
+如果前一轮崩溃导致残留分支/worktree，此命令静默失败，Writer 无法启动但不报错。
 
-### S015: worktree 清理 — PARTIAL PASS (P1 bug)
-- subshell + set +e 防止清理失败终止循环 (line 591-592)
-- `git worktree remove --force` 删除每个 worktree (line 601)
-- `git branch -D` 删除分支 (line 602)
-- tmux writer windows 被关闭 (line 593-595)
-- **P1 BUG**: 不删除 `/tmp/hyper-loop-worktrees-rN/` 父目录本身。BDD 要求该目录不存在，但 `git worktree remove` 只删子目录，空壳父目录可能残留。需要在清理末尾加 `rm -rf "$WORKTREE_BASE" 2>/dev/null`
-- 截图: `screenshots/round-8/s015-cleanup.txt`
+**修复**: 在 `start_writers` 开头加 `git -C "$PROJECT_ROOT" worktree prune` 并删除同名残留分支
 
-### S016: macOS timeout 兼容 — PASS
-- `gtimeout` 优先检测 (line 17)
-- 自定义 `timeout` 函数作为 fallback (line 20: background + sleep + kill)
-- 不会报 "command not found"
-- 截图: `screenshots/round-8/s016-timeout-compat.txt`
+### P1: cmd_status 重复定义 (L673 + L935)
 
-### S017: 多 Writer 同文件冲突处理 — PASS
-- 第一个 merge 成功 (line 345-348)
-- 第二个报 conflict → `merge --abort` → "deferred" (line 349-353)
-- `((FAILED++)) || true` 防止 set -e 退出 → 脚本不崩溃
-- 截图: `screenshots/round-8/s017-conflict.txt`
+两处定义 `cmd_status()`，第一个 (L673) 是死代码，第二个覆盖它。不影响功能但增加维护混乱。
+
+**修复**: 删除 L673-679 的第一个定义
+
+### P1: 注释与代码不一致 (L476)
+
+注释写 "fallback 给 3 分"，实际 fallback 给 5 分 (L479)。
+
+**修复**: 将注释改为 "fallback 给 5 分"
 
 ---
 
 ## 总结
 
-| 指标 | 结果 |
-|------|------|
-| bash -n 语法检查 | PASS |
-| BDD 场景通过 | 16/17 PASS, 1 PARTIAL (S015) |
-| P0 Bug | 0 |
-| P1 Bug | 2 |
-
----
-
-## Bug 列表
-
-### P1-001: cleanup_round 不删除 worktree 父目录
-- **场景**: S015
-- **位置**: `scripts/hyper-loop.sh` line 597-606
-- **描述**: `cleanup_round` 使��� `git worktree remove` 删除每个子目录，但不删除 `/tmp/hyper-loop-worktrees-rN/` 父目录本身。BDD S015 要求该目录不存在。
-- **修复**: 在 subshell 末���加 `rm -rf "$WORKTREE_BASE" 2>/dev/null`
-
-### P1-002: auto_decompose 内 bdd-specs/contract 路径不一致
-- **场景**: S002
-- **位置**: `scripts/hyper-loop.sh` line 716-717
-- **描述**: decompose prompt 引用 `_hyper-loop/bdd-specs.md` 和 `_hyper-loop/contract.md`，但规范路径是 `_hyper-loop/context/bdd-specs.md` 和 `_hyper-loop/context/contract.md`。目前两处都有文件所以不影响功能，但如果只保留 context/ 下的版本就会失败。
-- **修复**: 统一引用为 `_hyper-loop/context/bdd-specs.md` 和 `_hyper-loop/context/contract.md`
-
-### P1-003 (代码质量): cmd_status 重复定义
-- **位置**: line 694 和 line 954
-- **描述**: `cmd_status()` 被定义了两次。第二个定义覆盖第一个（多了"最佳轮次"显示）。第一个定义是死代码。
-- **修复**: 删除 line 694-700 的第一个定义
-
-### P1-004 (代码质量): cmd_loop 内 verdict 读取缩进不一致
-- **位置**: line 894-895
-- **描述**: `DECISION=` 和 `MEDIAN=` 的 grep 行缩进 2 空格，而周围代码缩进 6 空格。功能无影响但可读性差。
-- **修复**: 统一缩进为 6 空格
-
----
-
-## 评分建议
-
-- **客观指标 (80%)**: bash -n 通过, 16/17 BDD PASS = ~94% → 约 7.5/10
-- **主观维度 (20%)**: 代码结构清晰, 错误处理完整 (subshell+set+e, || true), 有降级方案, 但有缩进不一致和重复定义 → 约 6.5/7.0
-- **综合建议**: 约 7.3/10
+- **17 个 BDD 场景全部 PASS**
+- **0 个 P0 bug**
+- **5 个 P1 bug**（归档路径错误、cwd 泄漏、worktree 残留静默失败、重复函数定义、注释不一致）

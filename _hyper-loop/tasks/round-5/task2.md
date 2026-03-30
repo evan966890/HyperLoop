@@ -2,19 +2,13 @@
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[P1] WORKTREE_BASE 父目录未清理，S015 FAIL
-
-cleanup_round 函数（line 563-583）通过 `git worktree remove` 删除了各子目录（task*、integration），分支也被 `branch -D` 删除，tmux windows 也被关闭。但 `/tmp/hyper-loop-worktrees-rN/` 空目录本身未被删除，BDD S015 要求该目录不存在。
-
+[P1] `cleanup_round` 函数只删除了 `/tmp/hyper-loop-worktrees-rN/` 下的子目录（task*, integration），但未删除父目录本身，导致空目录残留。BDD S015 要求该目录在清理后不存在。
 ### 相关文件
-- scripts/hyper-loop.sh (line 562-583, cleanup_round 函数)
-
+- scripts/hyper-loop.sh (line 562-583: cleanup_round 函数)
 ### 约束
-- 只修 scripts/hyper-loop.sh 中 cleanup_round 函数
-- 在 subshell 内、worktree remove 循环之后加 `rmdir`
+- 只修 scripts/hyper-loop.sh
 - 不改 CSS
-
+- 在 cleanup_round 的 subshell 中，worktree remove 循环之后、cp verdict.env 之前，加 `rm -rf "${WORKTREE_BASE}" 2>/dev/null` 删除父目录
+- 保持容错风格（不能因删除失败终止脚本）
 ### 验收标准
-- cleanup_round 执行完成后 `/tmp/hyper-loop-worktrees-rN/` 目录不存在
-- rmdir 失败不会导致脚本崩溃（需 2>/dev/null 或 || true）
-- 引用 BDD 场景 S015
+引用 BDD 场景 S015: cleanup_round 调用后 `/tmp/hyper-loop-worktrees-rN/` 不存在

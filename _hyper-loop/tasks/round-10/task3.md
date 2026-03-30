@@ -1,30 +1,38 @@
 ## 修复任务: TASK-3
 ### 上下文
 先读 _ctx/ 下所有文件。
-
 ### 问题
-[P1-003] cmd_loop 中 verdict.env 读取行缩进不一致
-
-第 897-898 行的 DECISION 和 MEDIAN grep 赋值缩进为 2 空格，但所在代码块（while > if/else 内部）
-的上下文缩进为 6 空格。功能不受影响但可读性差，增加维护风险。
-
-```
-      # 安全读取 verdict.env（不 source，用 grep 提取）
-  DECISION=$(grep '^DECISION=' ...   ← 2 空格（应为 6 空格）
-  MEDIAN=$(grep '^MEDIAN=' ...       ← 2 空格（应为 6 空格）
-
-      if [[ "$DECISION" == ...       ← 6 空格（正确）
-```
+[P1] `build_app` 用 `cd` 改变全局 cwd：line 367 的 `cd "$BUILD_DIR"` 改变了整个 shell 进程的工作目录。当 `cleanup_round` 删除该 worktree 后，进程 cwd 变为悬空（deleted directory）。虽然当前代码全用绝对路径暂时不出错，但任何未来的相对路径使用都会静默失败，是一个定时炸弹。
 
 ### 相关文件
-- scripts/hyper-loop.sh (第 897-898 行)
+- scripts/hyper-loop.sh (363-376)
+
+### 修复方向
+用 subshell 隔离 cwd 变更：
+```bash
+build_app() {
+  local BUILD_DIR="$1"
+  echo "构建 App..."
+  (
+    cd "$BUILD_DIR"
+    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+    if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+      echo "  ✓ 构建成功"
+    else
+      echo "  ✗ 构建失败"
+      exit 1
+    fi
+  )
+}
+```
+注意：subshell 中 `exit 1` 等价于 `return 1`（从调用者角度看返回码一致）。
 
 ### 约束
-- 只改 scripts/hyper-loop.sh 第 897-898 行的前导空格
-- 将 2 空格缩进改为 6 空格，与上下文（第 896 行注释、第 900 行 if）对齐
-- 不改代码逻辑、不改 CSS
+- 只修 scripts/hyper-loop.sh
+- 不改 CSS
+- 不改函数签名和返回值语义
 
 ### 验收标准
-- 第 897-898 行缩进与第 896 行和第 900 行一致（6 空格）
-- `bash -n scripts/hyper-loop.sh` 语法检查通过
-- 引用 BDD 场景 S012: verdict.env 安全读取行为不变
+引用 BDD 场景 S007 / S015：构建完成后，cleanup_round 删除 worktree 不影响后续操作
+- `build_app` 返回后，`pwd` 仍然是调用前的目录
+- 构建成功返回 0，失败返回 1（行为不变）

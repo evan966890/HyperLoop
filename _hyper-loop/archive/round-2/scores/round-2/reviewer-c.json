@@ -1,1 +1,22 @@
-{"score": 3, "issues": [], "summary": "\u8bc4\u5ba1\u672a\u8fd4\u56de\u6709\u6548JSON\uff0c\u7ed9\u9ed8\u8ba4\u52063"}
+{
+  "score": 4.8,
+  "issues": [
+    {
+      "severity": "P0",
+      "desc": "scripts/hyper-loop.sh:311-360,628-631,853-856：merge_writers 一边打印状态一边把路径写到 stdout，`INTEGRATION_WT=$(merge_writers ...)` 会捕获成多行文本；随后 `build_app` 的 `cd \"$BUILD_DIR\"` 失败。这个问题已在 `_hyper-loop/loop.log` 实际出现，主流程会持续落入 BUILD_FAILED。"
+    },
+    {
+      "severity": "P0",
+      "desc": "scripts/hyper-loop.sh:692-693,770：auto_decompose 和 archive_round 仍引用 `_hyper-loop/bdd-specs.md` / `_hyper-loop/contract.md`，真实文件在 `_hyper-loop/context/`。结果是拆任务时读不到契约和 BDD，归档也会静默缺少规格文件，直接违反 S002。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:821-823,897-906：`CONSECUTIVE_REJECTS`、`BEST_ROUND`、`BEST_MEDIAN` 每次启动 loop 都从 0 开始，没有从 `results.tsv` 和 archive 恢复历史状态，S013 只在单次常驻进程内勉强成立；脚本重启后无法按历史 5 连败自动回退。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:417-482：run_reviewers 改成后台子进程后，不再按 S008 在 tmux 中启动 3 个 Reviewer，也失去了从 pane 提取 JSON 的兜底路径；当前实现与 BDD 契约明确不一致。"
+    }
+  ],
+  "summary": "语法通过，但主循环的构建主路径和任务拆解输入仍有阻断级缺陷，离 7.5 通过线还有明显距离。"
+}

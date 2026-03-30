@@ -1,1 +1,22 @@
-{"score": 3, "issues": [], "summary": "\u8bc4\u5ba1\u672a\u8fd4\u56de\u6709\u6548JSON\uff0c\u7ed9\u9ed8\u8ba4\u52063"}
+{
+  "score": 3.5,
+  "issues": [
+    {
+      "severity": "P0",
+      "desc": "scripts/hyper-loop.sh:311-360,628-631,853-856 merge_writers 同时把状态日志和返回路径写到 stdout；调用方命令替换后拿到多行文本，build_app 的 cd 目标失效，主循环会稳定落入 BUILD_FAILED。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:573-583 cleanup_round 只移除 task*/integration worktree，未删除 /tmp/hyper-loop-worktrees-rN 父目录，不满足 S015，并会持续累积残留目录。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:770 archive_round 复制的是不存在的 _hyper-loop/bdd-specs.md，真实文件在 _hyper-loop/context/bdd-specs.md，导致归档缺少关键 BDD 规格。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:703-705 auto_decompose 在 heredoc 的命令替换里把 $f 写成 \\$f，上一轮 reviewer 评分 JSON 不会被展开进 prompt，任务拆解依据被静默丢失。"
+    }
+  ],
+  "summary": "语法和大部分 BDD 场景已覆盖，但主路径在 merge 后构建阶段被 P0 阻断，当前版本未达到评估契约要求。"
+}

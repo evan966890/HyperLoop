@@ -1,36 +1,38 @@
 ## 修复任务: TASK-3
 ### 上下文
 先读 _ctx/ 下所有文件。
-
 ### 问题
-[P0] Tester P0 否决检测存在严重误报，即使 Tester 报告全 PASS 也触发 REJECTED_TESTER_P0。
+[P1] git worktree add 静默失败——前轮崩溃残留导致 Writer 无法启动但不报错
 
-line 556 的检测逻辑：
-```python
-tester_p0 = "P0" in text and ("bug" in text.lower() or "fail" in text.lower())
+L124:
+```bash
+git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>/dev/null
 ```
 
-Round 8 的 Tester 报告中：
-- "### S011: Tester P0 否决 — PASS" 包含字面 "P0"（这是 BDD 场景标题，描述 P0 veto 功能本身）
-- "### S010: 一票否决 (score < 4.0) — PASS" 标题也有 P0 附近内容
-- "merge_writers 视 timeout 为 failed 跳过" 包含 "fail"
-- 两个条件都匹配 → `tester_p0=True` → REJECTED_TESTER_P0
-
-修复方向：P0 检测应该只匹配 Tester 实际报告的 bug，不匹配 BDD 场景标题中的描述性文字。建议：
-- 用正则匹配 `\[P0\]` 或 `P0 bug` 或 `P0:` 等带标点/中括号的格式（Tester 模板要求的报告格式）
-- 排除 `### S0` 开头的场景标题行
+如果前一轮因崩溃残留了同名 worktree 或分支，此命令静默失败（stderr 被丢弃）。Writer 后续操作找不到 worktree 目录，但不会有明确的错误提示。
 
 ### 相关文件
-- scripts/hyper-loop.sh (line 539-584, compute_verdict 函数内的 Python heredoc, 重点 line 552-556)
+- scripts/hyper-loop.sh (L117-137, start_writers 函数)
+
+### 修复方案
+1. 在 for 循环之前加 worktree prune：
+```bash
+git -C "$PROJECT_ROOT" worktree prune 2>/dev/null || true
+```
+
+2. 在 for 循环中 worktree add 之前，清理可能的同名残留分支，并检测创建失败：
+```bash
+# 清理可能残留的同名分支
+git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null || true
+# 创建 worktree，失败时跳过该 task
+if ! git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>&1; then
+  echo "  ✗ worktree 创建失败: $WT" >&2
+  continue
+fi
+```
 
 ### 约束
-- 只修 scripts/hyper-loop.sh 中 `compute_verdict` 函数内的 PYVERDICT heredoc
-- 只改 `tester_p0` 检测逻辑（line 552-556）
-- 不改 veto、max_diff 等其他 verdict 判断逻辑
+- 只修 scripts/hyper-loop.sh 中 start_writers 函数
 - 不改 CSS
-
 ### 验收标准
-引用 BDD 场景 S011（Tester P0 否决）
-- 当报告只是在场景标题中出现 "P0"（如 "S011: Tester P0 否决 — PASS"）但没有真正的 P0 bug 时：`tester_p0=False`
-- 当报告实际列出 "[P0] xxx bug" 或 "**P0**: xxx" 或 "P0 bug: xxx" 时：`tester_p0=True`
-- `bash -n scripts/hyper-loop.sh` 语法检查通过
+引用 BDD 场景 S003: worktree 创建成功；前轮残留时能自动清理并重建

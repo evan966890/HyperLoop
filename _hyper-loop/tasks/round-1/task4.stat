@@ -1,5 +1,5 @@
  DONE.json                                |   1 +
- TASK.md                                  |  37 ++
+ TASK.md                                  |  40 ++
  WRITER_INIT.md                           |  34 ++
  _ctx/INSTALL.md                          | 136 +++++
  _ctx/SKILL.md                            | 234 ++++++++
@@ -18,5 +18,6 @@
  _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
  _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
  _ctx/templates/WRITER_INIT.md            | 111 ++++
- scripts/hyper-loop.sh                    |  10 +-
- 21 files changed, 2822 insertions(+), 8 deletions(-)
+ _hyper-loop/context/hyper-loop.sh        | 227 ++++---
+ scripts/hyper-loop.sh                    |   1 +
+ 22 files changed, 2930 insertions(+), 121 deletions(-)

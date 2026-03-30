@@ -1,24 +1,20 @@
 ## 修复任务: TASK-2
 ### 上下文
-先读 _hyper-loop/context/ 下所有文件，确认 bdd-specs.md 和 contract.md 的实际位置。
+先读 _ctx/ 下所有文件。
 ### 问题
-[P1] auto_decompose 和 archive_round 中 bdd-specs.md / contract.md 路径缺少 `context/` 前缀。
+[P1] merge_writers 中 `git merge --squash` stdout 未重定向，可能污染函数返回值
 
-具体：
-- `scripts/hyper-loop.sh:716` 引用 `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md`，实际在 `_hyper-loop/context/bdd-specs.md`
-- `scripts/hyper-loop.sh:717` 引用 `${PROJECT_ROOT}/_hyper-loop/contract.md`，实际在 `_hyper-loop/context/contract.md`
-- `scripts/hyper-loop.sh:794` 引用 `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md`，同样缺少 `context/`
+`merge_writers` 函数通过 `echo "$INTEGRATION_WT"` 将路径返回给调用方。但 line 348 的 `git merge --squash` 只重定向了 stderr (`2>/dev/null`)，其 stdout 输出（如 "Squash commit -- not updating HEAD"）会混入函数返回值，导致 `build_app` 收到错误路径后 `cd` 失败。
 
-注意：顶层 `_hyper-loop/bdd-specs.md` 和 `_hyper-loop/contract.md` 也存在（可能是旧副本），但 context/ 下的版本是权威来源，auto_decompose 的提示词应指向 context/ 版本以保持一致。
+同样，line 349 的 `git commit --no-edit` 也可能输出到 stdout。
 
 ### 相关文件
-- scripts/hyper-loop.sh (行 716-718, auto_decompose 函数的提示词)
-- scripts/hyper-loop.sh (行 794, archive_round 函数的 cp 命令)
+- scripts/hyper-loop.sh (line 348-349，squash merge 和 commit 处)
 
 ### 约束
-- 只修改 scripts/hyper-loop.sh
-- 只改路径字符串，不改逻辑
+- 只修 scripts/hyper-loop.sh
+- 只改 line 348-349 的 git 命令重定向
 - 不改 CSS
 
 ### 验收标准
-- S002: auto_decompose 生成任务文件时能正确读取 BDD spec 和 contract，提升拆解质量
+引用 BDD 场景 S004: squash merge 到 integration 分支成功，merge_writers 返回的 INTEGRATION_WT 路径纯净无 git 输出污染

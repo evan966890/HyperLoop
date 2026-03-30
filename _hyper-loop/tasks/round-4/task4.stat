@@ -1,5 +1,5 @@
  DONE.json                                |   1 +
- TASK.md                                  |  25 +
+ TASK.md                                  |  17 +
  WRITER_INIT.md                           |  34 ++
  _ctx/INSTALL.md                          | 136 +++++
  _ctx/SKILL.md                            | 234 ++++++++
@@ -13,10 +13,10 @@
  _ctx/hooks/pre-write-guard.sh            |  57 ++
  _ctx/hooks/session-start.sh              |  40 ++
  _ctx/hooks/stop-guard.sh                 |  42 ++
- _ctx/hyper-loop.sh                       | 976 +++++++++++++++++++++++++++++++
+ _ctx/hyper-loop.sh                       | 962 +++++++++++++++++++++++++++++++
  _ctx/templates/ORCHESTRATOR_CHECKLIST.md | 209 +++++++
  _ctx/templates/REVIEWER_INIT.md          | 174 ++++++
  _ctx/templates/TESTER_INIT.md            | 393 +++++++++++++
  _ctx/templates/WRITER_INIT.md            | 111 ++++
- scripts/hyper-loop.sh                    |   8 -
- 21 files changed, 2808 insertions(+), 8 deletions(-)
+ scripts/hyper-loop.sh                    |  10 +-
+ 21 files changed, 2787 insertions(+), 9 deletions(-)

@@ -2,17 +2,20 @@
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[P1-6] Tester 超时消息不一致（第 402 行 vs 第 418 行）
+[P1] 两个路径/清理相关 bug：
 
-第 402 行等待消息说"最多 15 分钟"，超时阈值也是 900 秒（15 分钟）。但第 418 行超时后写入的报告说"Tester 未在 10 分钟内完成"。时间描述矛盾。
+1. **P1-002 worktree 父目录未清理**: `cleanup_round` (L563-583) 移除各 worktree 后，`/tmp/hyper-loop-worktrees-rN/` 空父目录残留，多轮运行后 /tmp 下累积大量空目录。
+
+2. **P1-004 archive_round 引用错误路径**: L770 `cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md"` 但实际文件在 `_hyper-loop/context/bdd-specs.md`，复制静默失败（因 `|| true`），归档不完整。
 
 ### 相关文件
-- scripts/hyper-loop.sh (行 402, 418)
-
+- scripts/hyper-loop.sh (L562-583, cleanup_round 函数)
+  - L582 之后（`) || true` 之前）加入: `rmdir "${WORKTREE_BASE}" 2>/dev/null || true`
+- scripts/hyper-loop.sh (L770, archive_round 函数)
+  - L770: `cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md"` → 改为 `cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"`
 ### 约束
-- 只修 scripts/hyper-loop.sh
-- 统一为 15 分钟（与实际超时阈值 900 秒一致）
-- 第 418 行改为 "Tester 未在 15 分钟内完成。需要人工验证。"
-
+- 只修改 scripts/hyper-loop.sh 中 cleanup_round 和 archive_round 函数
+- 不改 CSS
+- rmdir 而非 rm -rf，确保只删空目录
 ### 验收标准
-引用 BDD 场景 S007: Tester 超时时生成的报告中时间描述应与实际等待时间一致（15 分钟）
+引用 BDD 场景 S015: cleanup_round 后 `/tmp/hyper-loop-worktrees-rN/` 目录不存在

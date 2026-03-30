@@ -7,39 +7,27 @@ index 0000000..2f940c7
 +{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..b7c3df8
+index 0000000..1c099e4
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,17 @@
 +## 修复任务: TASK-5
 +### 上下文
 +先读 _ctx/ 下所有文件。
-+
 +### 问题
-+[P1] `cmd_loop()` 中 `DECISION` 和 `MEDIAN` 变量在循环体内未用 `local` 声明，
-+且在 BUILD_FAILED 分支和正常分支之间不一致地设置，导致变量泄漏到外层作用域。
-+
-+具体问题：
-+1. 第 890-891 行：`DECISION` 和 `MEDIAN` 通过 grep 设置，但只在 else 分支（构建成功时）。
-+   BUILD_FAILED 分支（第 874-880 行）不设置这两个 shell 变量。
-+2. 如果某轮构建成功（ACCEPTED, median=7.5），下一轮构建失败，
-+   第 928 行的 `${MEDIAN:-0}` 仍是 7.5（上一轮值），可能误判为达标并退出循环。
-+3. 第 890-891 行缩进不一致（少了 6 个空格），影响可读性。
++[P1] `build_app()` L367 执行 `cd "$BUILD_DIR"` 污染主进程工作目录。当 `cleanup_round()` 删除该 worktree 目录后，主进程 CWD 变成悬空目录，后续轮次使用相对路径会出错。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (第 874-912 行, `cmd_loop` 循环体的 if/else 块)
-+- scripts/hyper-loop.sh (第 928 行, median >= 8.0 检查)
++- scripts/hyper-loop.sh (L364-375, build_app 函数)
 +
 +### 约束
-+- 只修 `cmd_loop` 函数中上述循环体部分
-+- 在每轮循环开始时重置 DECISION="" MEDIAN=0
-+- 修正第 890-891 行缩进
++- 只修 scripts/hyper-loop.sh
++- 方案：将 build_app 函数体包裹在 subshell `( )` 中执行，或在函数末尾 `cd "$PROJECT_ROOT"`
 +- 不改 CSS
 +
 +### 验收标准
-+- S001: 循环跑满后正常退出
-+- S013: 连续失败时不会因 MEDIAN 泄漏误判达标
-+- 评估契约：代码可读性
++- S001: 多轮循环不崩溃 — build_app 执行后主进程 CWD 仍为 PROJECT_ROOT
++- S015: cleanup_round 删除 worktree 后脚本正常继续下一轮
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2931,49 +2919,32 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index b8f455b..b2fe044 100755
+index 9ec2447..c25e074 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -819,6 +819,8 @@ cmd_loop() {
-   local CONSECUTIVE_REJECTS=0
-   local BEST_ROUND=0
-   local BEST_MEDIAN=0
-+  local DECISION=""
-+  local MEDIAN=0
+@@ -364,15 +364,16 @@ merge_writers() {
+ build_app() {
+   local BUILD_DIR="$1"
+   echo "构建 App..."
+-  cd "$BUILD_DIR"
+-  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+-  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+-    echo "  ✓ 构建成功"
+-    return 0
+-  else
+-    echo "  ✗ 构建失败"
+-    return 1
+-  fi
++  (
++    cd "$BUILD_DIR" || exit 1
++    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
++    if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
++      echo "  ✓ 构建成功"
++    else
++      echo "  ✗ 构建失败"
++      exit 1
++    fi
++  )
+ }
  
-   while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
-     # 检查停止信号
-@@ -833,6 +835,9 @@ cmd_loop() {
-     echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
-     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
- 
-+    DECISION=""
-+    MEDIAN=0
-+
-     # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
-     init_dirs "$ROUND"
-     ensure_session
-@@ -853,8 +858,10 @@ cmd_loop() {
- 
-     if ! build_app "$INTEGRATION_WT"; then
-       echo "构建失败"
--      echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
--      echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
-+      DECISION="BUILD_FAILED"
-+      MEDIAN=0
-+      echo "DECISION=${DECISION}" > "${TASK_DIR}/verdict.env"
-+      echo "MEDIAN=${MEDIAN}" >> "${TASK_DIR}/verdict.env"
-       record_result "$ROUND"
-       cleanup_round "$ROUND"
-       ((CONSECUTIVE_REJECTS++)) || true
-@@ -867,8 +874,8 @@ cmd_loop() {
-       # 读取决策
-       # shellcheck source=/dev/null
-       # 安全读取 verdict.env（不 source，用 grep 提取）
--  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
--  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
-+      DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
-+      MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
- 
-       if [[ "$DECISION" == "ACCEPTED" ]] || [[ "$DECISION" == "ACCEPTED_UNCHANGED" ]]; then
-         echo "  → KEEP: 合并到 main"
+ # ── Tester（非交互 -p 模式）──

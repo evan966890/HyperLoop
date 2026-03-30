@@ -1,1 +1,22 @@
-{"score": 3, "issues": [], "summary": "\u8bc4\u5ba1\u672a\u8fd4\u56de\u6709\u6548JSON\uff0c\u7ed9\u9ed8\u8ba4\u52063"}
+{
+  "score": 3.0,
+  "issues": [
+    {
+      "severity": "P0",
+      "desc": "scripts/hyper-loop.sh 的 merge_writers 把过程日志和最终路径一起写到 stdout，cmd_round/cmd_loop 捕获后 INTEGRATION_WT 变成多行文本，build_app 的 cd 会失败，主循环无法可靠跑通。"
+    },
+    {
+      "severity": "P1",
+      "desc": "audit_writer_diff 只检查 git diff --name-only HEAD，漏掉未跟踪新文件；Writer 可以在 TASK.md 允许范围外新建文件，并被后续 git add -A 一起提交。"
+    },
+    {
+      "severity": "P1",
+      "desc": "cleanup_round 只删除 task 和 integration 子 worktree，没有删除 /tmp/hyper-loop-worktrees-rN 基目录，S015 不满足，长跑会持续残留工作目录。"
+    },
+    {
+      "severity": "P1",
+      "desc": "上下文包与可执行脚本已经分叉：_hyper-loop/context/hyper-loop.sh、SKILL.md、agents/tester.md 等仍混用旧路径和旧逻辑，context 版还保留 source verdict.env 等已知问题，会把错误流程继续传播到后续轮次。"
+    }
+  ],
+  "summary": "框架已经搭起来且语法通过，但主循环仍有致命阻断问题，审计、清理和上下文一致性也未达无人值守 50 轮的要求。"
+}

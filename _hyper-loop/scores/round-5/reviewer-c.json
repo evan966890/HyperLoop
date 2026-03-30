@@ -1,1 +1,34 @@
-{"score": 3, "issues": [], "summary": "\u8bc4\u5ba1\u672a\u8fd4\u56de\u6709\u6548JSON\uff0c\u7ed9\u9ed8\u8ba4\u52063"}
+{
+  "score": 5.8,
+  "issues": [
+    {
+      "severity": "P0",
+      "desc": "scripts/hyper-loop.sh:311-360,629-631：merge_writers 把日志和返回路径都写到 stdout，INTEGRATION_WT 捕获成多行字符串后传给 build_app，cd 会失败，主循环无法稳定进入 build/test/review。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:379-406 与 _hyper-loop/context/bdd-specs.md:44-49 不一致：run_tester 直接前台执行 claude -p，没有在 tmux 中启动 Tester，且超时是 600s 不是规格要求的 900s，S007 不成立。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:417-482 与 _hyper-loop/context/bdd-specs.md:51-57 不一致：run_reviewers 没有在 tmux 中启动 3 个 Reviewer，超时只有 300s 不是规格要求的 600s，而且不存在从 pane 输出兜底提取 JSON 的实现，S008 不成立。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:196-225：wait_writers 默认超时仍是 300s，而 _hyper-loop/context/bdd-specs.md:38-42 的 S006 明确要求 15 分钟 900s。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:821-823,881-885,897-906 与 _hyper-loop/context/bdd-specs.md:83-88 不一致：BEST_ROUND 和 CONSECUTIVE_REJECTS 只在当前进程内维护，没有从 results.tsv 和 archive 恢复，重启后第 6 轮不会按规格自动回退到历史最佳轮次，S013 不成立。"
+    },
+    {
+      "severity": "P1",
+      "desc": "scripts/hyper-loop.sh:621-623,846-848：PREV_MEDIAN 通过 tail 加 cut 读取时，若 results.tsv 存在但为空会得到空字符串，compute_verdict 中 float('') 会直接崩，和契约要求的 50 轮无人值守目标冲突。"
+    },
+    {
+      "severity": "P2",
+      "desc": "scripts/hyper-loop.sh:563-583：cleanup_round 只删除各个 worktree，没有删除 /tmp/hyper-loop-worktrees-rN 父目录，S015 未完全满足。"
+    }
+  ],
+  "summary": "语法检查虽然通过，但按当前契约和 BDD 复核后核心循环仍有至少 6 个场景不满足，且存在会让 build 阶段必崩的 P0，距离 7.5 通过线和 50 轮无人值守目标还有明显差距。"
+}

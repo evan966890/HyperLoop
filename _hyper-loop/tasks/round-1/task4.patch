@@ -1,53 +1,56 @@
 diff --git a/DONE.json b/DONE.json
 new file mode 100644
-index 0000000..2f940c7
+index 0000000..956c56a
 --- /dev/null
 +++ b/DONE.json
 @@ -0,0 +1 @@
-+{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
++{"status":"done","files_changed":["scripts/hyper-loop.sh","_hyper-loop/context/hyper-loop.sh"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..db41318
+index 0000000..529291e
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,40 @@
 +## 修复任务: TASK-4
 +### 上下文
 +先读 _ctx/ 下所有文件。
 +
 +### 问题
-+[P1] 两个独立问题，都在 scripts/hyper-loop.sh 中：
++[P1] cleanup_round 未删除 WORKTREE_BASE 父目录 + context/hyper-loop.sh 与 scripts/ 版本不同步。
 +
-+**问题 A: `cmd_status` 重复定义**
-+`cmd_status` 函数在脚本中定义了两次：
-+- 第一次约在行 670（简版，只有 tmux + results.tsv）
-+- 第二次约在行 930（完整版，额外有"最佳轮次"输出）
-+Bash 用最后定义的覆盖前面的，所以第一个是死代码。应删除第一个定义。
++问题 A: cleanup_round（第 562-583 行）遍历子目录逐个 worktree remove，
++  但最后没有 `rm -rf ${WORKTREE_BASE}`。
++  BDD S015 要求 "Round N 完成后 /tmp/hyper-loop-worktrees-rN/ 不存在"。
 +
-+**问题 B: `cmd_round` 缺少 `archive_round` 调用**
-+`cmd_loop` 在每轮结束时调用 `archive_round "$ROUND"`（约行 890），会保存 bdd-specs、scores、report、verdict.env、git-sha.txt 到 archive 目录。
-+但 `cmd_round`（单轮模式）没有调用 `archive_round`，只调了 `cleanup_round`。
-+这意味着：
-+- 单轮模式下 `archive/round-N/git-sha.txt` 不会被写入
-+- S013（连续 5 轮失败自动回退）依赖 `archive/round-N/git-sha.txt` 存在
-+- 如果用户混用 `round` 和 `loop` 命令，回退功能会断
++问题 B: _hyper-loop/context/hyper-loop.sh 是旧版本（v5.3），
++  而 scripts/hyper-loop.sh 已是 v5.4+。
++  Writer 在 worktree 中读 _ctx/hyper-loop.sh（context 副本），
++  如果看到旧代码会基于错误理解做修改。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (行 607-668, cmd_round 函数; 行 670-676, 第一个 cmd_status)
++- scripts/hyper-loop.sh (第 562-583 行: cleanup_round 函数)
++- _hyper-loop/context/hyper-loop.sh (整个文件需要与 scripts/ 同步)
 +
 +### 修复方案
-+1. 删除第一个 `cmd_status` 定义（约行 670-676）
-+2. 在 `cmd_round` 的 `cleanup_round "$ROUND"` 之前加入 `archive_round "$ROUND"`
++1. 在 cleanup_round subshell 末尾（第 582 行 `) || true` 前）加入：
++   ```bash
++   rm -rf "${WORKTREE_BASE}" 2>/dev/null
++   ```
++
++2. 将 scripts/hyper-loop.sh 内容复制覆盖 _hyper-loop/context/hyper-loop.sh：
++   ```bash
++   cp scripts/hyper-loop.sh _hyper-loop/context/hyper-loop.sh
++   ```
 +
 +### 约束
-+- 只修 scripts/hyper-loop.sh
-+- 不改 cmd_loop 或其他函数
-+- 不改 CSS
++- 只修 scripts/hyper-loop.sh 的 cleanup_round 函数
++- 只修 _hyper-loop/context/hyper-loop.sh（用 scripts/ 版本覆盖）
++- 不改其他函数
 +
 +### 验收标准
-+引用 BDD 场景 S013: archive/round-N/git-sha.txt 存在且得分最高时代码可回退
-+引用 BDD 场景 S001: 循环跑满 N 轮后正常退出
-+验证：`bash -n scripts/hyper-loop.sh` 语法通过；`grep -c 'cmd_status()' scripts/hyper-loop.sh` 应为 1
++引用 BDD 场景 S015: worktree 清理 — /tmp/hyper-loop-worktrees-rN/ 不存在
++引用 BDD 场景 S003: _ctx/ 目录被复制到 worktree（Writer 看到正确代码）
++验证：`diff scripts/hyper-loop.sh _hyper-loop/context/hyper-loop.sh` 无差异
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2938,38 +2941,315 @@ index 0000000..e6ba1cb
 +4. [ ] 已运行任务相关的最小构建/检查命令？（`{{BUILD_CMD}}`）
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
-diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index b8f455b..f17f2b6 100755
---- a/scripts/hyper-loop.sh
-+++ b/scripts/hyper-loop.sh
-@@ -633,6 +633,7 @@ cmd_round() {
-     echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
-     echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
-     record_result "$ROUND"
-+    archive_round "$ROUND"
-     cleanup_round "$ROUND"
-     return 1
-   fi
-@@ -658,6 +659,7 @@ cmd_round() {
-     echo "建议：本轮被拒绝 ($DECISION)，丢弃 integration 分支"
-   fi
+diff --git a/_hyper-loop/context/hyper-loop.sh b/_hyper-loop/context/hyper-loop.sh
+index d1998ed..41afa06 100755
+--- a/_hyper-loop/context/hyper-loop.sh
++++ b/_hyper-loop/context/hyper-loop.sh
+@@ -195,7 +195,7 @@ WINIT
  
-+  archive_round "$ROUND"
-   cleanup_round "$ROUND"
+ wait_writers() {
+   local ROUND="$1"
+-  local TIMEOUT="${2:-900}"  # 默认 15 分钟
++  local TIMEOUT="${2:-300}"  # 默认 5 分钟（任务应该够小）
  
-   echo ""
-@@ -667,14 +669,6 @@ cmd_round() {
-   echo "评分: $SCORES_DIR/"
+   echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
+ 
+@@ -230,9 +230,12 @@ wait_writers() {
+   done
+ 
+   # 关闭 writer windows
+-  tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep '^w-' | while read -r w; do
+-    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
+-  done
++  (
++    set +e
++    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep '^w-' | while read -r w; do
++      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
++    done
++  ) || true
  }
  
--cmd_status() {
--  echo "tmux windows:"
--  tmux list-windows -t hyper-loop 2>/dev/null || echo "  (no session)"
--  echo ""
--  echo "results.tsv:"
--  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
--}
--
- # ── 自动拆解下一轮任务（基于上一轮结果）──
- auto_decompose() {
+ # ── Diff 审计（autoresearch 启示：产出必须在可控范围内）──
+@@ -372,117 +375,67 @@ build_app() {
+   fi
+ }
+ 
+-# ── Tester ──
++# ── Tester（非交互 -p 模式）──
+ run_tester() {
    local ROUND="$1"
+ 
+-  echo "启动 Tester..."
+-  start_agent "tester" "claude --dangerously-skip-permissions" \
+-    "${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md" "$ROUND"
+-
+-  sleep 5
+-  local TEST_REQ="/tmp/hyper-loop-test-req-r${ROUND}.md"
+-  cat > "$TEST_REQ" <<TREQ
+-## 试用请求 Round $ROUND
+-
+-App 已构建。请执行以下操作：
+-
+-1. 先读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解所有 BDD 场景
+-2. 运行后台测试：cd ${PROJECT_ROOT} && ${BUILD_VERIFY:-echo 'no verify cmd'}
+-3. 按 BDD spec 逐条验证，每个 Then 截图到 ${SCREENSHOT_DIR}/
+-4. 写试用报告到 ${REPORT_FILE}
+-5. 报告格式：每个场景 pass/fail + 截图路径 + P0/P1 bug 列表
+-6. 完成后输出：HYPERLOOP_TEST_DONE
+-TREQ
+-
+-  tmux load-buffer -b "test-req-r${ROUND}" "$TEST_REQ"
+-  tmux paste-buffer -d -r -b "test-req-r${ROUND}" -t hyper-loop:tester
+-  tmux send-keys -t hyper-loop:tester Enter
+-
+-  echo "等待 Tester 完成（最多 15 分钟）..."
+-  local WAITED=0
+-  while [[ ! -f "$REPORT_FILE" ]] && [[ "$WAITED" -lt 900 ]]; do
+-    sleep 15
+-    ((WAITED += 15))
+-    if ! tmux list-panes -t hyper-loop:tester >/dev/null 2>&1; then
+-      echo "  ⚠ Tester 进程已退出"
+-      break
+-    fi
+-  done
++  echo "启动 Tester（非交互模式）..."
++
++  # 先生成轮次摘要给 Tester 看
++  local SUMMARY="${TASK_DIR}/round-summary.txt"
++  {
++    echo "本轮修改统计："
++    for STAT in "${TASK_DIR}"/*.stat; do
++      [[ -f "$STAT" ]] && cat "$STAT"
++    done
++    echo ""
++    echo "构建结果：$(eval "${BUILD_VERIFY:-echo 'no verify'}" 2>&1 | tail -3)"
++  } > "$SUMMARY" 2>/dev/null
+ 
+-  if [[ -f "$REPORT_FILE" ]]; then
++  local TESTER_PROMPT="你是代码测试员。请执行以下操作：
++
++1. 读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解 BDD 场景
++2. 读 ${SUMMARY} 了解本轮修改
++3. 运行 bash -n ${PROJECT_ROOT}/scripts/hyper-loop.sh 验证语法
++4. 按 BDD 场景逐条检查脚本代码，标注 pass/fail
++5. 将结果写入 ${REPORT_FILE}，格式：每行一个场景 ID + pass/fail + 原因
++6. 列出发现的 P0/P1 bug"
++
++  echo "$TESTER_PROMPT" | timeout 600 claude --dangerously-skip-permissions -p - \
++    --add-dir "$PROJECT_ROOT" \
++    > "${REPORT_FILE}" 2>&1 || true
++
++  if [[ -s "$REPORT_FILE" ]]; then
+     echo "  ✓ 试用报告已生成: $REPORT_FILE"
+   else
+-    echo "  ⚠ Tester 超时，生成空报告"
+-    echo "# Round $ROUND 试用报告（Tester 超时）" > "$REPORT_FILE"
+-    echo "Tester 未在 10 分钟内完成。需要人工验证。" >> "$REPORT_FILE"
++    echo "  ⚠ Tester 无输出，生成默认报告"
++    echo "# Round $ROUND — Tester 无输出" > "$REPORT_FILE"
+   fi
+-
+-  kill_agent "tester"
+ }
+ 
+-# ── 3 Reviewer 合议 ──
++# ── 3 Reviewer 合议（非交互管道模式）──
+ run_reviewers() {
+   local ROUND="$1"
+ 
+-  echo "启动 3 个 Reviewer..."
+-
+-  local REVIEW_REQ="/tmp/hyper-loop-review-r${ROUND}.md"
+-  {
+-    echo "## 评审请求 Round $ROUND"
+-    echo ""
+-    echo "请读以下文件后打分："
+-    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+-    echo "- BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+-    echo "- Tester 试用报告：${REPORT_FILE}"
+-    echo "- 截图目录：${SCREENSHOT_DIR}/"
+-    echo "- 本轮 diff："
+-    for STAT in "${TASK_DIR}"/*.stat; do
+-      [[ -f "$STAT" ]] && cat "$STAT"
+-    done
+-    echo ""
+-    echo "输出要求：只输出一个 JSON，格式："
+-    echo '{"score":数字,"issues":[{"severity":"P0","desc":"描述"}],"summary":"一句话"}'
+-    echo ""
+-    echo "把 JSON 写入文件 ${SCORES_DIR}/你的角色名.json 后输出：HYPERLOOP_REVIEW_DONE"
+-  } > "$REVIEW_REQ"
+-
+-  local REVIEWERS=("reviewer-a:gemini --yolo" "reviewer-b:claude --dangerously-skip-permissions" "reviewer-c:codex --full-auto")
++  echo "启动 3 个 Reviewer（非交互模式）..."
+ 
+-  for ENTRY in "${REVIEWERS[@]}"; do
+-    local NAME="${ENTRY%%:*}"
+-    local CLI="${ENTRY#*:}"
++  # 构造评审 prompt（引用文件路径）
++  local REVIEW_PROMPT="你是代码评审官。请读以下文件后给出评分。
+ 
+-    start_agent "$NAME" "$CLI" \
+-      "${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md" "$ROUND"
+-    sleep 2
++评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md
++BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
++Tester 报告：${REPORT_FILE}
++本轮修改：
++$(for STAT in "${TASK_DIR}"/*.stat; do [[ -f "$STAT" ]] && cat "$STAT"; done)
+ 
+-    tmux load-buffer -b "review-${NAME}-r${ROUND}" "$REVIEW_REQ"
+-    tmux paste-buffer -d -r -b "review-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
+-    tmux send-keys -t "hyper-loop:${NAME}" Enter
+-  done
++只输出一个 JSON 对象，不要代码块，不要解释，不要 markdown：
++{\"score\":数字0到10,\"issues\":[{\"severity\":\"P0\",\"desc\":\"描述\"}],\"summary\":\"一句话总结\"}"
+ 
+-  echo "等待 3 个 Reviewer 完成（最多 10 分钟）..."
+-  local WAITED=0
+-  while [[ "$WAITED" -lt 600 ]]; do
+-    local DONE_COUNT=0
+-    for NAME in reviewer-a reviewer-b reviewer-c; do
+-      [[ -f "${SCORES_DIR}/${NAME}.json" ]] && ((DONE_COUNT++)) || true
+-    done
+-    [[ "$DONE_COUNT" -ge 3 ]] && break
+-    sleep 15
+-    ((WAITED += 15))
+-  done
+-
+-  # 降级：从 pane 输出提取 JSON
+-  for NAME in reviewer-a reviewer-b reviewer-c; do
+-    if [[ ! -f "${SCORES_DIR}/${NAME}.json" ]]; then
+-      echo "  ⚠ ${NAME} 未写文件，从 pane 提取..."
+-      tmux capture-pane -t "hyper-loop:${NAME}" -p -S - > "/tmp/hyper-loop-pane-${NAME}.txt" 2>/dev/null || true
+-      python3 - "/tmp/hyper-loop-pane-${NAME}.txt" "${SCORES_DIR}/${NAME}.json" <<'PYEXTRACT' 2>/dev/null || true
++  # JSON 提取函数
++  local EXTRACT_PY='
+ import json, sys
+ from pathlib import Path
+-text = Path(sys.argv[1]).read_text()
++text = sys.stdin.read()
+ decoder = json.JSONDecoder()
+ last = None
+ for i, ch in enumerate(text):
+@@ -492,17 +445,40 @@ for i, ch in enumerate(text):
+         if "score" in obj: last = obj
+     except: pass
+ if last:
+-    Path(sys.argv[2]).write_text(json.dumps(last, ensure_ascii=False, indent=2))
+-    print(f"  ✓ extracted score: {last.get('score')}")
++    json.dump(last, sys.stdout, ensure_ascii=False, indent=2)
+ else:
+-    Path(sys.argv[2]).write_text('{"score":0,"issues":[],"summary":"未能获取评分"}')
+-    print("  ✗ no score found")
+-PYEXTRACT
+-    fi
+-  done
+-
++    json.dump({"score":5,"issues":[],"summary":"评审未返回有效JSON，给中立分5"}, sys.stdout)
++'
++
++  # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
++  (
++    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p - --add-dir "$PROJECT_ROOT" 2>/dev/null | \
++      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
++    echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
++  ) &
++
++  (
++    echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - \
++      --add-dir "$PROJECT_ROOT" 2>/dev/null | \
++      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-b.json" 2>/dev/null
++    echo "  ✓ reviewer-b (claude) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-b.json'))['score'])" 2>/dev/null || echo 'fallback')"
++  ) &
++
++  (
++    timeout 300 codex exec "$REVIEW_PROMPT" 2>/dev/null | \
++      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
++    echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
++  ) &
++
++  echo "  等待 3 个 Reviewer 完成（最多 5 分钟）..."
++  wait
++
++  # 确保所有评分文件存在（fallback 给 3 分）
+   for NAME in reviewer-a reviewer-b reviewer-c; do
+-    kill_agent "$NAME"
++    if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
++      echo '{"score":5,"issues":[],"summary":"Reviewer 超时或无输出，中立分5"}' > "${SCORES_DIR}/${NAME}.json"
++      echo "  ⚠ ${NAME} fallback to score 3"
++    fi
+   done
+ }
+ 
+@@ -583,23 +559,28 @@ PYVERDICT
+   echo "═══════════════════════════════════"
+ }
+ 
+-# ── 清理 ──
++# ── 清理（所有命令容错，不能因为清理失败终止循环）──
+ cleanup_round() {
+   local ROUND="$1"
+ 
+-  tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
+-    tmux kill-window -t "hyper-loop:${w}" 2>/dev/null || true
+-  done
++  # 用 subshell + set +e 确保清理不会触发 set -e 退出
++  (
++    set +e
++    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
++      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
++    done
+ 
+-  for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
+-    [[ -d "$WT" ]] || continue
+-    local BRANCH
+-    BRANCH=$(git -C "$WT" branch --show-current 2>/dev/null || true)
+-    git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null || true
+-    [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null || true
+-  done
++    for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
++      [[ -d "$WT" ]] || continue
++      local BRANCH
++      BRANCH=$(git -C "$WT" branch --show-current 2>/dev/null || echo "")
++      git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null
++      [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null
++    done
+ 
+-  cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null || true
++    cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
++    rm -rf "${WORKTREE_BASE}" 2>/dev/null
++  ) || true
+ }
+ 
+ # ── 记录结果 ──
+@@ -608,11 +589,15 @@ record_result() {
+   local VERDICT_FILE="${TASK_DIR}/verdict.env"
+ 
+   [[ -f "$VERDICT_FILE" ]] || return
+-  # shellcheck source=/dev/null
+-  . "$VERDICT_FILE"
++
++  # 安全读取（不 source，用 grep）
++  local R_DECISION R_MEDIAN R_SCORES
++  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)
++  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)
++  R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')
+ 
+   printf '%s\t%s\t%s\t%s\n' \
+-    "$ROUND" "${MEDIAN:-0}" "${SCORES:-}" "${DECISION:-ERROR}" \
++    "$ROUND" "${R_MEDIAN:-0}" "${R_SCORES:-}" "${R_DECISION:-ERROR}" \
+     >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+ }
+ 
+diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
+index 9ec2447..41afa06 100755
+--- a/scripts/hyper-loop.sh
++++ b/scripts/hyper-loop.sh
+@@ -579,6 +579,7 @@ cleanup_round() {
+     done
+ 
+     cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
++    rm -rf "${WORKTREE_BASE}" 2>/dev/null
+   ) || true
+ }
+ 

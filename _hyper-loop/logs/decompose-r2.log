@@ -1,8 +1,9 @@
-4 个任务文件已写入 `_hyper-loop/tasks/round-2/`:
+已完成 Round 2 任务拆解，生成 5 个任务文件：
 
-| 任务 | 优先级 | 问题 | 关联 BDD |
-|------|--------|------|----------|
-| task1 | P0 | 路径缺少 `context/` — auto_decompose + archive_round | S002 |
-| task2 | P0 | build_app 裸 `cd` 污染全局 cwd | S001, S015 |
-| task3 | P1 | reviewer-c stdin+参数双传 prompt | S008 |
-| task4 | P1 | PREV_MEDIAN 空值崩溃 + cmd_status 重复定义 | S009, S001 |
+| 任务 | 优先级 | 问题 | BDD |
+|------|--------|------|-----|
+| TASK-1 | **P0** | `auto_decompose` + `archive_round` 路径缺 `context/` | S002 |
+| TASK-2 | P1 | Reviewer fallback score=5 但日志写 "score 3" | S008 |
+| TASK-3 | P1 | `cmd_status()` 重复定义，删除死代码 | — |
+| TASK-4 | P1 | `BEST_ROUND`/`BEST_MEDIAN` 未从 results.tsv 初始化 | S013 |
+| TASK-5 | P1 | `build_app()` cd 污染主进程 CWD | S001, S015 |

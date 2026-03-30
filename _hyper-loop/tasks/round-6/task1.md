@@ -2,19 +2,20 @@
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[P1-2] `auto_decompose` heredoc 中 `\$f` 变量不展开（第 725-730 行）
-
-`<<DPROMPT` 是非引号 heredoc，bash 会展开变量。但代码中写了 `\$f`，反斜杠导致 `$f` 被转义为字面量，for 循环体输出为空。实测确认：`\$f` 输出空，`$f` 正常。
-
-这导致 decompose prompt 中"上一轮评分"部分始终为空，拆解器无法参考评分，严重降低拆解质量。
-
+[P0] merge_writers 的 echo 日志污染 stdout，导致 `INTEGRATION_WT=$(merge_writers "$ROUND")` 捕获多行字符串（首行是"合并 Writer 产出..."而非路径），`build_app "$INTEGRATION_WT"` 执行 `cd` 时必然失败。每一轮 build 阶段都会崩溃，整个循环无法正常运行。
 ### 相关文件
-- scripts/hyper-loop.sh (行 725-730)
-
+- scripts/hyper-loop.sh (L299-361, merge_writers 函数)
+  - L311: `echo "合并 Writer 产出..."` → 需改为 `>&2`
+  - L321: `echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过"` → 需改为 `>&2`
+  - L328: `echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并"` → 需改为 `>&2`
+  - L350: `echo "  ✓ ${TASK_NAME} merged"` → 需改为 `>&2`
+  - L354: `echo "  ✗ ${TASK_NAME} conflict, deferred"` → 需改为 `>&2`
+  - L359: `echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped"` → 需改为 `>&2`
+  - L360: `echo "$INTEGRATION_WT"` → 保留在 stdout（这是唯一应输出到 stdout 的行）
 ### 约束
-- 只修 scripts/hyper-loop.sh
-- 仅修改 heredoc 内的 `\$f` → `$f`（两处：第 728 行的 `[[ -f "\$f" ]]` 和 `$(basename "\$f")` 和 `$(cat "\$f" ...)`）
-- 不影响 heredoc 外部逻辑
-
+- 只修改 scripts/hyper-loop.sh 中 merge_writers 函数
+- 不改 CSS
+- 不改函数签名和返回逻辑
+- 仅将日志类 echo 重定向到 stderr，路径输出保留 stdout
 ### 验收标准
-引用 BDD 场景 S002: auto_decompose 生成的 prompt 中"上一轮评分"部分应包含实际 JSON 内容（而非空白）
+引用 BDD 场景 S004: merge_writers 返回值仅含 integration worktree 路径，build_app 能正确 cd 进去

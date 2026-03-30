@@ -1,9 +1,10 @@
-已生成 3 个任务文件到 `_hyper-loop/tasks/round-10/`:
+Round 10 拆解完成。4 个任务文件已写入 `_hyper-loop/tasks/round-10/`：
 
-| 任务 | 优先级 | 问题 | 影响 |
-|------|--------|------|------|
-| task1 | **P1-001** (最高) | Tester/Reviewer init 文件路径缺少 `templates/` | 连续 9 轮 0.0 分的根因 — agent 读不到角色定义 |
-| task2 | P1-002 | `cmd_status()` 重复定义 | 死代码，可读性问题 |
-| task3 | P1-003 | verdict.env grep 行缩进 2→6 空格 | 维护风险，代码一致性 |
+| Task | 优先级 | 问题 | BDD |
+|------|--------|------|-----|
+| task1 | **P0** | `tester_p0` 全局子串匹配误拒（7/9 轮根因） | S011 |
+| task2 | P1 | `PREV_MEDIAN` 空串→Python 崩溃 | S009 |
+| task3 | P1 | `build_app` cd 泄漏全局 cwd | S007/S015 |
+| task4 | P1 | archive 路径 + cmd_status 去重 + audit 白名单缺 .sh | S005 |
 
-task1 是突破口 — 修复路径后 Tester/Reviewer 才能正常工作，评分才有可能脱离 0.0。
+**task1 是本轮关键**——当前 P0 检测用 `"P0" in text` 做全局匹配，报告里 "0 个 P0 bug" 也会触发，改为用 `re.search(r'^###\s+P0', text, re.MULTILINE)` 只匹配实际 P0 bug 标题。

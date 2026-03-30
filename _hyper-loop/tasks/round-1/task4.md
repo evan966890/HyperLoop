@@ -3,35 +3,38 @@
 先读 _ctx/ 下所有文件。
 
 ### 问题
-[P1] 两个独立问题，都在 scripts/hyper-loop.sh 中：
+[P1] cleanup_round 未删除 WORKTREE_BASE 父目录 + context/hyper-loop.sh 与 scripts/ 版本不同步。
 
-**问题 A: `cmd_status` 重复定义**
-`cmd_status` 函数在脚本中定义了两次：
-- 第一次约在行 670（简版，只有 tmux + results.tsv）
-- 第二次约在行 930（完整版，额外有"最佳轮次"输出）
-Bash 用最后定义的覆盖前面的，所以第一个是死代码。应删除第一个定义。
+问题 A: cleanup_round（第 562-583 行）遍历子目录逐个 worktree remove，
+  但最后没有 `rm -rf ${WORKTREE_BASE}`。
+  BDD S015 要求 "Round N 完成后 /tmp/hyper-loop-worktrees-rN/ 不存在"。
 
-**问题 B: `cmd_round` 缺少 `archive_round` 调用**
-`cmd_loop` 在每轮结束时调用 `archive_round "$ROUND"`（约行 890），会保存 bdd-specs、scores、report、verdict.env、git-sha.txt 到 archive 目录。
-但 `cmd_round`（单轮模式）没有调用 `archive_round`，只调了 `cleanup_round`。
-这意味着：
-- 单轮模式下 `archive/round-N/git-sha.txt` 不会被写入
-- S013（连续 5 轮失败自动回退）依赖 `archive/round-N/git-sha.txt` 存在
-- 如果用户混用 `round` 和 `loop` 命令，回退功能会断
+问题 B: _hyper-loop/context/hyper-loop.sh 是旧版本（v5.3），
+  而 scripts/hyper-loop.sh 已是 v5.4+。
+  Writer 在 worktree 中读 _ctx/hyper-loop.sh（context 副本），
+  如果看到旧代码会基于错误理解做修改。
 
 ### 相关文件
-- scripts/hyper-loop.sh (行 607-668, cmd_round 函数; 行 670-676, 第一个 cmd_status)
+- scripts/hyper-loop.sh (第 562-583 行: cleanup_round 函数)
+- _hyper-loop/context/hyper-loop.sh (整个文件需要与 scripts/ 同步)
 
 ### 修复方案
-1. 删除第一个 `cmd_status` 定义（约行 670-676）
-2. 在 `cmd_round` 的 `cleanup_round "$ROUND"` 之前加入 `archive_round "$ROUND"`
+1. 在 cleanup_round subshell 末尾（第 582 行 `) || true` 前）加入：
+   ```bash
+   rm -rf "${WORKTREE_BASE}" 2>/dev/null
+   ```
+
+2. 将 scripts/hyper-loop.sh 内容复制覆盖 _hyper-loop/context/hyper-loop.sh：
+   ```bash
+   cp scripts/hyper-loop.sh _hyper-loop/context/hyper-loop.sh
+   ```
 
 ### 约束
-- 只修 scripts/hyper-loop.sh
-- 不改 cmd_loop 或其他函数
-- 不改 CSS
+- 只修 scripts/hyper-loop.sh 的 cleanup_round 函数
+- 只修 _hyper-loop/context/hyper-loop.sh（用 scripts/ 版本覆盖）
+- 不改其他函数
 
 ### 验收标准
-引用 BDD 场景 S013: archive/round-N/git-sha.txt 存在且得分最高时代码可回退
-引用 BDD 场景 S001: 循环跑满 N 轮后正常退出
-验证：`bash -n scripts/hyper-loop.sh` 语法通过；`grep -c 'cmd_status()' scripts/hyper-loop.sh` 应为 1
+引用 BDD 场景 S015: worktree 清理 — /tmp/hyper-loop-worktrees-rN/ 不存在
+引用 BDD 场景 S003: _ctx/ 目录被复制到 worktree（Writer 看到正确代码）
+验证：`diff scripts/hyper-loop.sh _hyper-loop/context/hyper-loop.sh` 无差异

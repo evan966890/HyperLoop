@@ -1,8 +1,8 @@
-Round 8 已拆解为 4 个任务：
+Round 8 拆解完成。4 个任务，全部针对 P1 bug（无 P0）:
 
-| 任务 | 优先级 | 修复内容 | 关联场景 |
-|------|--------|---------|---------|
-| TASK-1 | **P0** | Tester/Reviewer init 路径加 `templates/` | S007, S008 |
-| TASK-2 | P1 | auto_decompose/archive_round 中 bdd-specs/contract 路径加 `context/` | S002 |
-| TASK-3 | P1 | BEST_ROUND 也追踪 REJECTED 轮 + CONSECUTIVE_REJECTS 从 results.tsv 恢复 | S013 |
-| TASK-4 | P1 | 删除第一个重复的 cmd_status 定义 | 代码质量 |
+| 任务 | 优先级 | 问题 | 关联 BDD |
+|------|--------|------|----------|
+| TASK-1 | P1 最危险 | PREV_MEDIAN 空字符串 → Python 崩溃 | S009 |
+| TASK-2 | P1 | merge_writers git stdout 污染返回路径 | S004 |
+| TASK-3 | P1 | archive_round bdd-specs.md 路径错误 | S001 |
+| TASK-4 | P1 | cmd_status 死代码 + fallback 注释不一致 | S008 |

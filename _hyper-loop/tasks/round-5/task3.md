@@ -2,20 +2,19 @@
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[P1] cmd_status() 重复定义，第一个是死代码
+[P1] 两个独立的路径/变量 bug：
 
-cmd_status() 在 line 670-676 定义了简版，在 line 930-942 定义了增强版（含最佳轮次显示）。Bash 中后定义覆盖前定义，第一个是死代码，增加维护混淆风险。
+1. `archive_round` 中 bdd-specs.md 路径错误（line 770）：写的是 `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md`，实际文件在 `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`。cp 因 `|| true` 静默失败，归档缺少 BDD 规格文件。
 
+2. `auto_decompose` 的 heredoc 中 `\$f` 变量转义错误（line 704）：在非引号 heredoc 的 `$(...)` 命令替换中，`\$f` 被转义为字面量 `$f`，for 循环变量不生效。Claude 拆解时看不到上一轮具体评分内容。
 ### 相关文件
-- scripts/hyper-loop.sh (line 670-676, 第一个 cmd_status 定义)
-
+- scripts/hyper-loop.sh (line 770: archive_round 中 cp bdd-specs.md)
+- scripts/hyper-loop.sh (line 703-705: auto_decompose heredoc 中的 for 循环)
 ### 约束
-- 只删除 line 670-676 的第一个 cmd_status 定义（含空行）
-- 保留 line 930-942 的增强版定义不动
+- 只修 scripts/hyper-loop.sh
 - 不改 CSS
-
+- bug 1: 将 `_hyper-loop/bdd-specs.md` 改为 `_hyper-loop/context/bdd-specs.md`
+- bug 2: 将 `\$f` 改为 `$f`（heredoc 中 `$(...)` 内的 `$` 由子 shell 处理，不需要转义）
 ### 验收标准
-- 脚本中只有一个 cmd_status 定义（line 930 附近的增强版）
-- `bash -n scripts/hyper-loop.sh` 语法检查通过
-- `hyper-loop.sh status` 命令正常工作，显示最佳轮次信息
-- 引用 BDD 场景 S001（脚本不崩溃）
+引用 BDD 场景 S002: auto_decompose 的拆解 prompt 包含上一轮评分内容
+归档目录包含 bdd-specs.md 文件

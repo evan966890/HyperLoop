@@ -1,10 +1,10 @@
-Round 7 任务拆解完成。4 个 P1 修复任务已写入 `_hyper-loop/tasks/round-7/`:
+Round 7 拆解完成，4 个任务文件已写入 `_hyper-loop/tasks/round-7/`:
 
-| 文件 | 优先级 | 问题 | 关联 BDD |
-|------|--------|------|----------|
-| task1.md | P1 | 新建 TESTER_INIT.md + REVIEWER_INIT.md 角色定义文件 | S007, S008 |
-| task2.md | P1 | S013 回退逻辑：REJECTED 时也追踪 BEST_ROUND | S013 |
-| task3.md | P1 | 删除 cmd_status() 重复定义 (L686) | S001 |
-| task4.md | P1 | auto_decompose 路径统一到 `context/` 前缀 | S002 |
+| 任务 | 优先级 | 修复内容 | 目标 BDD |
+|------|--------|---------|----------|
+| TASK-1 | P0+P1 | `audit_writer_diff` 3处echo加`>&2` + `git ls-files --others`检测untracked文件 | S004, S005 |
+| TASK-2 | P1 | `BEST_ROUND`改为追踪所有轮次最高median + INITIAL_SHA兜底 | S013 |
+| TASK-3 | P1 | `PREV_MEDIAN`读取加`-s`非空检查 + `${PREV_MEDIAN:-0}`兜底 | S009 |
+| TASK-4 | P1+P2 | 删除重复`cmd_status` + archive路径加`context/` + `build_app`用subshell隔离CWD | S001 |
 
-本轮无 P0 bug。4 个任务互相独立，可并行执行。
+关键判断：P0-1 在 `merge_writers` 自身已修复（echo有`>&2`），但**被它调用的 `audit_writer_diff` 仍有3处stdout泄露**，合并后路径被污染，构建必定失败。TASK-1 是最高优先级。

@@ -1,22 +1,26 @@
 {
-  "score": 8,
+  "score": 6,
   "issues": [
     {
-      "severity": "P1",
-      "desc": "auto_decompose heredoc 中 \\$f 阻止变量展开，上轮评分无法注入 decompose prompt，降低任务拆解质量"
+      "severity": "P0",
+      "desc": "merge_writers 所有 echo 与返回路径共用 stdout，INTEGRATION_WT 变量包含多行垃圾文本，build_app cd 必定失败——整个循环从第 1 轮起就无法正确执行"
     },
     {
       "severity": "P1",
-      "desc": "cmd_status 函数重复定义（line 670 vs 930），前者为死代码"
+      "desc": "audit_writer_diff 用 git diff --name-only HEAD 漏检新建未跟踪文件，Writer 可绕过审计"
     },
     {
       "severity": "P1",
-      "desc": "build_app 裸 cd 改变全局工作目录，后续新增代码易踩坑"
+      "desc": "cleanup_round 未删除 /tmp/hyper-loop-worktrees-rN/ 基目录，违反 S015"
     },
     {
       "severity": "P1",
-      "desc": "Reviewer-c codex 命令同时通过 stdin pipe 和 CLI 参数传 prompt，长 prompt 可能超 ARG_MAX"
+      "desc": "cmd_status 重复定义（L670 vs L932），第一个为死代码"
+    },
+    {
+      "severity": "P1",
+      "desc": "archive_round 复制 bdd-specs.md 路径错误，_hyper-loop/bdd-specs.md 应为 _hyper-loop/context/bdd-specs.md，被 || true 静默吞掉"
     }
   ],
-  "summary": "17/17 BDD 全过 + bash -n 通过，客观分满分；4 个 P1 bug（heredoc 展开、死代码、裸 cd、冗余传参）拉低主观维度至约 4.5/7.0，综合 8.0"
+  "summary": "14/17 BDD 通过但 P0 stdout 污染阻断 merge→build→test 核心链路，脚本无法完成任何一轮有效循环，距 50 轮无人值守目标差距明显"
 }

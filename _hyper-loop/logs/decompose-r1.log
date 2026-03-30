@@ -1,10 +1,10 @@
 4 个任务文件已写入 `_hyper-loop/tasks/round-1/`：
 
-| 文件 | 优先级 | 问题 | 影响的 BDD 场景 |
-|------|--------|------|----------------|
-| **task1.md** | P0 | `merge_writers` stdout 污染 — `INTEGRATION_WT` 变量包含垃圾，build_app 必崩 | S001, S004 |
-| **task2.md** | P0 | `context/hyper-loop.sh` 是 v5.3 旧版，Writer 看到错误代码 | S003 |
-| **task3.md** | P0 | reviewer-c `codex exec` CLI 语法错误（双重传 prompt + 可能超 ARG_MAX） | S008 |
-| **task4.md** | P1 | `cmd_status` 重复定义 + `cmd_round` 缺少 `archive_round` 调用 | S013, S001 |
+| 文件 | 优先级 | 问题 | BDD |
+|------|--------|------|-----|
+| task1.md | **P0** | merge_writers + audit_writer_diff 的 echo 污染 stdout → INTEGRATION_WT 非纯路径 → build_app 必崩 | S004, S005, S001 |
+| task2.md | **P0** | Reviewer fallback 只检查 `! -s`，score=0 非空文件不触发 fallback → 永久 VETO | S008, S010 |
+| task3.md | **P0** | cmd_status() 定义 3 次（死代码）+ cmd_round 缺 archive_round 调用 | S001, S013 |
+| task4.md | P1 | cleanup_round 未 rmdir WORKTREE_BASE + context/hyper-loop.sh 与 scripts/ 不同步 | S015, S003 |
 
-**最关键的是 TASK-1** — merge_writers 的 stdout 污染导致整个 build→test→review 管道断裂，不修此 bug 其他一切都没意义。
+**根因链**：TASK-1 (stdout 污染) → build_app 永远失败 → Reviewer 看到 BUILD_FAILED → 给 0 分 → TASK-2 的 fallback 又不生效 → 0 < 4.0 → REJECTED_VETO 永久循环。修 TASK-1 + TASK-2 即可打破死循环。

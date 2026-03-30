@@ -1,22 +1,26 @@
 {
-  "score": 5.5,
+  "score": 6.0,
   "issues": [
     {
       "severity": "P0",
-      "desc": "merge_writers 的 echo 状态输出污染 stdout，INTEGRATION_WT 拿到多行垃圾字符串，build_app cd 必失败，每轮 DECISION 永远是 BUILD_FAILED，主循环形同虚设"
+      "desc": "merge_writers stdout 污染: 状态 echo 混入函数返回值，INTEGRATION_WT 捕获多行文本致 build_app cd 必然失败，每轮走 BUILD_FAILED 分支"
     },
     {
       "severity": "P1",
-      "desc": "S015 FAIL: cleanup_round 未 rmdir 删除 /tmp/hyper-loop-worktrees-rN/ 空父目录，BDD 要求该目录不存在"
+      "desc": "cleanup_round 未删除 worktree 父目录 /tmp/hyper-loop-worktrees-rN/，空目录残留(S015 fail)"
     },
     {
       "severity": "P1",
-      "desc": "cmd_status() 在 line 670 和 930 重复定义，前者是死代码"
+      "desc": "archive_round bdd-specs 路径错误，应为 _hyper-loop/context/bdd-specs.md"
     },
     {
       "severity": "P1",
-      "desc": "archive_round 引用 bdd-specs.md 路径为根目录副本而非 context/ 标准位置，可能读到过时版本"
+      "desc": "auto_decompose heredoc 中 \\$f 转义错误，上轮评分内容无法传入拆解 prompt"
+    },
+    {
+      "severity": "P1",
+      "desc": "cmd_status 函数重复定义，第一个为死代码"
     }
   ],
-  "summary": "bash -n 通过且 16/17 BDD 场景通过，但 P0 级 stdout 污染导致 build_app 必崩使主循环无法正常运转，距离无人值守 50 轮目标仍有关键差距"
+  "summary": "基础架构扎实(bash -n pass, 15/17 BDD pass)，但 P0 stdout 污染致核心流程每轮必败，无法达成 50 轮无人值守目标"
 }

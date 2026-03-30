@@ -1,22 +1,22 @@
 {
-  "score": 7,
+  "score": 6.5,
   "issues": [
     {
-      "severity": "P1",
-      "desc": "audit_writer_diff 用 git diff HEAD 检查越界，Writer 自行 commit 后审计被完全绕过（S005 FAIL）"
+      "severity": "P0",
+      "desc": "auto_decompose 中 BDD/contract 路径缺少 context/ 子目录（L693-694），Claude 无法读取规格文件，loop 自改进方向失控"
     },
     {
       "severity": "P1",
-      "desc": "auto_decompose 引用 _hyper-loop/bdd-specs.md 而非 _hyper-loop/context/bdd-specs.md，路径错误导致拆解质量下降"
+      "desc": "Reviewer fallback JSON 写 score:5 但日志输出 fallback to score 3（L479-480），分数与日志矛盾"
     },
     {
       "severity": "P1",
-      "desc": "reviewer-c codex exec 同时用 stdin 管道和命令行参数传 prompt，参数冲突且可能超 ARG_MAX"
+      "desc": "archive_round 中 bdd-specs.md 路径同样缺少 context/（L770），归档静默失败"
     },
     {
       "severity": "P1",
-      "desc": "cmd_status() 重复定义（L670 和 L930），第一个是死代码"
+      "desc": "cmd_status 函数重复定义（L670 和 L932），第一个成为死代码"
     }
   ],
-  "summary": "bash -n 通过、BDD 16/17（94%），但 audit_writer_diff 安全绕过未修复，4 个 P1 拉低主观分，刚好达到 7.5 阈值线下"
+  "summary": "bash -n 通过、15/17 BDD 场景 PASS，但 P0 路径错误导致 decompose 无法读取 BDD 规格，loop 核心智能退化，未达 7.5 通过线"
 }

@@ -1,10 +1,10 @@
-Round 5 拆解完成，4 个任务已写入 `_hyper-loop/tasks/round-5/`:
+4 个任务已写入 `_hyper-loop/tasks/round-5/`:
 
-| 文件 | 优先级 | 问题 | BDD |
+| 任务 | 优先级 | 问题 | BDD |
 |------|--------|------|-----|
-| task1.md | **P0** | merge_writers stdout 污染 → build_app 永远失败 | S004, S005, S017 |
-| task2.md | P1 | cleanup_round 未 rmdir WORKTREE_BASE 父目录 | S015 |
-| task3.md | P1 | cmd_status() 重复定义，删除死代码 | S001 |
-| task4.md | P1 | archive_round bdd-specs.md 路径改用 context/ | S001 |
+| task1 | **P0** | `merge_writers` stdout 污染 — 状态 echo 混入返回路径，`build_app` 每轮必败 | S004 |
+| task2 | P1 | `cleanup_round` 未删父目录 `/tmp/hyper-loop-worktrees-rN/` | S015 |
+| task3 | P1 | `archive_round` bdd-specs 路径错 + `auto_decompose` heredoc `\$f` 转义错 | S002 |
+| task4 | P1 | `cmd_status` 重复定义（死代码） | 可读性 |
 
-P0-1 是导致前 4 轮全部 REJECTED_VETO (3.0) 的根因——merge_writers 的状态 echo 混入路径变量，build_app 必崩，Reviewer 看到的永远是 BUILD_FAILED 代码。
+TASK-1 是阻塞性 bug — 修好后构建流程才能跑通，Tester/Reviewer 才会执行。
