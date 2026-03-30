@@ -1,11 +1,10 @@
-Round 5 任务已拆解完毕，5 个文件已写入 `_hyper-loop/tasks/round-5/`：
+Round 5 拆解完成，4 个任务已写入 `_hyper-loop/tasks/round-5/`:
 
-| 文件 | 优先级 | 问题 | 关键行号 |
-|------|--------|------|----------|
-| task1.md | P1 | `auto_decompose` heredoc `\$f` 不展开，评分信息丢失 | 725-730 |
-| task2.md | P1 | `cmd_status` 重复定义，第一个是死代码 | 694-700 |
-| task3.md | P1 | decompose prompt 路径缺 `context/` 前缀，不一致 | 716-718 |
-| task4.md | P1 | `timeout` polyfill 未使用 + `cmd_round` 格式框缺 `║` | 17-21, 640 |
-| task5.md | P1 | 4 轮连续 0.0 分 REJECTED_VETO，评分管线端到端排查 | run_reviewers / compute_verdict / record_result |
+| 文件 | 优先级 | 问题 | BDD |
+|------|--------|------|-----|
+| task1.md | **P0** | merge_writers stdout 污染 → build_app 永远失败 | S004, S005, S017 |
+| task2.md | P1 | cleanup_round 未 rmdir WORKTREE_BASE 父目录 | S015 |
+| task3.md | P1 | cmd_status() 重复定义，删除死代码 | S001 |
+| task4.md | P1 | archive_round bdd-specs.md 路径改用 context/ | S001 |
 
-Task5 是最关键的 — 4 轮全 0 分说明评分管线可能存在系统性问题，不仅仅是报告中列出的单点 bug。
+P0-1 是导致前 4 轮全部 REJECTED_VETO (3.0) 的根因——merge_writers 的状态 echo 混入路径变量，build_app 必崩，Reviewer 看到的永远是 BUILD_FAILED 代码。

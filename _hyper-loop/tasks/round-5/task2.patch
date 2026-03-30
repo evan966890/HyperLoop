@@ -1,37 +1,36 @@
 diff --git a/DONE.json b/DONE.json
 new file mode 100644
-index 0000000..59bc666
+index 0000000..2f940c7
 --- /dev/null
 +++ b/DONE.json
 @@ -0,0 +1 @@
-+{"status":"done","files_changed":["scripts/hyper-loop.sh"],"lint_pass":true}
++{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..172f247
+index 0000000..84f16af
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,20 @@
 +## 修复任务: TASK-2
 +### 上下文
 +先读 _ctx/ 下所有文件。
 +### 问题
-+[P1] `cmd_status` 函数重复定义（第 694 行和第 954 行）
++[P1] WORKTREE_BASE 父目录未清理，S015 FAIL
 +
-+`cmd_status` 被定义了两次。第一个定义（694-700 行）是简化版，第二个（954-966 行）包含"最佳轮次"显示逻辑。Bash 中后定义覆盖前定义，所以第一个是死代码，增加维护混乱。
++cleanup_round 函数（line 563-583）通过 `git worktree remove` 删除了各子目录（task*、integration），分支也被 `branch -D` 删除，tmux windows 也被关闭。但 `/tmp/hyper-loop-worktrees-rN/` 空目录本身未被删除，BDD S015 要求该目录不存在。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (第 694-700 行：第一个定义，需删除)
-+
-+### 修复方案
-+删除第 694-700 行的第一个 `cmd_status` 定义，保留第 954 行的完整版本。
++- scripts/hyper-loop.sh (line 562-583, cleanup_round 函数)
 +
 +### 约束
-+- 只修 scripts/hyper-loop.sh
++- 只修 scripts/hyper-loop.sh 中 cleanup_round 函数
++- 在 subshell 内、worktree remove 循环之后加 `rmdir`
 +- 不改 CSS
-+- 只删除第一个重复定义，不动第二个
 +
 +### 验收标准
-+引用 BDD 场景 S001：loop 命令启动死循环 — 确保 status 子命令仍然正常工作，脚本语法检查通过
++- cleanup_round 执行完成后 `/tmp/hyper-loop-worktrees-rN/` 目录不存在
++- rmdir 失败不会导致脚本崩溃（需 2>/dev/null 或 || true）
++- 引用 BDD 场景 S015
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2923,21 +2922,16 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index 8879883..6fcbee0 100755
+index b8f455b..768d294 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -691,14 +691,6 @@ cmd_round() {
-   echo "评分: $SCORES_DIR/"
- }
+@@ -578,6 +578,9 @@ cleanup_round() {
+       [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null
+     done
  
--cmd_status() {
--  echo "tmux windows:"
--  tmux list-windows -t hyper-loop 2>/dev/null || echo "  (no session)"
--  echo ""
--  echo "results.tsv:"
--  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
--}
--
- # ── 自动拆解下一轮任务（基于上一轮结果）──
- auto_decompose() {
-   local ROUND="$1"
++    # S015: 删除完所有 worktree 子目录后，再尝试移除空的父目录。
++    rmdir "$WORKTREE_BASE" 2>/dev/null || true
++
+     cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
+   ) || true
+ }

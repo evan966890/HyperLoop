@@ -1,26 +1,57 @@
 ## 修复任务: TASK-3
 ### 上下文
 先读 _ctx/ 下所有文件。
-
 ### 问题
-[P1] cmd_status 函数重复定义（L694 和 L954），第一个是死代码
+[P1] `build_app()` 函数 (line 367) 使用裸 `cd "$BUILD_DIR"` 改变全局工作目录。
 
-`cmd_status` 在脚本中定义了两次：
-- 第一次（L694-700）：简化版，只显示 tmux windows 和 results.tsv
-- 第二次（L954-966）：完整版，额外显示"最佳轮次"
+当前代码 line 364-376:
+```bash
+build_app() {
+  local BUILD_DIR="$1"
+  echo "构建 App..."
+  cd "$BUILD_DIR"
+  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+    echo "  ✓ 构建成功"
+    return 0
+  else
+    echo "  ✗ 构建失败"
+    return 1
+  fi
+}
+```
 
-Bash 中后定义覆盖前定义，所以功能不受影响。但第一个定义是死代码，增加维护混乱。
+`build_app` 返回后脚本工作目录变为 BUILD_DIR。目前后续代码恰好都用绝对路径所以不出问题，但这是安全隐患 — 任何新增的相对路径代码都会在错误目录执行。
 
 ### 相关文件
-- scripts/hyper-loop.sh (L694-700)
+- scripts/hyper-loop.sh (line 364-376)
+
+### 修复方案
+将 `build_app()` 的函数体包在 subshell 中隔离 `cd`：
+```bash
+build_app() {
+  local BUILD_DIR="$1"
+  echo "构建 App..."
+  (
+    cd "$BUILD_DIR"
+    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+    if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+      echo "  ✓ 构建成功"
+      exit 0
+    else
+      echo "  ✗ 构建失败"
+      exit 1
+    fi
+  )
+}
+```
+subshell 中用 `exit` 代替 `return`，外层通过 `$?` 获取退出码。
 
 ### 约束
-- 只删除 L694-700 的第一个 `cmd_status` 定义
-- 保留 L954-966 的第二个（完整）定义不动
+- 只修 scripts/hyper-loop.sh
 - 不改 CSS
-- 删除后用 `bash -n` 确认语法正确
+- 不改 build_app 的外部调用方式（仍然 `if ! build_app "$DIR"; then ...`）
+- 确保 `bash -n` 通过
 
 ### 验收标准
-- 脚本中只有一个 `cmd_status` 函数定义
-- `bash -n scripts/hyper-loop.sh` 通过
-- 执行 `hyper-loop.sh status` 功能不变（仍显示 tmux、results.tsv、最佳轮次）
+引用 BDD 场景 S001: 循环跑满后正常退出（不因工作目录错误崩溃）

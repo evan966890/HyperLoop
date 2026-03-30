@@ -1,10 +1,10 @@
 diff --git a/DONE.json b/DONE.json
 new file mode 100644
-index 0000000..59bc666
+index 0000000..2f940c7
 --- /dev/null
 +++ b/DONE.json
 @@ -0,0 +1 @@
-+{"status":"done","files_changed":["scripts/hyper-loop.sh"],"lint_pass":true}
++{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
 index 0000000..b7c3df8
@@ -2931,28 +2931,42 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index a5a2b90..c3a8f2e 100755
+index b8f455b..b2fe044 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -860,6 +860,8 @@ cmd_loop() {
-     # 自动拆解任务
-     auto_decompose "$ROUND"
+@@ -819,6 +819,8 @@ cmd_loop() {
+   local CONSECUTIVE_REJECTS=0
+   local BEST_ROUND=0
+   local BEST_MEDIAN=0
++  local DECISION=""
++  local MEDIAN=0
  
-+    local DECISION=""
-+    local MEDIAN=0
-     local PREV_MEDIAN=0
-     if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
-       PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
-@@ -873,6 +875,8 @@ cmd_loop() {
+   while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+     # 检查停止信号
+@@ -833,6 +835,9 @@ cmd_loop() {
+     echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+ 
++    DECISION=""
++    MEDIAN=0
++
+     # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
+     init_dirs "$ROUND"
+     ensure_session
+@@ -853,8 +858,10 @@ cmd_loop() {
  
      if ! build_app "$INTEGRATION_WT"; then
        echo "构建失败"
+-      echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+-      echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
 +      DECISION="BUILD_FAILED"
 +      MEDIAN=0
-       echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
-       echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
++      echo "DECISION=${DECISION}" > "${TASK_DIR}/verdict.env"
++      echo "MEDIAN=${MEDIAN}" >> "${TASK_DIR}/verdict.env"
        record_result "$ROUND"
-@@ -887,8 +891,8 @@ cmd_loop() {
+       cleanup_round "$ROUND"
+       ((CONSECUTIVE_REJECTS++)) || true
+@@ -867,8 +874,8 @@ cmd_loop() {
        # 读取决策
        # shellcheck source=/dev/null
        # 安全读取 verdict.env（不 source，用 grep 提取）

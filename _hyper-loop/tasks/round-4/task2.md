@@ -1,31 +1,42 @@
 ## 修复任务: TASK-2
 ### 上下文
 先读 _ctx/ 下所有文件。
-
 ### 问题
-[P1] auto_decompose heredoc 中 `\$f` 转义错误，导致上一轮评分无法注入拆解 prompt
+[P1] `auto_decompose` 函数的 heredoc 中 `\$f` 阻止变量展开，导致上轮评分无法注入 decompose prompt。
 
-在 `auto_decompose` 函数（L703-786）中，heredoc `<<DPROMPT`（非引号形式）会展开变量。但 L727-729 中的 for 循环：
-
+当前代码 line 700-706:
 ```bash
-for f in "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))"/*.json; do
+$(if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))" ]]; then
+  echo "## 上一轮评分"
+  for f in "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))"/*.json; do
     [[ -f "\$f" ]] && echo "$(basename "\$f"): $(cat "\$f" 2>/dev/null)"
-done
+  done
+fi)
 ```
 
-`\$f` 是字面字符串 `$f`，不是循环变量的值。导致：
-1. `[[ -f "\$f" ]]` 测试的是字面文件 `$f`，永远 false
-2. `basename "\$f"` 和 `cat "\$f"` 同理无法工作
-3. Claude 拆解任务时完全看不到上一轮各 Reviewer 的评分详情
+在非引号 heredoc `<<DPROMPT` 中，`\$f` 产生字面量 `$f` 而非循环变量值。`basename "\$f"` 和 `cat "\$f"` 同样无法展开。实际效果是 decompose prompt 中评分信息全部缺失，拆解器看不到上轮反馈。
 
 ### 相关文件
-- scripts/hyper-loop.sh (L712-753, 特别是 L725-730)
+- scripts/hyper-loop.sh (line 700-706)
+
+### 修复方案
+将评分注入逻辑移到 heredoc 之前。在 heredoc 之前用普通脚本循环生成评分文本到一个变量，然后在 heredoc 中引用该变量：
+```bash
+local PREV_SCORES=""
+if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))" ]]; then
+  PREV_SCORES="## 上一轮评分"$'\n'
+  for f in "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))"/*.json; do
+    [[ -f "$f" ]] && PREV_SCORES+="$(basename "$f"): $(cat "$f" 2>/dev/null)"$'\n'
+  done
+fi
+```
+然后在 heredoc 中用 `${PREV_SCORES}` 引用。
 
 ### 约束
-- 只修 scripts/hyper-loop.sh 中 `auto_decompose` 函数的 heredoc 部分
-- 方案：将评分注入逻辑提到 heredoc 之前，用变量存储已拼装好的文本，heredoc 中直接引用该变量
+- 只修 scripts/hyper-loop.sh
 - 不改 CSS
+- 不改 heredoc 中其他已正常工作的部分
+- 确保修改后 `bash -n` 仍然通过
 
 ### 验收标准
-- S002: auto_decompose 生成的 prompt 应包含上一轮评分 JSON 内容（当评分文件存在时）
-- 用 `bash -n scripts/hyper-loop.sh` 验证语法无误
+引用 BDD 场景 S002: auto_decompose 调用时，如果上轮有评分文件，decompose prompt 中能看到实际的评分 JSON 内容（而非字面量 `$f`）

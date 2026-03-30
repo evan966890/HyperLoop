@@ -2,20 +2,19 @@
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[P1] `cmd_status` 函数重复定义（第 694 行和第 954 行）
+[P1] WORKTREE_BASE 父目录未清理，S015 FAIL
 
-`cmd_status` 被定义了两次。第一个定义（694-700 行）是简化版，第二个（954-966 行）包含"最佳轮次"显示逻辑。Bash 中后定义覆盖前定义，所以第一个是死代码，增加维护混乱。
+cleanup_round 函数（line 563-583）通过 `git worktree remove` 删除了各子目录（task*、integration），分支也被 `branch -D` 删除，tmux windows 也被关闭。但 `/tmp/hyper-loop-worktrees-rN/` 空目录本身未被删除，BDD S015 要求该目录不存在。
 
 ### 相关文件
-- scripts/hyper-loop.sh (第 694-700 行：第一个定义，需删除)
-
-### 修复方案
-删除第 694-700 行的第一个 `cmd_status` 定义，保留第 954 行的完整版本。
+- scripts/hyper-loop.sh (line 562-583, cleanup_round 函数)
 
 ### 约束
-- 只修 scripts/hyper-loop.sh
+- 只修 scripts/hyper-loop.sh 中 cleanup_round 函数
+- 在 subshell 内、worktree remove 循环之后加 `rmdir`
 - 不改 CSS
-- 只删除第一个重复定义，不动第二个
 
 ### 验收标准
-引用 BDD 场景 S001：loop 命令启动死循环 — 确保 status 子命令仍然正常工作，脚本语法检查通过
+- cleanup_round 执行完成后 `/tmp/hyper-loop-worktrees-rN/` 目录不存在
+- rmdir 失败不会导致脚本崩溃（需 2>/dev/null 或 || true）
+- 引用 BDD 场景 S015

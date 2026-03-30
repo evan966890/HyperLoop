@@ -7,45 +7,29 @@ index 0000000..59bc666
 +{"status":"done","files_changed":["scripts/hyper-loop.sh"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..fdb86ce
+index 0000000..adee225
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,19 @@
 +## 修复任务: TASK-4
 +### 上下文
 +先读 _ctx/ 下所有文件。
 +### 问题
-+[P1] `timeout` 函数定义但从未使用（第 17-21 行）+ `cmd_round` 格式框不完整（第 639-641 行）
++[P1] archive_round 引用的 bdd-specs.md 路径可能过时
 +
-+两个独立的小问题合并处理：
-+
-+1. 脚本定义了 macOS 兼容的 `timeout` polyfill，但实际的超时控制（Writer、Tester、Reviewer）全部使用 polling loop + sleep 实现，从未调用 `timeout` 函数。这是死代码。
-+
-+2. `cmd_round` 函数中的 Unicode box drawing 格式框缺少右侧 `║` 关闭符：
-+   ```
-+   echo "║  HyperLoop Round $ROUND 开始      "
-+   ```
-+   应为：
-+   ```
-+   echo "║  HyperLoop Round $ROUND 开始      ║"
-+   ```
++archive_round 函数 line 770 使用 `cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md"`，但 `_hyper-loop/context/` 才是标准位置，根目录副本可能与 context/ 下的版本不同步导致归档的 BDD 规格过时。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (第 17-21 行：timeout polyfill)
-+- scripts/hyper-loop.sh (第 640 行：格式框)
-+
-+### 修复方案
-+1. 保留 `timeout` polyfill（BDD S016 要求"timeout 函数可用"），但添加注释说明当前仅作为 polyfill 备用，未被直接调用。
-+2. 补全第 640 行右侧 `║`。
++- scripts/hyper-loop.sh (line 770, archive_round 函数)
 +
 +### 约束
-+- 只修 scripts/hyper-loop.sh
++- 只修 scripts/hyper-loop.sh 中 archive_round 函数的这一行路径
 +- 不改 CSS
-+- timeout polyfill 不删除（BDD S016 要求其存在）
 +
 +### 验收标准
-+引用 BDD 场景 S016：macOS timeout 兼容 — timeout 函数仍然可用
-+引用 BDD 场景 S001：loop 命令启动死循环 — 格式输出正确
++- archive_round 归档的 bdd-specs.md 来自 `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`
++- 如果 context/ 下不存在则回退到根目录版本（保持 `|| true` 容错）
++- 引用 BDD 场景 S001（脚本不崩溃）
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2937,26 +2921,15 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index 8879883..dc9c817 100755
+index b8f455b..e01c5c5 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -13,7 +13,9 @@ set -euo pipefail
+@@ -767,7 +767,7 @@ archive_round() {
+   local ARCHIVE="${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}"
+   mkdir -p "$ARCHIVE"
  
- SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
- 
--# macOS 没有 timeout，用 coreutils 的 gtimeout
-+# macOS 没有 timeout，用 coreutils 的 gtimeout。
-+# 当前 Writer/Tester/Reviewer 超时控制主要走 polling loop；这里保留 polyfill
-+# 作为兼容兜底，满足 BDD S016，并供未来显式 timeout 调用复用。
- if command -v gtimeout >/dev/null 2>&1; then
-   timeout() { gtimeout "$@"; }
- elif ! command -v timeout >/dev/null 2>&1; then
-@@ -637,7 +639,7 @@ cmd_round() {
- 
-   echo ""
-   echo "╔══════════════════════════════════╗"
--  echo "║  HyperLoop Round $ROUND 开始      "
-+  echo "║  HyperLoop Round $ROUND 开始      ║"
-   echo "╚══════════════════════════════════╝"
-   echo ""
- 
+-  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
++  cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
+   cp -r "${PROJECT_ROOT}/_hyper-loop/scores/round-${ROUND}" "$ARCHIVE/scores" 2>/dev/null || true
+   cp "${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md" "$ARCHIVE/" 2>/dev/null || true
+   cp "${TASK_DIR}/verdict.env" "$ARCHIVE/" 2>/dev/null || true

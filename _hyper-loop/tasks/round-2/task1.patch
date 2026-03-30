@@ -1,39 +1,48 @@
 diff --git a/DONE.json b/DONE.json
 new file mode 100644
-index 0000000..2f940c7
+index 0000000..59bc666
 --- /dev/null
 +++ b/DONE.json
 @@ -0,0 +1 @@
-+{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
++{"status":"done","files_changed":["scripts/hyper-loop.sh"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..fac146d
+index 0000000..3af5e61
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,32 @@
 +## 修复任务: TASK-1
 +### 上下文
-+先读 _ctx/ 下所有文件。
++先读 _ctx/ 下所有文件，特别是 bdd-specs.md 中 S002 场景和 contract.md。
 +
 +### 问题
-+[P0] `build_app()` 使用 `cd "$BUILD_DIR"` (第 364 行) 永久改变 shell 工作目录，但从不恢复。
++[P0] auto_decompose 和 archive_round 中 BDD spec / contract 路径缺少 `context/` 段
 +
-+在 `cmd_loop()` 中，`build_app` 成功后脚本继续在 integration worktree 目录下运行。
-+随后 `cleanup_round` 删除该 worktree，导致 shell 的 CWD 指向一个已不存在的目录。
-+下一轮循环虽然大部分用绝对路径，但任何相对路径操作（包括子进程默认 CWD）都会失败。
-+这是导致多轮循环不稳定的潜在根因之一。
++auto_decompose (L692-693) 写的是:
++- `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md`
++- `${PROJECT_ROOT}/_hyper-loop/contract.md`
++
++正确路径应该是:
++- `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`
++- `${PROJECT_ROOT}/_hyper-loop/context/contract.md`
++
++同样，archive_round (L770) 也写错了:
++- `cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md"` → 应改为 `_hyper-loop/context/bdd-specs.md`
++
++影响: Claude 拆解器拿到错误路径找不到核心规格文件，拆解质量严重下降，每轮都受影响。归档时 BDD spec 拷贝失败（被 `|| true` 吞掉），archive 不完整。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (第 361-372 行, `build_app` 函数)
++- scripts/hyper-loop.sh (L692-694) — auto_decompose 中的路径
++- scripts/hyper-loop.sh (L770) — archive_round 中的路径
 +
 +### 约束
-+- 只修 `build_app` 函数
-+- 不改函数签名和返回值语义
-+- 不改 CSS
++- 只修 scripts/hyper-loop.sh 中的路径字符串
++- 不改逻辑结构，不改 CSS
++- 搜索全文件确保没有其他遗漏的错误路径
 +
 +### 验收标准
-+- S001: 循环跑满 3 轮后正常退出（不崩溃）
-+- `build_app` 返回后，`pwd` 仍为调用前的目录（用 subshell 包裹或 pushd/popd）
++- S002: auto_decompose 生成任务文件时能正确引用 bdd-specs.md 和 contract.md
++- archive_round 能正确拷贝 bdd-specs.md 到归档目录
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2925,28 +2934,26 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index a5a2b90..3dceb5e 100755
+index b8f455b..5a10e1c 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -360,16 +360,18 @@ merge_writers() {
- # ── 构建 ──
- build_app() {
-   local BUILD_DIR="$1"
-+  local BUILD_STATUS=0
-   echo "构建 App..."
--  cd "$BUILD_DIR"
-+  pushd "$BUILD_DIR" >/dev/null
-   eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
-   if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
-     echo "  ✓ 构建成功"
--    return 0
-   else
-     echo "  ✗ 构建失败"
--    return 1
-+    BUILD_STATUS=1
-   fi
-+  popd >/dev/null
-+  return "$BUILD_STATUS"
- }
+@@ -689,8 +689,8 @@ auto_decompose() {
+ 你是 HyperLoop 的任务拆解器。请基于以下信息拆解本轮任务。
  
- # ── Tester ──
+ ## 上下文
+-- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
+-- 评估契约：${PROJECT_ROOT}/_hyper-loop/contract.md
++- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
++- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md
+ - 历史结果：${PROJECT_ROOT}/_hyper-loop/results.tsv
+ 
+ $(if [[ -f "${PROJECT_ROOT}/_hyper-loop/reports/round-$((ROUND-1))-test.md" ]]; then
+@@ -767,7 +767,7 @@ archive_round() {
+   local ARCHIVE="${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}"
+   mkdir -p "$ARCHIVE"
+ 
+-  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
++  cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
+   cp -r "${PROJECT_ROOT}/_hyper-loop/scores/round-${ROUND}" "$ARCHIVE/scores" 2>/dev/null || true
+   cp "${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md" "$ARCHIVE/" 2>/dev/null || true
+   cp "${TASK_DIR}/verdict.env" "$ARCHIVE/" 2>/dev/null || true

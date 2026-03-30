@@ -1,31 +1,36 @@
 ## 修复任务: TASK-4
 ### 上下文
-先读 _ctx/ 下所有文件。
+先读 _ctx/ 下所有文件。重点关注 PREV_MEDIAN 的计算和 cmd_status 的定义。
 
 ### 问题
-[P1] Reviewer 降级提取逻辑（第 478-500 行）不够健壮，是导致 Round 1 全 0.0 分的可能原因之一。
+[P1] 两个独立但简单的问题:
 
-三个具体问题：
-1. `tmux capture-pane -t "hyper-loop:${NAME}" -p -S -` — 如果 Reviewer 窗口已因超时被关闭或崩溃，
-   pane 不存在，`capture-pane` 失败，`|| true` 吞掉错误，生成空文件，导致 score=0。
-   应在 capture 前检查窗口是否存在。
+**问题 A: PREV_MEDIAN 在 results.tsv 为空时变成空字符串**
+位置: scripts/hyper-loop.sh L845
+```bash
+PREV_MEDIAN=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f2 || echo 0)
+```
+`|| echo 0` 是死代码 — `cut` 命令即使输入为空也返回 exit 0，所以 `|| echo 0` 永远不会执行。当 results.tsv 为空文件时，`PREV_MEDIAN=""` 而非 `"0"`。传给 Python 的 `float("")` 会抛 ValueError，verdict.env 不会生成。
 
-2. `-S -` 只捕获从窗口创建到当前的可见输出，如果输出超过 tmux scrollback buffer（默认 2000 行），
-   早期的 JSON 可能已被丢失。应使用 `-S -5000` 确保足够的回滚。
+修复: 在赋值后加 `PREV_MEDIAN="${PREV_MEDIAN:-0}"`
 
-3. 当所有 3 个 reviewer 都失败时，全部降级为 `{"score":0}`，
-   触发 `REJECTED_VETO`（score < 4.0），循环永远无法进步。
-   应在全部降级时记录显眼的警告日志，帮助诊断。
+**问题 B: cmd_status 重复定义**
+位置: L670-676 (第一个定义) 和 L930-942 (第二个定义，功能更完整)
+第一个定义是死代码（被第二个覆盖），增加维护混乱。
+
+修复: 删除 L670-676 的第一个定义。
 
 ### 相关文件
-- scripts/hyper-loop.sh (第 478-500 行, `run_reviewers` 降级提取)
+- scripts/hyper-loop.sh (L843-846) — PREV_MEDIAN 计算
+- scripts/hyper-loop.sh (L670-676) — 第一个 cmd_status 定义（应删除）
+- scripts/hyper-loop.sh (L930-942) — 第二个 cmd_status 定义（保留）
 
 ### 约束
-- 只修 `run_reviewers` 函数中的降级提取部分（第 478-500 行）
-- 不改 Reviewer 启动逻辑（第 450-463 行）
+- 只修指定的两处
+- PREV_MEDIAN 修复后确保默认值为 "0" 而非空字符串
+- 删除第一个 cmd_status 时不影响前后代码
 - 不改 CSS
 
 ### 验收标准
-- S008: 降级提取更健壮，在窗口不存在时不产生空文件
-- S008: capture-pane 使用更大的 scrollback 范围
-- 全部降级时输出 WARNING 级别日志
+- S009: compute_verdict 在首轮（results.tsv 为空）也能正常计算中位数
+- S001: 首轮循环不会因 PREV_MEDIAN 为空而崩溃

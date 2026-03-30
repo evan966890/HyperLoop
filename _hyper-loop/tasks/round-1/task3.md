@@ -1,61 +1,46 @@
 ## 修复任务: TASK-3
 ### 上下文
-先读 _ctx/ 下所有文件，特别是 hyper-loop.sh 和 bdd-specs.md。
+先读 _ctx/ 下所有文件。
 
 ### 问题
-[P0] `build_app` 函数使用裸 `cd "$BUILD_DIR"` 永久改变了脚本工作目录，导致后续所有函数在错误的 CWD 下执行。
+[P0] `run_reviewers` 中 reviewer-c (Codex) 的 CLI 调用有语法问题：
 
-具体机制：
-- 行 364: `cd "$BUILD_DIR"` 将 CWD 切换到 integration worktree
-- `build_app` 返回后，CWD 不会自动恢复
-- 后续 `run_tester`、`run_reviewers`、`compute_verdict`、`record_result`、`cleanup_round` 都在错误的 CWD 下执行
-- 虽然大部分路径使用 `$PROJECT_ROOT` 绝对路径，但 `eval "${BUILD_CMD}"` 中的相对路径（如 `bash -n scripts/hyper-loop.sh`）依赖 CWD
-- 在 `cmd_loop` 中，build_app 后 CWD 变成 integration worktree，而 `cleanup_round` 会删除该 worktree → CWD 指向已删除目录 → 下一轮的命令可能失败
-
-当前代码：
 ```bash
-build_app() {
-  local BUILD_DIR="$1"
-  echo "构建 App..."
-  cd "$BUILD_DIR"        # ← CWD 永久改变
-  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
-  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT" 2>/dev/null | \
+  python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
 ```
+
+问题分析：
+1. `echo "$REVIEW_PROMPT"` 管道传给 `codex exec`，但 `codex exec` 的 prompt 是位置参数，不从 stdin 读取
+2. `codex exec` 的 stdout 才会通过管道传给 `python3`，而不是 `echo` 的 stdout
+3. 如果 `$REVIEW_PROMPT` 过长（包含 stat 输出），作为命令行参数可能超出 ARG_MAX 限制
+4. `-a never` 应改为与其他 codex 调用一致的 `--full-auto` 或 `--dangerously-bypass-approvals-and-sandbox`
+
+对比 reviewer-a/b 的正确写法（stdin → `-p -`）：
+- reviewer-a: `echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p - ...`
+- reviewer-b: `echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - ...`
 
 ### 相关文件
-- scripts/hyper-loop.sh (行 361-373: build_app 函数)
-- _hyper-loop/context/hyper-loop.sh (同步修改)
+- scripts/hyper-loop.sh (行 467-471, reviewer-c 的子 shell)
 
 ### 修复方案
-用子 shell 包裹整个 build_app 函数体，确保 cd 不泄露到调用方：
-
+将 reviewer-c 改为写临时文件 + codex 读文件模式（codex 不支持 `-p -`）：
 ```bash
-build_app() {
-  local BUILD_DIR="$1"
-  echo "构建 App..." >&2
-  (
-    cd "$BUILD_DIR"
-    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
-    if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
-      echo "  ✓ 构建成功" >&2
-      exit 0
-    else
-      echo "  ✗ 构建失败" >&2
-      exit 1
-    fi
-  )
-}
+(
+    local CODEX_PROMPT_FILE="/tmp/hyper-loop-codex-review-r${ROUND}.txt"
+    echo "$REVIEW_PROMPT" > "$CODEX_PROMPT_FILE"
+    timeout 300 codex --dangerously-bypass-approvals-and-sandbox --quiet "$CODEX_PROMPT_FILE" 2>/dev/null | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
+    echo "  ✓ reviewer-c (codex) done: ..."
+) &
 ```
-
-注意：子 shell 的 exit code 会自动传递给调用方的 `if ! build_app`。
-同时将 echo 改为 `>&2`，避免潜在的 stdout 捕获问题。
+如果 codex 命令不可用或 CLI 参数不确定，应加降级逻辑（fallback 给默认分 3）。
 
 ### 约束
-- 只修 scripts/hyper-loop.sh 和 _hyper-loop/context/hyper-loop.sh 中的 build_app 函数
-- 不改函数签名和返回值语义
-- 两个文件保持完全一致
+- 只修 scripts/hyper-loop.sh 的 run_reviewers 函数中 reviewer-c 部分
+- 不改 reviewer-a 和 reviewer-b
+- 不改 CSS
 
 ### 验收标准
-- S001: 循环跑满 N 轮后正常退出（不崩溃）——build 后 CWD 不变
-- S007: Tester 在 build 后正常启动
-- `bash -n scripts/hyper-loop.sh` 通过
+引用 BDD 场景 S008: 3 个 Reviewer 各自生成 scores JSON，JSON 包含 "score" 字段
+验证：`bash -n scripts/hyper-loop.sh` 语法通过

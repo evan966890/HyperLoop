@@ -7,33 +7,31 @@ index 0000000..59bc666
 +{"status":"done","files_changed":["scripts/hyper-loop.sh"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..34497e8
+index 0000000..3233d2c
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,21 @@
 +## 修复任务: TASK-1
 +### 上下文
 +先读 _ctx/ 下所有文件。
 +### 问题
-+[P1] `auto_decompose` heredoc 中 `\$f` 变量不展开（第 728-729 行）
++[P0] merge_writers stdout 污染导致 build_app 永远失败
 +
-+在 `<<DPROMPT` heredoc 内部，`\$f` 被转义为字面量 `$f`，导致 for 循环里的 `[[ -f "\$f" ]]` 和 `basename "\$f"` 操作的是字符串 `$f` 而非循环变量的值。结果是 decompose prompt 中"上一轮评分"部分始终为空，拆解器看不到上一轮的具体评分，降级了拆解质量。
-+
-+根因：heredoc 分界符 `<<DPROMPT` 不带引号，bash 会展开 `$` 变量；但 `\$f` 又用反斜杠阻止了展开，导致字面量 `$f` 被写入。
++`INTEGRATION_WT=$(merge_writers "$ROUND")` (line 629, 852) 用命令替换捕获 merge_writers 的全部 stdout，但函数内有大量 `echo` 状态输出（"合并 Writer 产出..."、"✓ task1 merged"、"合并完成: ..."），导致 INTEGRATION_WT 变量包含多行文本而非单一路径。后续 `build_app "$INTEGRATION_WT"` 执行 `cd "$BUILD_DIR"` 时必定失败，每轮 DECISION 都是 BUILD_FAILED。
 +
 +### 相关文件
-+- scripts/hyper-loop.sh (第 725-730 行，auto_decompose 函数)
-+
-+### 修复方案
-+将评分信息在 heredoc 外部预先构建到一个变量中，然后在 heredoc 内部用 `${SCORES_SECTION}` 插入。这样既保留 heredoc 内其他变量的展开，又确保 for 循环在当前 shell 正确执行。
++- scripts/hyper-loop.sh (line 299-361, merge_writers 函数)
 +
 +### 约束
-+- 只修 scripts/hyper-loop.sh
++- 只修 scripts/hyper-loop.sh 中 merge_writers 函数
++- 不改函数签名和返回逻辑
 +- 不改 CSS
-+- 不改变 decompose prompt 的语义和输出格式
 +
 +### 验收标准
-+引用 BDD 场景 S002：auto_decompose 生成任务文件 — 确保上一轮评分信息能正确出现在 decompose prompt 中
++- merge_writers 内所有状态消息（echo "合并 Writer 产出..."、echo "  ✓ ..."、echo "  ✗ ..."、echo "  ⚠ ..."、echo "合并完成: ..."）全部重定向到 stderr（`>&2`）
++- 只有最后一行 `echo "$INTEGRATION_WT"` 输出路径到 stdout
++- `INTEGRATION_WT=$(merge_writers "$ROUND")` 拿到的是纯路径字符串
++- 引用 BDD 场景 S004, S005, S017
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2925,49 +2923,75 @@ index 0000000..e6ba1cb
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
 diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
-index 8879883..2cc95db 100755
+index b8f455b..d96c251 100755
 --- a/scripts/hyper-loop.sh
 +++ b/scripts/hyper-loop.sh
-@@ -703,10 +703,21 @@ cmd_status() {
- auto_decompose() {
-   local ROUND="$1"
-   local TASK_DIR="${PROJECT_ROOT}/_hyper-loop/tasks/round-${ROUND}"
-+  local PREV_ROUND=$((ROUND - 1))
-+  local SCORES_SECTION=""
-   mkdir -p "$TASK_DIR"
+@@ -303,12 +303,12 @@ merge_writers() {
+   local BASE_SHA
+   BASE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
  
-   echo "自动拆解 Round ${ROUND} 任务..."
+-  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" 2>/dev/null
++  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" >/dev/null 2>/dev/null
  
-+  if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-${PREV_ROUND}" ]]; then
-+    SCORES_SECTION="$(
-+      echo "## 上一轮评分"
-+      for f in "${PROJECT_ROOT}/_hyper-loop/scores/round-${PREV_ROUND}"/*.json; do
-+        [[ -f "$f" ]] && echo "$(basename "$f"): $(cat "$f" 2>/dev/null)"
-+      done
-+    )"
-+  fi
-+
-   # 用 Claude 非交互模式拆解任务
-   local DECOMPOSE_PROMPT="/tmp/hyper-loop-decompose-r${ROUND}.md"
-   cat > "$DECOMPOSE_PROMPT" <<DPROMPT
-@@ -717,17 +728,12 @@ auto_decompose() {
- - 评估契约：${PROJECT_ROOT}/_hyper-loop/contract.md
- - 历史结果：${PROJECT_ROOT}/_hyper-loop/results.tsv
+   local MERGED=0
+   local FAILED=0
  
--$(if [[ -f "${PROJECT_ROOT}/_hyper-loop/reports/round-$((ROUND-1))-test.md" ]]; then
-+$(if [[ -f "${PROJECT_ROOT}/_hyper-loop/reports/round-${PREV_ROUND}-test.md" ]]; then
-   echo "## 上一轮试用报告"
--  echo "$(cat "${PROJECT_ROOT}/_hyper-loop/reports/round-$((ROUND-1))-test.md" 2>/dev/null | head -100)"
-+  echo "$(cat "${PROJECT_ROOT}/_hyper-loop/reports/round-${PREV_ROUND}-test.md" 2>/dev/null | head -100)"
- fi)
+-  echo "合并 Writer 产出..."
++  echo "合并 Writer 产出..." >&2
  
--$(if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))" ]]; then
--  echo "## 上一轮评分"
--  for f in "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))"/*.json; do
--    [[ -f "\$f" ]] && echo "$(basename "\$f"): $(cat "\$f" 2>/dev/null)"
--  done
--fi)
-+${SCORES_SECTION}
+   for WT in "${WORKTREE_BASE}"/task*; do
+     [[ -d "$WT" ]] || continue
+@@ -318,14 +318,14 @@ merge_writers() {
+     local STATUS
+     STATUS=$(python3 -c "import json; print(json.load(open('${WT}/DONE.json'))['status'])" 2>/dev/null || echo "unknown")
+     if [[ "$STATUS" != "done" ]]; then
+-      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过"
++      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过" >&2
+       ((FAILED++)) || true
+       continue
+     fi
  
- ## 要求
- 读取上述文件，找出当前最严重的问题（P0 优先），拆成 3-5 个独立子任务。
+     # Diff 审计：检查 Writer 是否只改了指定范围的文件
+-    if ! audit_writer_diff "$WT"; then
+-      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并"
++    if ! audit_writer_diff "$WT" >&2; then
++      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并" >&2
+       ((FAILED++)) || true
+       continue
+     fi
+@@ -335,8 +335,8 @@ merge_writers() {
+ 
+     # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
+     # 必须先 commit 才能 merge
+-    git -C "$WT" add -A 2>/dev/null
+-    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty 2>/dev/null || true
++    git -C "$WT" add -A >/dev/null 2>/dev/null
++    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty >/dev/null 2>/dev/null || true
+ 
+     # 保存 diff（对比 worktree 创建时的 parent commit）
+     git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
+@@ -345,18 +345,18 @@ merge_writers() {
+       git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
+ 
+     # squash merge
+-    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit 2>/dev/null; then
+-      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" 2>/dev/null
+-      echo "  ✓ ${TASK_NAME} merged"
++    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit >/dev/null 2>/dev/null; then
++      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" >/dev/null 2>/dev/null
++      echo "  ✓ ${TASK_NAME} merged" >&2
+       ((MERGED++)) || true
+     else
+-      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+-      echo "  ✗ ${TASK_NAME} conflict, deferred"
++      git -C "$INTEGRATION_WT" merge --abort >/dev/null 2>/dev/null || true
++      echo "  ✗ ${TASK_NAME} conflict, deferred" >&2
+       ((FAILED++)) || true
+     fi
+   done
+ 
+-  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped"
++  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped" >&2
+   echo "$INTEGRATION_WT"
+ }
+ 

@@ -1,28 +1,25 @@
 ## 修复任务: TASK-2
 ### 上下文
-先读 _ctx/ 下所有文件。
+先读 _ctx/ 下所有文件。重点关注 build_app 函数和 cmd_loop 主循环中对它的调用。
 
 ### 问题
-[P1] `BUILD_FAILED` 路径写入的 `verdict.env` 缺少 `SCORES` 字段，且 shell 变量 `MEDIAN` 未重置。
+[P0] build_app 函数用裸 `cd` 改变全局工作目录，导致后续操作在错误的 cwd 中运行
 
-具体位置有两处：
-1. `cmd_round()` 第 653-654 行：只写 `DECISION=BUILD_FAILED` 和 `MEDIAN=0`，缺少 `SCORES=""`
-2. `cmd_loop()` 第 876-877 行：同样缺少 `SCORES=""`
+位置: scripts/hyper-loop.sh L367 `cd "$BUILD_DIR"`
 
-`record_result()` 第 616 行 `grep '^SCORES='` 得到空串，导致 `results.tsv` 的 scores 列为空。
-
-此外，`cmd_loop()` 的 BUILD_FAILED 分支没有设置 shell 变量 `MEDIAN=0`，
-导致第 928 行的 `>= 8.0` 检查可能使用上一轮的旧值，造成逻辑错误。
+调用链: cmd_loop → build_app "$INTEGRATION_WT" → cd 到 worktree 目录 → 函数返回后 cwd 仍在 worktree → cleanup_round 删除该 worktree → 脚本 cwd 指向已删除的目录 → 后续轮次所有依赖相对路径的操作失败
 
 ### 相关文件
-- scripts/hyper-loop.sh (第 651-658 行, `cmd_round` BUILD_FAILED 路径)
-- scripts/hyper-loop.sh (第 874-880 行, `cmd_loop` BUILD_FAILED 路径)
+- scripts/hyper-loop.sh (L363-376) — build_app 函数
 
 ### 约束
-- 只修上述两处 BUILD_FAILED 代码块
-- 保持 verdict.env 格式与 `compute_verdict` 输出一致（6 个字段）
+- 只修 build_app 函数
+- 用 subshell `( cd ... && ... )` 隔离 cwd 变更，或用 `pushd/popd`
+- 保持 eval "${BUILD_CMD}" 的行为不变
+- 确保返回值（0=成功, 非0=失败）能正确传递给调用者
 - 不改 CSS
 
 ### 验收标准
-- S009: verdict.env 包含完整字段（DECISION, MEDIAN, MAX_DIFF, VETO, TESTER_P0, SCORES）
-- S012: verdict.env 可被 `record_result` 的 grep 正确读取，results.tsv 无空列
+- build_app 执行完毕后，调用者的 cwd 不被改变
+- S001: 多轮循环能正常跑完不崩溃（cd 污染会导致第 2 轮崩）
+- S015: cleanup_round 删除 worktree 后不影响后续操作

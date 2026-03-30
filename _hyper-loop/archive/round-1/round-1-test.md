@@ -1,158 +1,78 @@
-# Round 1 试用报告
+# Round 1 — Tester 报告
 
-**日期**: 2026-03-29
-**测试人**: Tester (Claude)
-**构建验证**: `bash -n scripts/hyper-loop.sh` → syntax ok
-**截图目录**: `_hyper-loop/screenshots/round-1/`
-
----
-
-## 场景验证汇总
-
-| 场景 | 描述 | 结果 | 截图 |
-|------|------|------|------|
-| S001 | loop 命令启动死循环 | PASS | s001-loop.txt |
-| S002 | auto_decompose 生成任务文件 | PASS | s002-decompose.txt |
-| S003 | Writer worktree 创建 + trust + 启动 | PASS | s003-writer-worktree.txt |
-| S004 | Writer 完成后 diff 被正确 commit | PASS | s004-writer-commit.txt |
-| S005 | diff 审计拦截越界修改 | PASS | s005-audit.txt |
-| S006 | Writer 超时处理 | PASS | s006-timeout.txt |
-| S007 | Tester 启动并生成报告 | PASS | s007-tester.txt |
-| S008 | 3 Reviewer 启动并产出评分 | PASS | s008-reviewers.txt |
-| S009 | 和议计算正确 | PASS | s009-verdict.txt |
-| S010 | 一票否决 (score < 4.0) | PASS | s010-veto.txt |
-| S011 | Tester P0 否决 | PASS | s011-tester-p0.txt |
-| S012 | verdict.env 安全读取 | PASS (有 P1) | s012-verdict-safe.txt |
-| S013 | 连续 5 轮失败自动回退 | PASS | s013-rollback.txt |
-| S014 | STOP 文件优雅退出 | PASS | s014-stop.txt |
-| S015 | worktree 清理 | PASS | s015-cleanup.txt |
-| S016 | macOS timeout 兼容 | PASS | s016-timeout-compat.txt |
-| S017 | 多 Writer 同文件冲突处理 | PASS | s017-conflict.txt |
-
-**总计: 17/17 PASS** (1 个 P1 bug)
+测试时间: 2026-03-30
+脚本版本: HyperLoop v5.3
+语法检查: `bash -n scripts/hyper-loop.sh` → **PASS** (无语法错误)
 
 ---
 
-## 详细验证
+## BDD 场景逐条检查
 
-### S001: loop 命令启动死循环 — PASS
-- **Given**: `project-config.env` 和 `bdd-specs.md` 均存在 ✓
-- **Then**: 脚本输出 `"Round ${ROUND}/${MAX_ROUNDS}"` (第 849 行) ✓
-- **Then**: 循环跑满后正常退出 — `while [[ "$ROUND" -le "$MAX_ROUNDS" ]]` (第 839 行) ✓
-- **Then**: `results.tsv` 写入 — `record_result` 函数追加写入 (第 616 行) ✓
-- **入口**: `loop) cmd_loop "${2:-999}"` (第 963 行) ✓
-
-### S002: auto_decompose 生成任务文件 — PASS
-- **Then**: `task*.md` 文件由 `claude -p` 非交互生成 (第 749 行) ✓
-- **Then**: 模板包含 "修复任务" (2 处) 和 "相关文件" (5 处) ✓
-- **Then**: `claude -p` 失败时，降级生成默认 `task1.md` (第 757-775 行) ✓
-- **Then**: `|| true` 保护确保不崩溃 (第 751 行) ✓
-
-### S003: Writer worktree 创建 + trust + 启动 — PASS
-- **Then**: `git worktree add "$WT" -b "$BRANCH"` (第 124 行) ✓
-- **Then**: `~/.codex/config.toml` 写入 `trust_level = "trusted"` (第 131 行) ✓
-- **Then**: Codex 进程在 tmux window 启动 — `tmux new-window` + `codex --dangerously-bypass-approvals-and-sandbox` (第 179, 182 行) ✓
-- **Then**: `_ctx/` 目录复制 — `cp -r "${PROJECT_ROOT}/_hyper-loop/context" "${WT}/_ctx"` (第 136 行) ✓
-
-### S004: Writer 完成后 diff 被正确 commit — PASS
-- **Then**: `git -C "$WT" add -A` + `git commit -m "hyper-loop writer: ${TASK_NAME}"` (第 335-336 行) ✓
-- **Then**: `git merge "$BRANCH" --squash --no-edit` 到 integration 分支 (第 345 行) ✓
-- **Then**: `.patch` 和 `.stat` 文件生成 (第 339-342 行) ✓
-
-### S005: diff 审计拦截越界修改 — PASS
-- **Then**: `audit_writer_diff()` 从 TASK.md 提取 "相关文件" 列表 (第 245 行) ✓
-- **Then**: 越界时 `return 1` (第 288 行) ✓
-- **Then**: `merge_writers` 调用审计并跳过失败的 Writer (第 324-326 行) ✓
-- **Then**: 白名单允许 `DONE.json|WRITER_INIT.md|_ctx/*|TASK.md` (第 277 行) ✓
-
-### S006: Writer 超时处理 — PASS
-- **Then**: 默认超时 `900s` (15 分钟) (第 198 行) ✓
-- **Then**: 超时写 `DONE.json` `status=timeout` (第 224 行) ✓
-- **Then**: `status != "done"` 时 Writer 被跳过不合并 (第 317-318 行) ✓
-
-### S007: Tester 启动并生成报告 — PASS
-- **Then**: Tester 通过 `start_agent "tester" "claude --dangerously-skip-permissions"` 启动 (第 380 行) ✓
-- **Then**: 等待最多 900s (第 404 行) ✓
-- **Then**: 超时生成空报告 "Tester 超时" (第 416-418 行) ✓
-
-### S008: 3 Reviewer 启动并产出评分 — PASS
-- **Then**: 3 个 Reviewer: `gemini --yolo`, `claude --dangerously-skip-permissions`, `codex --full-auto` (第 450 行) ✓
-- **Then**: 等待 600s (10 分钟) (第 467 行) ✓
-- **Then**: JSON 包含 `"score"` 字段 (第 492 行检查) ✓
-- **Then**: 降级从 tmux pane 输出提取 JSON — Python `JSONDecoder` 扫描 (第 482-500 行) ✓
-
-### S009: 和议计算正确 — PASS (功能测试)
-- **Given**: `scores=[5.0, 6.0, 7.0]`, `prev_median=0`
-- **Then**: 中位数 = `6.0` ✓
-- **Then**: DECISION = `ACCEPTED` (6.0 > 0) ✓
-- **验证方式**: 隔离执行 Python verdict 逻辑，输入/输出完全匹配
-
-### S010: 一票否决 (score < 4.0) — PASS (功能测试)
-- **Given**: `scores=[3.5, 6.0, 7.0]`
-- **Then**: DECISION = `REJECTED_VETO` ✓
-- **验证方式**: 功能测试，3.5 < 4.0 触发 veto
-
-### S011: Tester P0 否决 — PASS (功能测试)
-- **Given**: 报告包含 "P0" 和 "fail"
-- **Then**: DECISION = `REJECTED_TESTER_P0` ✓
-- **验证方式**: 功能测试，P0 检测逻辑: `"P0" in text and ("bug" in text.lower() or "fail" in text.lower())`
-
-### S012: verdict.env 安全读取 — PASS (有 P1 bug)
-- **Given**: `verdict.env` 包含 `MEDIAN=0.0` 和 `SCORES="1.0 2.0 3.0"`
-- **Then**: `grep` 方式正确提取 DECISION 和 MEDIAN ✓
-- **Then**: 无 "command not found" 错误 ✓
-- **P1 bug**: `record_result()` (第 612 行) 仍使用 `. "$VERDICT_FILE"` (source 方式)，而 `cmd_round()` 和 `cmd_loop()` 已改用 grep。当前因 SCORES 加引号可正常工作，但读取方式不一致。
-
-### S013: 连续 5 轮失败自动回退 — PASS
-- **Then**: `CONSECUTIVE_REJECTS` 计数器，`>= 5` 时触发回退 (第 911 行) ✓
-- **Then**: 从 `archive/round-N/git-sha.txt` 读取最佳轮次 SHA (第 915 行) ✓
-- **Then**: `git checkout "$BEST_SHA" -- .` 回退代码 (第 917 行) ✓
-- **Then**: `CONSECUTIVE_REJECTS=0` 重置 (第 920 行) ✓
-
-### S014: STOP 文件优雅退出 — PASS
-- **Then**: 检测 `_hyper-loop/STOP` 文件 (第 841 行) ✓
-- **Then**: `break` 退出循环 (第 844 行) ✓
-- **Then**: `rm "$STOP_FILE"` 删除 STOP 文件 (第 843 行) ✓
-- **Then**: 正常退出 — break 后 cmd_loop 自然结束 ✓
-
-### S015: worktree 清理 — PASS
-- **Then**: `git worktree remove "$WT" --force` (第 598 行) ✓
-- **Then**: `git branch -D "$BRANCH"` 删除分支 (第 599 行) ✓
-- **Then**: `tmux kill-window` 关闭 writer/tester/reviewer windows (第 591 行) ✓
-
-### S016: macOS timeout 兼容 — PASS (功能测试)
-- **Then**: 优先使用 `gtimeout` (coreutils)，其次 fallback 实现 (第 17-21 行) ✓
-- **Then**: 当前环境 gtimeout 已安装，`timeout 2 echo "hello"` 成功执行 ✓
-
-### S017: 多 Writer 同文件冲突处理 — PASS
-- **Then**: 第一个 Writer squash merge 成功 (第 345-348 行) ✓
-- **Then**: 第二个冲突时 `merge --abort` + "conflict, deferred" (第 350-351 行) ✓
-- **Then**: `2>/dev/null || true` 保护脚本不崩溃 ✓
+| 场景 | 结果 | 原因 |
+|------|------|------|
+| S001 | **PASS** | `cmd_loop` (L798) 正确接收 MAX_ROUNDS 参数，while 循环条件 `ROUND <= MAX_ROUNDS` 正确，`record_result` 每轮写 results.tsv |
+| S002 | **FAIL** | `auto_decompose` (L693-694) 中 BDD spec 路径写成 `_hyper-loop/bdd-specs.md`，实际位于 `_hyper-loop/context/bdd-specs.md`；contract.md 同理。Claude 拿到错误路径会找不到文件，降级 fallback 功能正常(L740-758) |
+| S003 | **PASS** | `start_writers` (L101): worktree 创建(L124)、trust 写入 config.toml(L130-132)、Codex 在 tmux 启动(L182)、_ctx/ 复制(L136) 均正确 |
+| S004 | **PASS** | `merge_writers` (L338-339) 先 `git add -A && git commit`，再 squash merge(L348)，patch/stat 文件生成(L342-345) 正确 |
+| S005 | **PASS** | `audit_writer_diff` (L242) 检测越界文件返回 1(L292)，merge_writers 跳过该 Writer(L327-330) |
+| S006 | **PASS** | `wait_writers` (L196) 超时后写 `{"status":"timeout"}` 到 DONE.json(L224)，merge_writers 检查 status!=done 跳过。注：BDD 要求 15min，实际 300s(5min)，设计变更 |
+| S007 | **PASS** | `run_tester` (L379) 用 `timeout 600 claude -p -` 非交互模式，空输出时生成默认报告(L411-413)。注：BDD 要求 15min，实际 10min |
+| S008 | **FAIL** | `run_reviewers` (L417): 3 个 Reviewer 并行启动(L454-471) + fallback(L477-482) 正确，但 reviewer-c(L468) 同时用 stdin pipe 和命令参数传入 prompt，`codex exec` 行为不确定。BDD 要求"从 pane 输出提取 JSON"未实现（v5.3 改为管道模式，不再有 pane） |
+| S009 | **PASS** | `compute_verdict` (L486) Python 计算中位数(L518-519)正确，ACCEPTED 条件 `median > prev_median`(L538)，verdict.env 格式正确(L550-556) |
+| S010 | **PASS** | Python `veto = any(s < 4.0 for s in scores)` (L523)，决策 REJECTED_VETO(L531-532)，record_result 记录到 results.tsv |
+| S011 | **PASS** | Python 检查 `"P0" in text and ("bug"/"fail" in text.lower())` (L525-529)，决策 REJECTED_TESTER_P0(L533-534) |
+| S012 | **PASS** | `record_result`(L586) 和 `cmd_loop`(L870-871) 均用 `grep + cut` 读取 verdict.env，不 source，不会触发 "command not found" |
+| S013 | **PASS** | L895-905: `CONSECUTIVE_REJECTS >= 5 && BEST_ROUND > 0` 时读取 archive 中 git-sha.txt 并 checkout，重置计数器为 0 |
+| S014 | **PASS** | L825-829: 检测 STOP 文件 → 删除 → break 退出循环 → 脚本正常结束(exit 0) |
+| S015 | **PASS** | `cleanup_round` (L563): subshell+set+e 中删除 tmux windows(L569-571)、git worktree remove(L577)、branch -D(L578)。轻微: WORKTREE_BASE 空目录可能残留 |
+| S016 | **PASS** | L17-21: 优先用 gtimeout，其次内置 timeout，最后 fallback 自定义函数。三级降级正确 |
+| S017 | **PASS** | `merge_writers` (L348-356): squash merge 失败时执行 `merge --abort`(L353)，计数 FAILED++，脚本不崩溃 |
 
 ---
 
-## Bug 列表
+## 发现的 Bug
 
-### P1 Bug
+### P0 (阻塞性)
 
-| # | 场景 | 描述 | 位置 |
-|---|------|------|------|
-| 1 | S012 | `record_result()` 仍使用 `source` 读取 `verdict.env`，与 `cmd_round()`/`cmd_loop()` 的 `grep` 方式不一致。当前因 SCORES 字段加引号可正常工作，但如果 verdict.env 被外部编辑或格式异常，source 可能出错。建议统一为 grep 方式。 | 第 612 行 |
+**P0-1: `auto_decompose` 中 BDD spec 和 contract 路径错误**
+- 位置: `scripts/hyper-loop.sh` L693-694
+- 现状: `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md` 和 `${PROJECT_ROOT}/_hyper-loop/contract.md`
+- 正确: `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md` 和 `${PROJECT_ROOT}/_hyper-loop/context/contract.md`
+- 影响: Claude 拿到错误路径 → 找不到核心规格文件 → 拆解质量严重下降，每轮都受影响
+- 修复: 补上 `context/` 路径段
 
-### P0 Bug
+**P0-2: `build_app` 用 `cd` 改变全局工作目录**
+- 位置: `scripts/hyper-loop.sh` L367 `cd "$BUILD_DIR"`
+- 影响: build_app 后脚本 cwd 变为 integration worktree；cleanup_round 删除该 worktree 后 cwd 指向已删除目录；后续轮次依赖相对路径的操作将失败
+- 修复: 改为 `(cd "$BUILD_DIR" && eval ...)` 用 subshell 隔离，或用 `pushd/popd`
 
-无
+### P1 (重要)
+
+**P1-1: `cmd_status` 重复定义**
+- 位置: L670-676 和 L930-942 各定义一次
+- 影响: 第一个定义是死代码（被第二个覆盖），不影响运行但增加维护混乱
+- 修复: 删除 L670-676 的第一个定义
+
+**P1-2: `archive_round` 中 bdd-specs.md 路径错误**
+- 位置: L770 `cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md"`
+- 正确: `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`
+- 影响: 归档时 BDD spec 拷贝失败（被 `|| true` 吞掉），archive 不完整
+
+**P1-3: reviewer-c 的 codex 命令双传 prompt**
+- 位置: L468 `echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT"`
+- 问题: prompt 同时通过 stdin pipe 和命令行参数传入；codex exec 的行为取决于它优先读哪个，可能导致 prompt 被截断或忽略
+- 修复: 只用一种方式传入（推荐去掉 echo 管道，只用参数）
+
+**P1-4: PREV_MEDIAN 在 results.tsv 为空文件时导致 Python 崩溃**
+- 位置: L845 `PREV_MEDIAN=$(tail -1 ... | cut -f2 || echo 0)`
+- 问题: `|| echo 0` 是死代码——cut 永远返回 0，空文件时 PREV_MEDIAN="" 而非 "0"；传给 Python 后 `float("")` 抛 ValueError，verdict.env 不会生成
+- 修复: 改为 `PREV_MEDIAN=$(tail -1 ... 2>/dev/null | cut -f2)` + `PREV_MEDIAN="${PREV_MEDIAN:-0}"`
 
 ---
 
 ## 总结
 
-HyperLoop v5.3 脚本的 17 个 BDD 场景全部通过验证：
-- **核心循环** (S001): loop 命令正确输出轮次并按上限退出
-- **任务拆解** (S002): auto_decompose 有完整的降级机制
-- **Writer 管理** (S003-S006): worktree 创建/trust/超时/清理 流程完整
-- **测评流程** (S007-S011): Tester + 3 Reviewer + 和议计算逻辑正确
-- **安全机制** (S005, S012, S014): diff 审计、verdict.env 安全读取、STOP 文件优雅退出
-- **容错机制** (S013, S016, S017): 5 轮回退、macOS 兼容、冲突处理
-
-唯一的 P1 issue 是 `record_result()` 中读取方式与其他函数不一致，建议统一。
+- **通过: 15/17** 场景
+- **失败: 2/17** (S002, S008)
+- **P0 bug: 2 个** — 路径错误 + cd 污染 cwd
+- **P1 bug: 4 个** — 重复定义、路径错误、双传 prompt、空值处理

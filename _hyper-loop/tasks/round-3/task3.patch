@@ -1,42 +1,44 @@
 diff --git a/DONE.json b/DONE.json
 new file mode 100644
-index 0000000..e44286b
+index 0000000..2f940c7
 --- /dev/null
 +++ b/DONE.json
 @@ -0,0 +1 @@
-+{"status":"done","files_changed":["_hyper-loop/context/hyper-loop.sh","DONE.json"],"lint_pass":true}
++{"status":"done","files_changed":["scripts/hyper-loop.sh","DONE.json"],"lint_pass":true}
 diff --git a/TASK.md b/TASK.md
 new file mode 100644
-index 0000000..a788829
+index 0000000..a213ae5
 --- /dev/null
 +++ b/TASK.md
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,28 @@
 +## 修复任务: TASK-3
 +### 上下文
 +先读 _ctx/ 下所有文件。
 +### 问题
-+[P2] context/hyper-loop.sh 与 scripts/hyper-loop.sh 同步：确保 context/ 下的副本也反映 P0/P1 修复
++[P1] 两个独立的代码质量问题：
 +
-+`_hyper-loop/context/hyper-loop.sh` 是供 Agent（Tester/Reviewer）阅读的参考副本。如果 task1 和 task2 只修了 `scripts/hyper-loop.sh`，context/ 下的副本仍然包含旧的错误路径和 LOOP: 前缀，会导致 Agent 阅读到过时的代码。
++**3a) cmd_status() 函数重复定义**
++`cmd_status()` 在 L670 和 L930 各定义了一次。Bash 静默使用最后一个定义，L670 版本是死代码且缺少"最佳轮次"信息。重复定义增加维护混乱，Reviewer 会扣分。
 +
-+需要将 task1 和 task2 的同等修复应用到 context 副本：
-+1. line 381: TESTER_INIT.MD 路径加 `templates/`
-+2. line 457: REVIEWER_INIT.MD 路径加 `templates/`
-+3. line 849: 去掉 `LOOP: ` 前缀
-+
++**3b) archive_round 归档路径不够健壮**
++L770 `cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md"` 虽然当前有效（文件存在于根级），但 bdd-specs.md 的规范位置是 `_hyper-loop/context/bdd-specs.md`（Writer 的 _ctx/ 也是从 context/ 复制的）。如果根级副本被删除，归档会静默失败。
 +### 相关文件
-+- _hyper-loop/context/hyper-loop.sh (line 381, 457, 849)
-+
++- scripts/hyper-loop.sh (L670-676, 第一个 cmd_status 定义 — 删除)
++- scripts/hyper-loop.sh (L930-942, 第二个 cmd_status 定义 — 保留)
++- scripts/hyper-loop.sh (L770, archive_round 的 bdd-specs.md 复制路径)
++### 修复方案
++1. 删除 L670-676 的第一个 `cmd_status()` 定义（含空行），保留 L930 的完整版本
++2. 将 L770 改为优先从 context/ 复制，fallback 到根级：
++```bash
++cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || \
++  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
++```
 +### 约束
-+- 只改 `_hyper-loop/context/hyper-loop.sh` 中上述三处
-+- 修改内容必须与 task1 和 task2 对 scripts/hyper-loop.sh 的修改一致
++- 只修改 scripts/hyper-loop.sh 中的 cmd_status (删除第一个) 和 archive_round (修改路径)
++- 不改其他函数
 +- 不改 CSS
-+
 +### 验收标准
-+- 引用 BDD 场景 S007: context 副本中 TESTER_INIT.MD 路径正确
-+- 引用 BDD 场景 S008: context 副本中 REVIEWER_INIT.MD 路径正确
-+- 引用 BDD 场景 S001: context 副本中输出格式为 `Round N/M`
-+- `bash -n _hyper-loop/context/hyper-loop.sh` 通过
++引用 BDD 场景 S001 (脚本整体不崩溃): bash -n 语法检查通过，cmd_status 只有一个定义且包含最佳轮次信息
 diff --git a/WRITER_INIT.md b/WRITER_INIT.md
 new file mode 100644
 index 0000000..266c27a
@@ -2927,34 +2929,32 @@ index 0000000..e6ba1cb
 +4. [ ] 已运行任务相关的最小构建/检查命令？（`{{BUILD_CMD}}`）
 +5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
 +6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
-diff --git a/_hyper-loop/context/hyper-loop.sh b/_hyper-loop/context/hyper-loop.sh
-index d1998ed..e7d11de 100755
---- a/_hyper-loop/context/hyper-loop.sh
-+++ b/_hyper-loop/context/hyper-loop.sh
-@@ -378,7 +378,7 @@ run_tester() {
+diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
+index b8f455b..f9a7422 100755
+--- a/scripts/hyper-loop.sh
++++ b/scripts/hyper-loop.sh
+@@ -667,14 +667,6 @@ cmd_round() {
+   echo "评分: $SCORES_DIR/"
+ }
  
-   echo "启动 Tester..."
-   start_agent "tester" "claude --dangerously-skip-permissions" \
--    "${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md" "$ROUND"
-+    "${PROJECT_ROOT}/_hyper-loop/context/templates/TESTER_INIT.md" "$ROUND"
+-cmd_status() {
+-  echo "tmux windows:"
+-  tmux list-windows -t hyper-loop 2>/dev/null || echo "  (no session)"
+-  echo ""
+-  echo "results.tsv:"
+-  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
+-}
+-
+ # ── 自动拆解下一轮任务（基于上一轮结果）──
+ auto_decompose() {
+   local ROUND="$1"
+@@ -767,7 +759,8 @@ archive_round() {
+   local ARCHIVE="${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}"
+   mkdir -p "$ARCHIVE"
  
-   sleep 5
-   local TEST_REQ="/tmp/hyper-loop-test-req-r${ROUND}.md"
-@@ -454,7 +454,7 @@ run_reviewers() {
-     local CLI="${ENTRY#*:}"
- 
-     start_agent "$NAME" "$CLI" \
--      "${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md" "$ROUND"
-+      "${PROJECT_ROOT}/_hyper-loop/context/templates/REVIEWER_INIT.md" "$ROUND"
-     sleep 2
- 
-     tmux load-buffer -b "review-${NAME}-r${ROUND}" "$REVIEW_REQ"
-@@ -846,7 +846,7 @@ cmd_loop() {
- 
-     echo ""
-     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
--    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
-+    echo "  Round ${ROUND}/${MAX_ROUNDS}"
-     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
- 
-     # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
+-  cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
++  cp "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || \
++    cp "${PROJECT_ROOT}/_hyper-loop/bdd-specs.md" "$ARCHIVE/" 2>/dev/null || true
+   cp -r "${PROJECT_ROOT}/_hyper-loop/scores/round-${ROUND}" "$ARCHIVE/scores" 2>/dev/null || true
+   cp "${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md" "$ARCHIVE/" 2>/dev/null || true
+   cp "${TASK_DIR}/verdict.env" "$ARCHIVE/" 2>/dev/null || true

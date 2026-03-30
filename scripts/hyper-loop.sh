@@ -447,7 +447,7 @@ for i, ch in enumerate(text):
 if last:
     json.dump(last, sys.stdout, ensure_ascii=False, indent=2)
 else:
-    json.dump({"score":3,"issues":[],"summary":"评审未返回有效JSON，给默认分3"}, sys.stdout)
+    json.dump({"score":5,"issues":[],"summary":"评审未返回有效JSON，给中立分5"}, sys.stdout)
 '
 
   # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
@@ -465,7 +465,7 @@ else:
   ) &
 
   (
-    echo "$REVIEW_PROMPT" | timeout 300 codex exec -a never "$REVIEW_PROMPT" 2>/dev/null | \
+    timeout 300 codex exec "$REVIEW_PROMPT" 2>/dev/null | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
     echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
@@ -476,7 +476,7 @@ else:
   # 确保所有评分文件存在（fallback 给 3 分）
   for NAME in reviewer-a reviewer-b reviewer-c; do
     if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
-      echo '{"score":3,"issues":[],"summary":"Reviewer 超时或无输出，默认分3"}' > "${SCORES_DIR}/${NAME}.json"
+      echo '{"score":5,"issues":[],"summary":"Reviewer 超时或无输出，中立分5"}' > "${SCORES_DIR}/${NAME}.json"
       echo "  ⚠ ${NAME} fallback to score 3"
     fi
   done

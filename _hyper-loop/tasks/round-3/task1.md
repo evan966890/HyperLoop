@@ -2,28 +2,24 @@
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[P0] S007/S008: Tester 和 Reviewer 的 INIT 文件路径错误，导致 Agent 无法获取角色定义
-
-`start_agent` 调用时传入的路径是：
-- `${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md` (line 381)
-- `${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md` (line 457)
-
-但这两个文件实际位于 `context/templates/` 子目录：
-- `_hyper-loop/context/templates/TESTER_INIT.md`
-- `_hyper-loop/context/templates/REVIEWER_INIT.md`
-
-路径缺少 `templates/`，导致 Tester 和全部 3 个 Reviewer 启动时无法读取角色定义。
-
+[P1] audit_writer_diff 使用 `git diff --name-only HEAD` 检查越界文件，但 Writer (Codex) 是完整 AI agent，会自行 `git add + git commit`。一旦 Writer commit 了修改，`git diff HEAD` 返回空，审计函数认为"没有改任何文件"直接 return 0 — 整个 diff 审计被完全绕过，安全边界失效。这是本轮唯一 FAIL 的 BDD 场景。
 ### 相关文件
-- scripts/hyper-loop.sh (line 376-382, run_tester 函数)
-- scripts/hyper-loop.sh (line 450-458, run_reviewers 函数)
-
+- scripts/hyper-loop.sh (L258-264, audit_writer_diff 函数)
+### 修复方案
+将 L259 的：
+```bash
+CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+```
+改为对比从分支创建点到当前 HEAD 的所有变更：
+```bash
+local MERGE_BASE
+MERGE_BASE=$(git -C "$WT" merge-base main HEAD 2>/dev/null || git -C "$WT" rev-list --max-parents=0 HEAD 2>/dev/null | head -1)
+CHANGED_FILES=$(git -C "$WT" diff --name-only "$MERGE_BASE" HEAD 2>/dev/null | sort -u)
+```
+这样无论 Writer 是否自行 commit，都能检测到所有从分支创建点以来的文件变更。
 ### 约束
-- 只改 `scripts/hyper-loop.sh` 中上述两处路径
-- 不改模板文件本身的位置或内容
+- 只修改 scripts/hyper-loop.sh 中 audit_writer_diff 函数
+- 不改其他函数
 - 不改 CSS
-
 ### 验收标准
-- 引用 BDD 场景 S007: run_tester 中 INIT 路径指向实际存在的 `context/templates/TESTER_INIT.md`
-- 引用 BDD 场景 S008: run_reviewers 中 INIT 路径指向实际存在的 `context/templates/REVIEWER_INIT.md`
-- `bash -n scripts/hyper-loop.sh` 通过
+引用 BDD 场景 S005: Writer 改了 TASK.md 未指定的文件时，audit_writer_diff 返回非零退出码，即使 Writer 已自行 commit

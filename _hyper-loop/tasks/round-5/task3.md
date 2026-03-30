@@ -2,20 +2,20 @@
 ### 上下文
 先读 _ctx/ 下所有文件。
 ### 问题
-[P1] `auto_decompose` decompose prompt 路径不一致（第 716-717 行）
+[P1] cmd_status() 重复定义，第一个是死代码
 
-decompose prompt 中引用 `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md` 和 `${PROJECT_ROOT}/_hyper-loop/contract.md`（无 `context/` 前缀），而项目中的规范位置是 `_hyper-loop/context/bdd-specs.md`。目前两个路径都有对应文件所以不崩溃，但路径不一致会导致将来清理时 break。
+cmd_status() 在 line 670-676 定义了简版，在 line 930-942 定义了增强版（含最佳轮次显示）。Bash 中后定义覆盖前定义，第一个是死代码，增加维护混淆风险。
 
 ### 相关文件
-- scripts/hyper-loop.sh (第 716-718 行，auto_decompose 函数内的路径引用)
-
-### 修复方案
-检查项目中 bdd-specs.md 和 contract.md 的实际位置。如果它们在 `_hyper-loop/` 根目录下（非 context/ 子目录），则路径本身是正确的，只需确保一致性。如果规范位置是 `_hyper-loop/context/`，则修改为带 `context/` 前缀的路径。
+- scripts/hyper-loop.sh (line 670-676, 第一个 cmd_status 定义)
 
 ### 约束
-- 只修 scripts/hyper-loop.sh
+- 只删除 line 670-676 的第一个 cmd_status 定义（含空行）
+- 保留 line 930-942 的增强版定义不动
 - 不改 CSS
-- 不移动或重命名任何文件
 
 ### 验收标准
-引用 BDD 场景 S002：auto_decompose 生成任务文件 — 确保 decompose prompt 引用的路径与实际文件位置一致
+- 脚本中只有一个 cmd_status 定义（line 930 附近的增强版）
+- `bash -n scripts/hyper-loop.sh` 语法检查通过
+- `hyper-loop.sh status` 命令正常工作，显示最佳轮次信息
+- 引用 BDD 场景 S001（脚本不崩溃）

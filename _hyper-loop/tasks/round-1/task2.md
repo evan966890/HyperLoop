@@ -1,43 +1,29 @@
 ## 修复任务: TASK-2
 ### 上下文
-先读 _ctx/ 下所有文件，特别是 hyper-loop.sh 和 bdd-specs.md。
+先读 _ctx/ 下所有文件。
 
 ### 问题
-[P0] `record_result` 函数仍然使用 `. "$VERDICT_FILE"`（source）读取 verdict.env，违反 S012 安全读取规范。
+[P0] `_hyper-loop/context/hyper-loop.sh` 是 v5.3 旧版本，而 `scripts/hyper-loop.sh` 已是 v5.4。
+关键差异：
+1. Writer 超时：context 版 900s vs scripts 版 300s
+2. wait_writers 的 grep 管道：context 版缺少 `set +e` 防崩保护
+3. Tester/Reviewer：context 版是交互 tmux 模式，scripts 版是非交互 `-p` 管道模式
+4. cleanup_round：context 版缺少 subshell+set+e 保护
+5. record_result：context 版用危险的 `source verdict.env`，scripts 版用安全的 grep
 
-背景：
-- commit a5a4007 已修复 `cmd_round` 中的 verdict.env 读取（改用 grep）
-- 但 `record_result` 函数（行 606-617）被遗漏，仍然 source verdict.env
-- verdict.env 中的 `VETO=True`、`TESTER_P0=False` 是 Python 布尔值（大写），source 时可能被 bash 误解析
-- 在 `set -euo pipefail` 下，任何解析异常都会导致脚本立即退出
-
-当前代码（行 612）：
-```bash
-. "$VERDICT_FILE"
-```
-
-应该改为（与 cmd_round 行 664-665 一致）：
-```bash
-DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)
-MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)
-SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')
-```
+Writer 在 worktree 中工作时读 `_ctx/hyper-loop.sh`（即 context 副本）来理解项目。如果看到旧代码，可能基于错误理解做修改。
 
 ### 相关文件
-- scripts/hyper-loop.sh (行 606-617: record_result 函数)
-- _hyper-loop/context/hyper-loop.sh (同步修改)
+- _hyper-loop/context/hyper-loop.sh (整个文件需要同步)
 
 ### 修复方案
-1. 删除行 612 的 `. "$VERDICT_FILE"`
-2. 替换为 3 行 grep 提取 DECISION、MEDIAN、SCORES
-3. printf 行（614）保持不变
+用 `scripts/hyper-loop.sh` 的内容覆盖 `_hyper-loop/context/hyper-loop.sh`，确保两者一致。
 
 ### 约束
-- 只修 scripts/hyper-loop.sh 和 _hyper-loop/context/hyper-loop.sh 中的 record_result 函数
-- 不改函数签名
-- 两个文件保持完全一致
+- 只修 _hyper-loop/context/hyper-loop.sh
+- 内容应与 scripts/hyper-loop.sh 完全一致
+- 不改 CSS
 
 ### 验收标准
-- S012: verdict.env 被安全读取，不出现 "command not found" 错误
-- S009: 和议计算后 results.tsv 正确记录
-- `bash -n scripts/hyper-loop.sh` 通过
+引用 BDD 场景 S003: _ctx/ 目录被复制到 worktree（Writer 看到正确的代码）
+验证：`diff scripts/hyper-loop.sh _hyper-loop/context/hyper-loop.sh` 无差异
