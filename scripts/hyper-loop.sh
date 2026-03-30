@@ -402,8 +402,8 @@ run_tester() {
 6. 列出发现的 P0/P1 bug"
 
   echo "$TESTER_PROMPT" | timeout 600 claude --dangerously-skip-permissions -p - \
-    --add-dir "$PROJECT_ROOT" \
-    > "${REPORT_FILE}" 2>&1 || true
+    --add-dir "$PROJECT_ROOT" 2>&1 | \
+    tee "${LOG_DIR}/tester-r${ROUND}-raw.log" > "${REPORT_FILE}" || true
 
   if [[ -s "$REPORT_FILE" ]]; then
     echo "  ✓ 试用报告已生成: $REPORT_FILE"
@@ -452,20 +452,23 @@ else:
 
   # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
   (
-    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p "" --include-directories "$PROJECT_ROOT" 2>/dev/null | \
+    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p "" --include-directories "$PROJECT_ROOT" 2>&1 | \
+      tee "${LOG_DIR}/reviewer-a-r${ROUND}-raw.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
     echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
 
   (
     echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - \
-      --add-dir "$PROJECT_ROOT" 2>/dev/null | \
+      --add-dir "$PROJECT_ROOT" 2>&1 | \
+      tee "${LOG_DIR}/reviewer-b-r${ROUND}-raw.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-b.json" 2>/dev/null
     echo "  ✓ reviewer-b (claude) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-b.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
 
   (
-    timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" "$REVIEW_PROMPT" 2>/dev/null | \
+    timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" "$REVIEW_PROMPT" 2>&1 | \
+      tee "${LOG_DIR}/reviewer-c-r${ROUND}-raw.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
     echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
