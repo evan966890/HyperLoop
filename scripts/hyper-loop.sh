@@ -477,7 +477,7 @@ else:
   for NAME in reviewer-a reviewer-b reviewer-c; do
     if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
       echo '{"score":5,"issues":[],"summary":"Reviewer 超时或无输出，中立分5"}' > "${SCORES_DIR}/${NAME}.json"
-      echo "  ⚠ ${NAME} fallback to score 3"
+      echo "  ⚠ ${NAME} fallback to score 5"
     fi
   done
 }
@@ -689,8 +689,8 @@ auto_decompose() {
 你是 HyperLoop 的任务拆解器。请基于以下信息拆解本轮任务。
 
 ## 上下文
-- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/bdd-specs.md
-- 评估契约：${PROJECT_ROOT}/_hyper-loop/contract.md
+- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md
 - 历史结果：${PROJECT_ROOT}/_hyper-loop/results.tsv
 
 $(if [[ -f "${PROJECT_ROOT}/_hyper-loop/reports/round-$((ROUND-1))-test.md" ]]; then
@@ -810,10 +810,12 @@ cmd_loop() {
 
   # 确定起始轮次
   local ROUND=1
-  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
     local LAST_ROUND
-    LAST_ROUND=$(tail -1 "${PROJECT_ROOT}/_hyper-loop/results.tsv" | cut -f1 || echo 0)
-    ROUND=$((LAST_ROUND + 1))
+    LAST_ROUND=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f1 || echo 0)
+    if [[ -n "$LAST_ROUND" ]] && [[ "$LAST_ROUND" =~ ^[0-9]+$ ]]; then
+      ROUND=$((LAST_ROUND + 1))
+    fi
   fi
 
   local CONSECUTIVE_REJECTS=0
