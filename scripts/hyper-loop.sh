@@ -1060,6 +1060,27 @@ cmd_loop() {
   local CONSECUTIVE_REJECTS=0
   local BEST_ROUND=0
   local BEST_MEDIAN=0
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    local HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION
+    while IFS=$'\t' read -r HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION; do
+      [[ "$HIST_ROUND" =~ ^[0-9]+$ ]] || continue
+
+      if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
+        CONSECUTIVE_REJECTS=0
+        [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
+        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+          BEST_ROUND=$HIST_ROUND
+          BEST_MEDIAN=$HIST_MEDIAN
+        fi
+      else
+        ((CONSECUTIVE_REJECTS++)) || true
+      fi
+    done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+
+    if [[ "$BEST_ROUND" -gt 0 ]]; then
+      echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+    fi
+  fi
   # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
   local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
 
