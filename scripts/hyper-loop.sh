@@ -56,47 +56,6 @@ ensure_session() {
   echo "tmux session 'hyper-loop' created"
 }
 
-start_agent() {
-  local NAME="$1"    # tmux window name
-  local CLI="$2"     # e.g. "codex --full-auto"
-  local INIT="$3"    # 初始化文件的绝对路径
-  local ROUND="$4"
-
-  tmux new-window -t "hyper-loop" -n "$NAME"
-  tmux pipe-pane -o -t "hyper-loop:${NAME}" "cat >> '${LOG_DIR}/${NAME}-r${ROUND}.log'"
-  tmux send-keys -t "hyper-loop:${NAME}" "cd ${PROJECT_ROOT} && ${CLI}" Enter
-  sleep 3
-
-  # 注入初始化文件（传路径，不传内容）
-  local INJECT="/tmp/hyper-loop-inject-${NAME}-r${ROUND}.md"
-  {
-    echo "请先读以下文件了解你的角色和上下文："
-    echo "- 角色定义：${INIT}"
-    echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
-    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
-    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
-    # 注入最近 3 轮摘要
-    if ls "${SUMMARY_DIR}/${NAME}-r"*.md >/dev/null 2>&1; then
-      echo "- 你的历史摘要（最近 3 轮）："
-      ls -t "${SUMMARY_DIR}/${NAME}-r"*.md 2>/dev/null | head -3 | while read -r f; do
-        echo "  - $f"
-      done
-    fi
-    echo ""
-    echo "当前是第 ${ROUND} 轮。读完上述文件后回复'已就绪'。"
-  } > "$INJECT"
-
-  tmux load-buffer -b "inject-${NAME}-r${ROUND}" "$INJECT"
-  tmux paste-buffer -d -r -b "inject-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
-  tmux send-keys -t "hyper-loop:${NAME}" Enter
-  echo "  ✓ ${NAME} started (${CLI})"
-}
-
-kill_agent() {
-  local NAME="$1"
-  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
-}
-
 # ── Writer 管理 ──
 start_writers() {
   local ROUND="$1"
@@ -414,15 +373,18 @@ merge_writers() {
 build_app() {
   local BUILD_DIR="$1"
   echo "构建 App..."
-  cd "$BUILD_DIR"
-  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
-  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+  (
+    cd "$BUILD_DIR"
+    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+    eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"
+  )
+  local RC=$?
+  if [[ $RC -eq 0 ]]; then
     echo "  ✓ 构建成功"
-    return 0
   else
     echo "  ✗ 构建失败"
-    return 1
   fi
+  return "$RC"
 }
 
 # ── Tester（非交互 -p 模式）──
