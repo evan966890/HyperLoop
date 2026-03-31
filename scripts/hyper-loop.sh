@@ -56,47 +56,6 @@ ensure_session() {
   echo "tmux session 'hyper-loop' created"
 }
 
-start_agent() {
-  local NAME="$1"    # tmux window name
-  local CLI="$2"     # e.g. "codex --full-auto"
-  local INIT="$3"    # 初始化文件的绝对路径
-  local ROUND="$4"
-
-  tmux new-window -t "hyper-loop" -n "$NAME"
-  tmux pipe-pane -o -t "hyper-loop:${NAME}" "cat >> '${LOG_DIR}/${NAME}-r${ROUND}.log'"
-  tmux send-keys -t "hyper-loop:${NAME}" "cd ${PROJECT_ROOT} && ${CLI}" Enter
-  sleep 3
-
-  # 注入初始化文件（传路径，不传内容）
-  local INJECT="/tmp/hyper-loop-inject-${NAME}-r${ROUND}.md"
-  {
-    echo "请先读以下文件了解你的角色和上下文："
-    echo "- 角色定义：${INIT}"
-    echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
-    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
-    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
-    # 注入最近 3 轮摘要
-    if ls "${SUMMARY_DIR}/${NAME}-r"*.md >/dev/null 2>&1; then
-      echo "- 你的历史摘要（最近 3 轮）："
-      ls -t "${SUMMARY_DIR}/${NAME}-r"*.md 2>/dev/null | head -3 | while read -r f; do
-        echo "  - $f"
-      done
-    fi
-    echo ""
-    echo "当前是第 ${ROUND} 轮。读完上述文件后回复'已就绪'。"
-  } > "$INJECT"
-
-  tmux load-buffer -b "inject-${NAME}-r${ROUND}" "$INJECT"
-  tmux paste-buffer -d -r -b "inject-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
-  tmux send-keys -t "hyper-loop:${NAME}" Enter
-  echo "  ✓ ${NAME} started (${CLI})"
-}
-
-kill_agent() {
-  local NAME="$1"
-  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
-}
-
 # ── Writer 管理 ──
 start_writers() {
   local ROUND="$1"
@@ -296,7 +255,12 @@ audit_writer_diff() {
 
   # 获取实际改了哪些文件
   local CHANGED_FILES
-  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+  CHANGED_FILES=$(
+    {
+      git -C "$WT" diff --name-only HEAD 2>/dev/null
+      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
+    } | sort -u
+  )
 
   if [[ -z "$CHANGED_FILES" ]]; then
     echo "  ⚠ Writer 没有改任何文件" >&2
@@ -317,7 +281,7 @@ audit_writer_diff() {
 
     # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
     case "$changed" in
-      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+      DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
     esac
 
     if ! $FOUND; then
@@ -409,15 +373,18 @@ merge_writers() {
 build_app() {
   local BUILD_DIR="$1"
   echo "构建 App..."
-  cd "$BUILD_DIR"
-  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
-  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+  (
+    cd "$BUILD_DIR"
+    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+    eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"
+  )
+  local RC=$?
+  if [[ $RC -eq 0 ]]; then
     echo "  ✓ 构建成功"
-    return 0
   else
     echo "  ✗ 构建失败"
-    return 1
   fi
+  return "$RC"
 }
 
 # ── Tester（非交互 -p 模式）──
@@ -587,9 +554,8 @@ if report.exists():
     p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
     # Count BDD scenario failures from the results table
     bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
-    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
-    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
-    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
+    # BDD S011: any tester report with at least one P0 bug and one FAIL auto-rejects
+    tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
 
 if veto:
     decision = "REJECTED_VETO"
@@ -1056,6 +1022,27 @@ cmd_loop() {
   local CONSECUTIVE_REJECTS=0
   local BEST_ROUND=0
   local BEST_MEDIAN=0
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    local HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION
+    while IFS=$'\t' read -r HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION; do
+      [[ "$HIST_ROUND" =~ ^[0-9]+$ ]] || continue
+
+      if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
+        CONSECUTIVE_REJECTS=0
+        [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
+        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+          BEST_ROUND=$HIST_ROUND
+          BEST_MEDIAN=$HIST_MEDIAN
+        fi
+      else
+        ((CONSECUTIVE_REJECTS++)) || true
+      fi
+    done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+
+    if [[ "$BEST_ROUND" -gt 0 ]]; then
+      echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+    fi
+  fi
   # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
   local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
 
