@@ -857,6 +857,12 @@ cmd_init() {
   echo "═══ HyperLoop Init: 扫描项目并生成上下文简报 ═══"
   echo ""
 
+  # 检查是否已有 brief（防止意外覆盖用户手动编辑的版本）
+  if [[ -f "${CTX_DIR}/project-brief.md" ]]; then
+    echo "⚠ 已存在 project-brief.md，将备份为 project-brief.md.bak"
+    cp "${CTX_DIR}/project-brief.md" "${CTX_DIR}/project-brief.md.bak"
+  fi
+
   # Step 1: 扫描项目结构和文档
   echo "Step 1: 扫描项目文档..."
   local SCAN_RESULT="/tmp/hyper-loop-project-scan.md"
@@ -876,12 +882,12 @@ cmd_init() {
     echo ""
 
     echo "## BMAD 文档"
-    for DIR in _bmad-output _bmad/output docs/design docs/spec; do
+    for DIR in _bmad-output _bmad/output docs/design docs/spec docs/research docs/sprint docs/runbook; do
       if [[ -d "${PROJECT_ROOT}/${DIR}" ]]; then
         echo "### ${DIR}/"
         find "${PROJECT_ROOT}/${DIR}" -name "*.md" -type f 2>/dev/null | while read -r f; do
           echo "#### $(basename "$f")"
-          head -80 "$f"
+          head -200 "$f"
           echo ""
           echo "---"
         done
@@ -889,9 +895,19 @@ cmd_init() {
     done
     echo ""
 
-    echo "## 项目文件结构（前 3 层）"
-    find "$PROJECT_ROOT" -maxdepth 3 -type f -name "*.md" -o -name "*.ts" -o -name "*.svelte" -o -name "*.rs" -o -name "*.py" -o -name "*.sh" -o -name "*.json" 2>/dev/null | \
-      grep -v node_modules | grep -v target | grep -v _hyper-loop | grep -v .git | sort | head -80
+    echo "## 根目录文档"
+    for ROOT_DOC in README.md INSTALL.md CONTRIBUTING.md; do
+      if [[ -f "${PROJECT_ROOT}/${ROOT_DOC}" ]]; then
+        echo "### ${ROOT_DOC}"
+        head -100 "${PROJECT_ROOT}/${ROOT_DOC}"
+        echo ""
+      fi
+    done
+    echo ""
+
+    echo "## 项目文件结构（前 3 层，相对路径）"
+    (cd "$PROJECT_ROOT" && find . -maxdepth 3 -type f \( -name "*.md" -o -name "*.ts" -o -name "*.svelte" -o -name "*.rs" -o -name "*.py" -o -name "*.sh" -o -name "*.json" \) 2>/dev/null | \
+      grep -v node_modules | grep -v target | grep -v _hyper-loop | grep -v .git | sort | head -80)
     echo ""
 
     echo "## 已有 BDD 规格"
@@ -931,8 +947,8 @@ cmd_init() {
 ### 5. 设计意图（从 BMAD 文档提取）
 产品设计的核心原则——Writer 需要理解"为什么这样设计"才能写出对的代码
 
-### 6. 文件地图（关键文件路径 + 一句话说明）
-Writer 最常需要改的 10-20 个文件
+### 6. 文件地图（相对路径 + 一句话说明）
+Writer 最常需要改的 10-20 个文件。**必须用相对路径**（如 src/lib/foo.ts），不要用绝对路径。
 
 **原则：只保留 Writer/Tester/Reviewer 需要的信息。删掉历史记录、会议纪要、过程讨论。**
 BRIEF
@@ -940,16 +956,18 @@ BRIEF
   cat "$SCAN_RESULT" >> "$BRIEF_PROMPT"
 
   local BRIEF_FILE="${CTX_DIR}/project-brief.md"
-  cat "$BRIEF_PROMPT" | claude --dangerously-skip-permissions -p - \
+  local BRIEF_LOG="${PROJECT_ROOT}/_hyper-loop/logs/init-brief-claude.log"
+  mkdir -p "$(dirname "$BRIEF_LOG")"
+  cat "$BRIEF_PROMPT" | claude --dangerously-skip-permissions -p \
     --add-dir "$PROJECT_ROOT" \
-    > "$BRIEF_FILE" 2>/dev/null || true
+    > "$BRIEF_FILE" 2>"$BRIEF_LOG" || true
 
   if [[ -s "$BRIEF_FILE" ]]; then
     local BRIEF_LINES
     BRIEF_LINES=$(wc -l < "$BRIEF_FILE" | tr -d ' ')
     echo "  ✓ 项目简报已生成: ${BRIEF_FILE} (${BRIEF_LINES} 行)"
   else
-    echo "  ⚠ Claude 未生成简报，使用原始扫描结果"
+    echo "  ⚠ Claude 未生成简报（日志: ${BRIEF_LOG}），使用原始扫描结果"
     head -300 "$SCAN_RESULT" > "$BRIEF_FILE"
   fi
 
@@ -957,7 +975,6 @@ BRIEF
   echo "Step 3: 同步核心文件..."
   [[ -f "${PROJECT_ROOT}/CLAUDE.md" ]] && cp "${PROJECT_ROOT}/CLAUDE.md" "${CTX_DIR}/" 2>/dev/null
   cp "${PROJECT_ROOT}/scripts/hyper-loop.sh" "${CTX_DIR}/hyper-loop.sh" 2>/dev/null || true
-  [[ -f "${PROJECT_ROOT}/_hyper-loop/context/cli-reference-verified.md" ]] || true
 
   echo "  ✓ context/ 目录已就绪"
   echo ""
