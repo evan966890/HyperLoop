@@ -239,8 +239,11 @@ wait_writers() {
     local ELAPSED=$(( $(date +%s) - START_TIME ))
     if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
       echo "  ⚠ 超时（${TIMEOUT}s），强制结束未完成的 Writer"
-      # 杀掉所有 codex exec 子进程
-      jobs -p 2>/dev/null | xargs kill 2>/dev/null || true
+      # 杀掉所有后台 subshell 及其子进程（codex exec）
+      for PID in $(jobs -p 2>/dev/null); do
+        # kill 整个进程组，确保 codex exec 子进程也被杀
+        kill -- -"$PID" 2>/dev/null || kill "$PID" 2>/dev/null || true
+      done
       wait 2>/dev/null || true
       # 给没有 DONE.json 的 Writer 写 timeout 状态
       for WT in "${WORKTREE_BASE}"/task*; do
@@ -352,7 +355,7 @@ merge_writers() {
     # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
     # 必须先 commit 才能 merge
     # 先删除 HyperLoop 元数据文件，防止多 Writer squash merge 冲突（P0-1 修复）
-    rm -f "${WT}/DONE.json" "${WT}/WRITER_INIT.md" "${WT}/TASK.md" 2>/dev/null
+    rm -f "${WT}/DONE.json" "${WT}/WRITER_INIT.md" "${WT}/TASK.md" "${WT}/_writer_prompt.md" 2>/dev/null
     rm -rf "${WT}/_ctx" 2>/dev/null
     git -C "$WT" add -A 2>/dev/null
     git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty >&2 2>/dev/null || true
