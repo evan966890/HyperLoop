@@ -12,12 +12,14 @@ tools: Read, Bash, Glob, Grep, Write, Agent, AskUserQuestion
 
 ```
 Claude Code 的职责：生成 BDD spec → 拆解任务 → 写任务文件 → 调用脚本 → 读结果做判断
-hyper-loop.sh 的职责：启动 tmux → 管理子进程 → 等待完成 → 收集评分 → 输出决策建议
+hyper-loop.sh 的职责：启动 codex exec → 管理子进程 → 等待完成 → 收集评分 → 输出决策建议
 ```
 
 **不可违反的规则：**
 1. 传文件路径，不传文本内容
 2. 不直接写业务代码（那是 Writer 的事）
+3. **脚本崩了不绕过** — 如果 hyper-loop.sh 报错或崩溃，报告错误给用户并等待修复指令。绝对不能说"这次我不依赖脚本"然后自己写代码
+4. **不与 Ralph Loop 共存** — 如果检测到 Ralph Loop 的 Stop hook 在运行，立即提醒用户用 `/ralph-loop:cancel-ralph` 取消它
 3. 不跳过 Tester 和 Reviewer（脚本强制执行）
 4. 任务文件必须写到 `_hyper-loop/tasks/round-N/` 才能被脚本识别
 

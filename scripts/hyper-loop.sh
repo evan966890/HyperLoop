@@ -174,20 +174,17 @@ start_writers() {
 2. 最后一行输出：HYPERLOOP_TASK_DONE
 WINIT
 
-    # 启动 Writer（一次性）
-    local WRITER_NAME="w-${TASK_NAME}"
-    tmux new-window -t hyper-loop -n "$WRITER_NAME"
-    tmux pipe-pane -o -t "hyper-loop:${WRITER_NAME}" "cat >> '${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log'"
-    tmux send-keys -t "hyper-loop:${WRITER_NAME}" \
-      "cd ${WT} && codex --dangerously-bypass-approvals-and-sandbox" Enter
-
-    # 等 Codex 完全启动（trust 已通过 config.toml 预配置，不会弹确认）
-    sleep 5
-
-    # 注入 WRITER_INIT
-    tmux load-buffer -b "winit-${TASK_NAME}" "${WT}/WRITER_INIT.md"
-    tmux paste-buffer -d -r -b "winit-${TASK_NAME}" -t "hyper-loop:${WRITER_NAME}"
-    tmux send-keys -t "hyper-loop:${WRITER_NAME}" Enter
+    # 启动 Writer（非交互 exec 模式，后台并行）
+    local WRITER_LOG="${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log"
+    (
+      codex exec --dangerously-bypass-approvals-and-sandbox -C "$WT" \
+        "先读 WRITER_INIT.md 了解你的角色和约束，再读 TASK.md 了解具体任务，然后执行修改。完成后写 DONE.json。" \
+        > "$WRITER_LOG" 2>&1 || true
+      # 如果 Codex 没写 DONE.json，补一个
+      if [[ ! -f "${WT}/DONE.json" ]]; then
+        echo '{"status":"done","files_changed":[],"note":"codex exec exited without DONE.json"}' > "${WT}/DONE.json"
+      fi
+    ) &
 
     echo "  ✓ Writer ${TASK_NAME} started in ${WT}"
   done
@@ -199,28 +196,29 @@ wait_writers() {
 
   echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
 
+  # Writer 是后台 codex exec 进程，用 timeout 等待
+  # 如果超时，杀掉所有 codex exec 子进程
   local START_TIME
   START_TIME=$(date +%s)
 
   while true; do
-    local ALL_DONE=true
-    for WT in "${WORKTREE_BASE}"/task*; do
-      [[ -d "$WT" ]] || continue
-      if [[ ! -f "${WT}/DONE.json" ]]; then
-        ALL_DONE=false
-        break
-      fi
-    done
-
-    if $ALL_DONE; then
+    # 检查是否还有 codex exec 子进程在跑
+    local RUNNING
+    RUNNING=$(jobs -r 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$RUNNING" -eq 0 ]]; then
       echo "  ✓ 所有 Writer 已完成"
       break
     fi
 
     local ELAPSED=$(( $(date +%s) - START_TIME ))
     if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
-      echo "  ⚠ 超时，强制结束未完成的 Writer"
+      echo "  ⚠ 超时（${TIMEOUT}s），强制结束未完成的 Writer"
+      # 杀掉所有 codex exec 子进程
+      jobs -p 2>/dev/null | xargs kill 2>/dev/null || true
+      wait 2>/dev/null || true
+      # 给没有 DONE.json 的 Writer 写 timeout 状态
       for WT in "${WORKTREE_BASE}"/task*; do
+        [[ -d "$WT" ]] || continue
         [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"
       done
       break
@@ -228,14 +226,6 @@ wait_writers() {
 
     sleep 10
   done
-
-  # 关闭 writer windows
-  (
-    set +e
-    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep '^w-' | while read -r w; do
-      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
-    done
-  ) || true
 }
 
 # ── Diff 审计（autoresearch 启示：产出必须在可控范围内）──
