@@ -296,7 +296,12 @@ audit_writer_diff() {
 
   # 获取实际改了哪些文件
   local CHANGED_FILES
-  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+  CHANGED_FILES=$(
+    {
+      git -C "$WT" diff --name-only HEAD 2>/dev/null
+      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
+    } | sort -u
+  )
 
   if [[ -z "$CHANGED_FILES" ]]; then
     echo "  ⚠ Writer 没有改任何文件" >&2
@@ -317,7 +322,7 @@ audit_writer_diff() {
 
     # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
     case "$changed" in
-      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+      DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
     esac
 
     if ! $FOUND; then
