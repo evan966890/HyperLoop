@@ -286,7 +286,7 @@ audit_writer_diff() {
   # 从 TASK.md 提取"相关文件"列表
   local ALLOWED_FILES
   ALLOWED_FILES=$(grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
-    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html)' | \
+    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html|sh|bash|toml|json|md|yaml|yml)' | \
     sed 's/^[[:space:]]*//' | sort -u || true)
 
   if [[ -z "$ALLOWED_FILES" ]]; then
@@ -400,6 +400,8 @@ merge_writers() {
   done
 
   echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped" >&2
+  # 写 merge 统计供调用方检查
+  echo "$MERGED" > "${TASK_DIR}/merge-count.txt"
   echo "$INTEGRATION_WT"
 }
 
@@ -493,9 +495,14 @@ else:
     json.dump({"score":5,"issues":[],"summary":"评审未返回有效JSON，给中立分5"}, sys.stdout)
 '
 
+  # 写 prompt 到临时文件，避免 ARG_MAX 和 stdin 不可用问题
+  local REVIEW_PROMPT_FILE
+  REVIEW_PROMPT_FILE=$(mktemp /tmp/hyper-loop-review-XXXXXX.md)
+  echo "$REVIEW_PROMPT" > "$REVIEW_PROMPT_FILE"
+
   # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
   (
-    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p "" --include-directories "$PROJECT_ROOT" 2>&1 | \
+    timeout 300 gemini -y -p "$(cat "$REVIEW_PROMPT_FILE")" --include-directories "$PROJECT_ROOT" 2>&1 | \
       tee "${LOG_DIR}/round-${ROUND}_reviewer-a_scoring_gemini.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
     echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
@@ -510,7 +517,7 @@ else:
   ) &
 
   (
-    timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" "$REVIEW_PROMPT" 2>&1 | \
+    cat "$REVIEW_PROMPT_FILE" | timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" - 2>&1 | \
       tee "${LOG_DIR}/round-${ROUND}_reviewer-c_scoring_codex.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
     echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
@@ -519,7 +526,10 @@ else:
   echo "  等待 3 个 Reviewer 完成（最多 5 分钟）..."
   wait
 
-  # 确保所有评分文件存在（fallback 给 3 分）
+  # 清理临时文件
+  rm -f "$REVIEW_PROMPT_FILE" 2>/dev/null
+
+  # 确保所有评分文件存在（fallback 给 5 分）
   for NAME in reviewer-a reviewer-b reviewer-c; do
     if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
       echo '{"score":5,"issues":[],"summary":"Reviewer 超时或无输出，中立分5"}' > "${SCORES_DIR}/${NAME}.json"
@@ -572,7 +582,14 @@ tester_p0 = False
 report = Path(report_path)
 if report.exists():
     text = report.read_text()
-    tester_p0 = "P0" in text and ("bug" in text.lower() or "fail" in text.lower())
+    import re
+    # Count actual P0 bug entries (### P0- headings), not section headers (## P0 Bugs)
+    p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+    # Count BDD scenario failures from the results table
+    bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
+    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
+    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
 
 if veto:
     decision = "REJECTED_VETO"
@@ -669,7 +686,9 @@ cmd_round() {
   local PREV_MEDIAN=0
   if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
     PREV_MEDIAN=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f2 || echo 0)
+    # Validate: must be a number (integer or float), default to 0 if not
     [[ -z "$PREV_MEDIAN" ]] && PREV_MEDIAN=0
+    [[ "$PREV_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || PREV_MEDIAN=0
   fi
 
   start_writers "$ROUND"
@@ -678,11 +697,27 @@ cmd_round() {
   local INTEGRATION_WT
   INTEGRATION_WT=$(merge_writers "$ROUND")
 
+  # 检查是否有任何 Writer 成功合并
+  local MERGE_COUNT
+  MERGE_COUNT=$(cat "${TASK_DIR}/merge-count.txt" 2>/dev/null || echo 0)
+  if [[ "$MERGE_COUNT" -eq 0 ]]; then
+    echo "所有 Writer 失败或被跳过，跳过构建和评审"
+    echo "DECISION=NO_MERGE" > "${TASK_DIR}/verdict.env"
+    echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+    echo "SCORES=\"0\"" >> "${TASK_DIR}/verdict.env"
+    record_result "$ROUND"
+    archive_round "$ROUND"
+    cleanup_round "$ROUND"
+    return 1
+  fi
+
   if ! build_app "$INTEGRATION_WT"; then
     echo "构建失败，跳过 Tester 和 Reviewer"
     echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
     echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+    echo "SCORES=\"0\"" >> "${TASK_DIR}/verdict.env"
     record_result "$ROUND"
+    archive_round "$ROUND"
     cleanup_round "$ROUND"
     return 1
   fi
@@ -715,14 +750,6 @@ cmd_round() {
   echo "日志: $LOG_DIR"
   echo "报告: $REPORT_FILE"
   echo "评分: $SCORES_DIR/"
-}
-
-cmd_status() {
-  echo "tmux windows:"
-  tmux list-windows -t hyper-loop 2>/dev/null || echo "  (no session)"
-  echo ""
-  echo "results.tsv:"
-  cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"
 }
 
 # ── 自动拆解下一轮任务（基于上一轮结果）──
@@ -1029,8 +1056,10 @@ cmd_loop() {
   local CONSECUTIVE_REJECTS=0
   local BEST_ROUND=0
   local BEST_MEDIAN=0
+  # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
+  local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
 
-  while [[ "$ROUND" -le "$MAX_ROUNDS" ]]; do
+  while [[ "$ROUND" -le "$END_ROUND" ]]; do
     # 检查停止信号
     if [[ -f "$STOP_FILE" ]]; then
       echo "检测到 STOP 文件，优雅退出"
@@ -1040,12 +1069,14 @@ cmd_loop() {
 
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  LOOP: Round ${ROUND}/${MAX_ROUNDS}"
+    echo "  LOOP: Round ${ROUND}/${END_ROUND}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
     init_dirs "$ROUND"
     ensure_session
+    # 重置本轮状态（防止前一轮的 MEDIAN/DECISION 影响后续判断）
+    DECISION="" MEDIAN=0
 
     # 自动拆解任务
     auto_decompose "$ROUND"
@@ -1054,6 +1085,7 @@ cmd_loop() {
     if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
       PREV_MEDIAN=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f2 || echo 0)
       [[ -z "$PREV_MEDIAN" ]] && PREV_MEDIAN=0
+      [[ "$PREV_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || PREV_MEDIAN=0
     fi
 
     start_writers "$ROUND"
@@ -1062,11 +1094,30 @@ cmd_loop() {
     local INTEGRATION_WT
     INTEGRATION_WT=$(merge_writers "$ROUND")
 
+    # 检查是否有任何 Writer 成功合并
+    local MERGE_COUNT
+    MERGE_COUNT=$(cat "${TASK_DIR}/merge-count.txt" 2>/dev/null || echo 0)
+    if [[ "$MERGE_COUNT" -eq 0 ]]; then
+      echo "所有 Writer 失败或被跳过"
+      echo "DECISION=NO_MERGE" > "${TASK_DIR}/verdict.env"
+      echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+      echo "SCORES=\"0\"" >> "${TASK_DIR}/verdict.env"
+      record_result "$ROUND"
+      archive_round "$ROUND"
+      cleanup_round "$ROUND"
+      ((CONSECUTIVE_REJECTS++)) || true
+      ((ROUND++))
+      sleep 30
+      continue
+    fi
+
     if ! build_app "$INTEGRATION_WT"; then
       echo "构建失败"
       echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
       echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+      echo "SCORES=\"0\"" >> "${TASK_DIR}/verdict.env"
       record_result "$ROUND"
+      archive_round "$ROUND"
       cleanup_round "$ROUND"
       ((CONSECUTIVE_REJECTS++)) || true
     else
