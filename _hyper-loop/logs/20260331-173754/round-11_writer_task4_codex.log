@@ -1,0 +1,2814 @@
+OpenAI Codex v0.117.0 (research preview)
+--------
+workdir: /tmp/hyper-loop-worktrees-r11/task4
+model: gpt-5.4
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: xhigh
+reasoning summaries: none
+session id: 019d434f-af49-7773-bc41-05a1cacd46e0
+--------
+user
+# 你是 HyperLoop Writer
+
+你在一个独立的 git worktree 中工作。你的修改只影响这个 worktree。
+你是一个临时工——改完这个任务就退出，不参与评审或其他决策。
+
+## 你的工作流程
+1. 先读 _ctx/ 下所有 .md 文件了解项目：
+   - CLAUDE.md = 编码规范（Tauri invoke camelCase、TDD 等铁律）
+   - *prd*.md = 产品需求（你要实现的是什么产品）
+   - *architect*.md = 架构约束（进程分离、IPC 协议等）
+   - *design*.md = 设计文档（功能应该长什么样）
+   - contract.md = 评估契约（你的代码将按什么标准评分）
+   - bdd-specs.md = BDD 行为规格（你的验收标准）
+2. 读 TASK.md 了解本次具体任务
+3. **只修改 TASK.md 中指定的文件**——改其他文件会被 diff 审计拒绝
+4. 运行验证命令确认无报错
+5. 将结果写入 DONE.json
+
+## 你不能做的事
+- 不改 TASK.md 没提到的文件（会被审计拒绝）
+- 不改 CSS/样式（除非 TASK.md 明确要求）
+- 不重构"顺便看到"的代码
+- 不猜 Tauri invoke 参数名（用 grep 确认）
+- 不评分、不评价其他代码
+
+## 完成协议
+修改完成后：
+1. 运行项目的构建/检查命令验证
+2. 写 DONE.json：{"status":"done","files_changed":["实际改了的文件"],"lint_pass":true}
+3. 最后一行输出：HYPERLOOP_TASK_DONE
+
+如果你无法完成任务（比如需要改的文件不存在、逻辑太复杂需要拆分）：
+1. 写 DONE.json：{"status":"blocked","reason":"具体原因","files_changed":[]}
+2. 最后一行输出：HYPERLOOP_TASK_DONE
+
+---
+
+# 项目简报
+
+# HyperLoop 项目简报
+
+## 1. 项目概述
+
+HyperLoop 是一个多 Agent 自改进开发循环工具（v5.3），以 Claude Code Plugin 形式运行。核心架构：Claude Code 做决策（BDD 规格、任务拆解、裁决解读），`hyper-loop.sh` Bash 脚本做编排（tmux 进程管理、Writer 启动、评分收集、和议计算）。技术栈为 Bash + Python3 + tmux，依赖 Codex CLI（Writer）、Claude CLI（Tester + Reviewer B + 任务拆解）、Gemini CLI（Reviewer A）。目标用户是需要无人值守代码改进循环的开发者。
+
+## 2. 架构约束
+
+- **角色分离**：Orchestrator（Claude Code）只做决策，不写业务代码；Writer（Codex exec）只改代码，不评分；Tester 只验证不改代码；Reviewer 只评分不改代码
+- **进程模型**：Writer 以 `codex exec --dangerously-bypass-approvals-and-sandbox` 非交互模式运行，每个 Writer 一个后台子进程（非 tmux），通过 stdin 注入完整 prompt
+- **Worktree 隔离**：每个 Writer 在 `/tmp/hyper-loop-worktrees-rN/taskM` 的独立 git worktree 中工作，合并到 `hyper-loop/rN-integration` 分支后再进 main
+- **上下文传递**：通过文件路径传递（不传文本内容），核心上下文在 `_hyper-loop/context/`，Writer 复制到 `_ctx/`
+- **Hook 强制执行**：`PreToolUse(Edit|Write)` hook 拦截对 .svelte/.rs/.ts/.js/.py 等业务代码的直接修改；`SessionStart` hook 注入 Orchestrator 规则；`Stop` hook 阻止有未裁决分歧时退出
+- **3 Reviewer 合议**：Gemini（reviewer-a）+ Claude（reviewer-b）+ Codex（reviewer-c）并行评审，取中位数，一票否决（< 4.0），分歧 > 2.0 交用户裁决
+- **超时机制**：Writer 15 分钟、Tester 10 分钟、每个 Reviewer 5 分钟
+- **连续 5 轮失败自动回退**到历史最佳轮次的 git sha
+
+## 3. 编码规范
+
+- 本项目无 CLAUDE.md，以下规范从脚本和模板中提取：
+- **Bash 严格模式**：`set -euo pipefail` 全局启用
+- **构建验证**：`bash -n scripts/hyper-loop.sh`（语法检查）
+- **macOS 兼容**：无 `timeout` 命令时用 `gtimeout` 或自定义 fallback
+- **安全读取 verdict.env**：不用 `source`，用 `grep '^KEY=' | cut -d= -f2` 提取值，防止 "command not found" 错误
+- **函数输出纪律**：非返回值的 echo/git 命令加 `>&2`，stdout 只用于返回值传递
+- **Python3 用于 JSON 处理**：评分提取、verdict 计算、模板渲染均用内联 Python3
+- **清理容错**：清理函数用 `(set +e; ...) || true` 包裹，不能因清理失败终止循环
+- **HyperLoop 元数据文件**（DONE.json、WRITER_INIT.md、TASK.md、_writer_prompt.md、_ctx/）必须在 `git add -A` 之前删除，防止多 Writer squash merge 冲突
+
+## 4. 当前重点（BDD 场景摘要）
+
+共 17 个 BDD 场景，核心验证目标：**hyper-loop.sh 能无人值守跑 50 轮不崩溃**。
+
+### 关键场景分组
+
+**循环控制**
+- S001: `loop N` 命令跑满 N 轮后正常退出，results.tsv 有 N 行记录
+- S014: STOP 文件优雅退出（exit 0 + 删除 STOP）
+- S016: macOS timeout 兼容（gtimeout fallback）
+
+**Writer 生命周期**
+- S002: auto_decompose 生成 task*.md（失败时降级生成默认 task1.md）
+- S003: worktree 创建 + Codex trust 配置 + 后台启动
+- S004: Writer 完成后元数据清理 → git add -A → commit → squash merge 到 integration
+- S005: diff 审计拦截越界修改（改了 TASK.md 未指定的文件 → 拒绝合并）
+- S006: Writer 超时 15 分钟 → DONE.json status=timeout
+- S017: 多 Writer 同文件冲突处理（元数据预清理，真实冲突 merge --abort + deferred）
+
+**评审与裁决**
+- S007: Tester 启动并在 15 分钟内生成报告（超时生成空报告）
+- S008: 3 Reviewer 并行启动（Gemini + Claude + Codex），10 分钟内各生成 scores JSON
+- S009: 和议 — 中位数计算，ACCEPTED 条件为 > prev_median
+- S010: 一票否决 — 任一 score < 4.0 → REJECTED_VETO
+- S011: Tester P0 否决 — 报告含 P0+fail → REJECTED_TESTER_P0
+- S012: verdict.env 安全读取（不 source，不崩 bash）
+
+**容错与回退**
+- S013: 连续 5 轮失败 → 回退到 archive/ 中最佳轮次的 git sha
+- S015: worktree 清理（删除 /tmp 目录 + 删除临时分支 + 关闭 tmux window）
+
+### 评估契约
+
+- 通过阈值：7.5
+- 客观指标 80%：bash -n 语法检查 + BDD 场景通过率
+- 主观维度 20%：代码可读性 + 错误处理完整性（上限 7.0）
+
+## 5. 设计意图
+
+- **"决策归你，编排归脚本"**：Claude Code 的认知能力（理解需求、拆解任务、解读评分）与脚本的机械执行能力（进程管理、文件操作、超时控制）解耦，各司其职
+- **BDD 驱动验证**：每个功能有明确的 Given/When/Then，Tester 逐条验证，Reviewer 基于客观证据评分——不凭感觉
+- **多 LLM 合议消除偏见**：3 个不同 LLM（Gemini/Claude/Codex）独立评分取中位数，防止单一模型的系统性偏差
+- **不可绕过的 Hook 纪律**：PreToolUse hook 在 Claude 思考之前就拦截，不给它"这次我自己来"的机会
+- **档案库 + 回退**：每轮归档 git sha + 评分 + 报告，连续失败时回退到最佳状态而非原地打转——灵感来自 HyperAgents 的 "stepping stones" 和 autoresearch 的 "never stop"
+- **Writer 沙箱约束**：diff 审计确保 Writer 只改任务指定的文件，越界修改直接拒绝合并
+
+## 6. 文件地图
+
+### 核心脚本（最常修改）
+| 文件 | 说明 |
+|------|------|
+| `scripts/hyper-loop.sh` | 编排主脚本（所有命令：loop/round/init/resume-from/status） |
+
+### Hook 系统
+| 文件 | 说明 |
+|------|------|
+| `hooks/hooks.json` | Hook 路由配置（SessionStart/PreToolUse/Stop） |
+| `hooks/pre-write-guard.sh` | 拦截 Orchestrator 直接修改业务代码 |
+| `hooks/session-start.sh` | 注入 Orchestrator 规则到 Claude Code |
+| `hooks/stop-guard.sh` | 阻止有未裁决分歧时退出 |
+
+### Agent 定义
+| 文件 | 说明 |
+|------|------|
+| `agents/reviewer.md` | Reviewer agent 角色定义（评分规则 + JSON 输出格式） |
+| `agents/tester.md` | Tester agent 角色定义（三层自动化 + 截图管理） |
+
+### 模板（Phase 0 渲染，注入到各 Agent）
+| 文件 | 说明 |
+|------|------|
+| `templates/WRITER_INIT.md` | Writer 初始化模板（占位符 → 实际值） |
+| `templates/TESTER_INIT.md` | Tester 初始化模板（三层工具体系 + 报告格式） |
+| `templates/REVIEWER_INIT.md` | Reviewer 初始化模板（评分公式 + JSON schema） |
+| `templates/ORCHESTRATOR_CHECKLIST.md` | Orchestrator 每轮检查清单 |
+
+### Skill 与 Plugin 配置
+| 文件 | 说明 |
+|------|------|
+| `skills/hyper-loop/SKILL.md` | HyperLoop skill 定义（完整 Phase 0-2 流程） |
+| `.claude-plugin/plugin.json` | Claude Code plugin 元数据 |
+| `commands/hyper-loop.md` | `/hyper-loop` slash command 定义 |
+| `commands/brainstorm.md` | `/brainstorm` slash command 定义 |
+| `commands/hyper-loop-monitor.md` | `/hyper-loop-monitor` 监控命令定义 |
+
+### 运行时产物目录（不需修改，但需理解）
+| 路径 | 说明 |
+|------|------|
+| `_hyper-loop/project-config.env` | 项目配置（构建命令、启动命令等） |
+| `_hyper-loop/bdd-specs.md` | BDD 行为规格（锁定后不轻易改） |
+| `_hyper-loop/contract.md` | 评估契约（锁定） |
+| `_hyper-loop/context/` | 上下文包（所有 agent 读这里） |
+| `_hyper-loop/tasks/round-N/` | 每轮任务文件 + verdict.env + patch/stat |
+| `_hyper-loop/results.tsv` | 累计评分记录（轮次/中位数/分数/决策） |
+
+---
+
+# BDD 行为规格
+
+# BDD 行为规格 — HyperLoop 脚本自身
+
+## S001: loop 命令启动死循环
+Given project-config.env 和 bdd-specs.md 存在
+When 执行 `hyper-loop.sh loop 3`
+Then 脚本输出 "Round 1/3" 并进入循环
+  And 循环跑满 3 轮后正常退出（不崩溃）
+  And results.tsv 有 3 行记录
+
+## S002: auto_decompose 生成任务文件
+Given _hyper-loop/context/ 和 bdd-specs.md 存在
+When auto_decompose 被调用
+Then _hyper-loop/tasks/round-N/ 下至少有 1 个 task*.md 文件
+  And 每个文件包含"修复任务"和"相关文件"段落
+  And 如果 claude -p 失败，降级生成默认 task1.md
+
+## S003: Writer worktree 创建 + trust + 启动
+Given task*.md 文件存在
+When start_writers 被调用
+Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+  And ~/.codex/config.toml 包含该目录的 trust 配置
+  And Codex 进程在 tmux window 中启动
+  And _ctx/ 目录被复制到 worktree
+
+## S004: Writer 完成后 diff 被正确 commit
+Given Writer 写了 DONE.json status=done 且改了文件
+When merge_writers 被调用
+Then HyperLoop 元数据文件（DONE.json, WRITER_INIT.md, TASK.md, _writer_prompt.md, _ctx/）被删除
+  And 然后执行 git add -A && git commit（只包含业务代码变更）
+  And squash merge 到 integration 分支成功（不是 "already up to date"）
+  And task*.patch 和 task*.stat 文件被生成
+  And 多 Writer 不会因元数据文件冲突
+
+## S005: diff 审计拦截越界修改
+Given Writer 改了 TASK.md 未指定的文件
+When audit_writer_diff 被调用
+Then 返回非零退出码
+  And 该 Writer 的产出被跳过不合并
+
+## S006: Writer 超时处理
+Given Writer 15 分钟未写 DONE.json
+When 超时触发
+Then DONE.json 被写入 status=timeout
+  And 该 Writer 被标记为 failed
+
+## S007: Tester 启动并生成报告
+Given App 已构建（对本项目=bash -n 通过）
+When run_tester 被调用
+Then Tester Claude 子进程在 tmux 中启动
+  And 15 分钟内生成 reports/round-N-test.md
+  And 超时时生成空报告而非崩溃
+
+## S008: 3 Reviewer 启动并产出评分
+Given Tester 报告存在
+When run_reviewers 被调用
+Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
+  And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+  And JSON 包含 "score" 字段
+  And 如果文件不存在，从 pane 输出提取 JSON
+
+## S009: 和议计算正确
+Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+When compute_verdict 被调用
+Then 中位数 = 6.0
+  And DECISION = ACCEPTED（如果 > prev_median）
+  And verdict.env 可以被安全读取（不崩 bash）
+
+## S010: 一票否决（score < 4.0）
+Given scores=[3.5, 6.0, 7.0]
+When compute_verdict 被调用
+Then DECISION = REJECTED_VETO
+  And 记录到 results.tsv
+
+## S011: Tester P0 否决
+Given Tester 报告包含 "P0" 和 "fail"
+When compute_verdict 被调用
+Then DECISION = REJECTED_TESTER_P0
+
+## S012: verdict.env 安全读取
+Given verdict.env 包含 MEDIAN=0.0 和 SCORES="1.0 2.0 3.0"
+When 脚本读取 verdict.env
+Then DECISION 和 MEDIAN 被正确提取
+  And 不会出现 "command not found" 错误
+
+## S013: 连续 5 轮失败自动回退
+Given results.tsv 有 5 行 REJECTED
+  And archive/round-2/git-sha.txt 存在且得分最高
+When 第 6 轮开始
+Then 代码回退到 Round 2 的 git sha
+  And consecutive_rejects 重置为 0
+
+## S014: STOP 文件优雅退出
+Given _hyper-loop/STOP 文件存在
+When 循环检查到 STOP
+Then 当前轮不执行
+  And 脚本正常退出（exit 0）
+  And STOP 文件被删除
+
+## S015: worktree 清理
+Given Round N 完成
+When cleanup_round 被调用
+Then /tmp/hyper-loop-worktrees-rN/ 不存在
+  And hyper-loop/rN-* 分支被删除
+  And tmux writer windows 被关闭
+
+## S016: macOS timeout 兼容
+Given macOS 没有 timeout 命令但有 gtimeout
+When 脚本启动
+Then timeout 函数可用（不报 command not found）
+
+## S017: 多 Writer 同文件冲突处理
+Given task1 和 task2 都改了同一个业务文件（非元数据）
+When merge_writers 合并
+Then 元数据文件已预先清理，不会导致 false conflict
+  And 第一个 Writer 成功 merge
+  And 如果第二个 Writer 与第一个有真实代码冲突则 merge --abort 并标记 deferred
+  And 如果没有代码冲突则两个都成功 merge
+  And 脚本不崩溃
+
+---
+
+# 评估契约
+
+# HyperLoop 自优化评估契约
+- 目标：hyper-loop.sh 能无人值守跑 50 轮不崩溃
+- BDD 场景：17 个
+- 客观指标（80%）：bash -n 语法检查 + BDD 场景通过率
+- 主观维度（20%）：代码可读性 + 错误处理完整性（上限 7.0）
+- 通过阈值：7.5
+
+---
+
+# 本轮任务
+
+## 修复任务: TASK-4
+### 上下文
+先读 _ctx/ 下所有文件。
+
+### 问题
+[P1] _hyper-loop/context/bdd-specs.md 中多个场景的描述与实际代码实现不一致，导致 Tester 需要做"功能等价"推理来判定 PASS，增加误判风险。
+
+不一致清单：
+
+1. **S003** "Codex 进程在 tmux window 中启动"——实际代码用后台 subshell + `codex exec`（scripts/hyper-loop.sh start_writers 函数 L227-234），不用 tmux window
+
+2. **S007** "Tester Claude 子进程在 tmux 中启动"——实际代码用非交互 `claude -p` 管道模式（run_tester 函数 L449-451），不用 tmux
+
+3. **S008** "3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）" + "如果文件不存在，从 pane 输出提取 JSON"——实际代码用并行 subshell + 管道模式（run_reviewers 函数 L504-524），Python 从 stdout 提取 JSON（L480-496），文件不存在时用 fallback score 5（L533-537）
+
+### 相关文件
+- _hyper-loop/context/bdd-specs.md (S003, S007, S008 三个场景)
+
+### 修复策略
+
+1. 先读 scripts/hyper-loop.sh 中 start_writers、run_tester、run_reviewers 三个函数的实际实现，确认当前行为
+
+2. 逐个更新 BDD 场景描述，使其准确反映当前实现：
+
+**S003 修改：**
+- "Codex 进程在 tmux window 中启动" → "Codex 进程在后台子进程中启动（codex exec 非交互模式）"
+
+**S007 修改：**
+- "Tester Claude 子进程在 tmux 中启动" → "Tester 在非交互管道模式中运行（claude -p 管道模式）"
+- 保留"15 分钟内生成"和"超时时生成空报告而非崩溃"的要求
+
+**S008 修改：**
+- "3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）" → "3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）"
+- "如果文件不存在，从 pane 输出提取 JSON" → "通过 Python 从 stdout 管道提取 JSON；如果提取失败或文件不存在，fallback 给中立分 5"
+
+3. 确保修改后的 BDD 场景仍然是可测试的行为规格，保留功能性验收要求
+
+### 约束
+- 只修 _hyper-loop/context/bdd-specs.md
+- 不改 scripts/hyper-loop.sh 或其他文件
+- 保留所有场景 ID（S001-S017）不变
+- 保留功能性验收要求（超时处理、score 字段、报告生成等），只更新执行方式描述
+
+### 验收标准
+- S003: BDD 描述与 start_writers 实现一致
+- S007: BDD 描述与 run_tester 实现一致
+- S008: BDD 描述与 run_reviewers 实现一致
+- Tester 不再需要做"功能等价"推理来判定 PASS
+
+---
+
+现在执行 TASK.md 中的任务。完成后写 DONE.json。
+项目的其他文件在 _ctx/ 目录下可以用工具读取，但以上内容已包含核心信息。
+
+codex
+先读取 `_ctx/` 下的全部 `.md` 和 `TASK.md`，再核对 `scripts/hyper-loop.sh` 里 `start_writers`、`run_tester`、`run_reviewers` 的当前实现，确认只能改 `_hyper-loop/context/bdd-specs.md` 的具体落点。
+exec
+/bin/zsh -lc "printf '%s
+' TASK.md && printf '%s
+' _hyper-loop/context/bdd-specs.md && printf '%s
+' scripts/hyper-loop.sh" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+TASK.md
+_hyper-loop/context/bdd-specs.md
+scripts/hyper-loop.sh
+
+exec
+/bin/zsh -lc "rg --files _ctx -g '*.md'" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+_ctx/design-context.md
+_ctx/templates/TESTER_INIT.md
+_ctx/templates/ORCHESTRATOR_CHECKLIST.md
+_ctx/templates/REVIEWER_INIT.md
+_ctx/templates/WRITER_INIT.md
+_ctx/cli-reference-verified.md
+_ctx/SKILL.md
+_ctx/bdd-specs.md
+_ctx/project-brief.md
+_ctx/contract.md
+_ctx/INSTALL.md
+_ctx/agents/tester.md
+_ctx/agents/reviewer.md
+
+codex
+我在收集任务上下文：先把 `_ctx/` 文档和 `TASK.md` 读完，再只针对要求的三个 BDD 场景做最小修改。随后会用脚本语法检查验证，并写 `DONE.json`。
+exec
+/bin/zsh -lc "sed -n '1,220p' TASK.md" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+## 修复任务: TASK-4
+### 上下文
+先读 _ctx/ 下所有文件。
+
+### 问题
+[P1] _hyper-loop/context/bdd-specs.md 中多个场景的描述与实际代码实现不一致，导致 Tester 需要做"功能等价"推理来判定 PASS，增加误判风险。
+
+不一致清单：
+
+1. **S003** "Codex 进程在 tmux window 中启动"——实际代码用后台 subshell + `codex exec`（scripts/hyper-loop.sh start_writers 函数 L227-234），不用 tmux window
+
+2. **S007** "Tester Claude 子进程在 tmux 中启动"——实际代码用非交互 `claude -p` 管道模式（run_tester 函数 L449-451），不用 tmux
+
+3. **S008** "3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）" + "如果文件不存在，从 pane 输出提取 JSON"——实际代码用并行 subshell + 管道模式（run_reviewers 函数 L504-524），Python 从 stdout 提取 JSON（L480-496），文件不存在时用 fallback score 5（L533-537）
+
+### 相关文件
+- _hyper-loop/context/bdd-specs.md (S003, S007, S008 三个场景)
+
+### 修复策略
+
+1. 先读 scripts/hyper-loop.sh 中 start_writers、run_tester、run_reviewers 三个函数的实际实现，确认当前行为
+
+2. 逐个更新 BDD 场景描述，使其准确反映当前实现：
+
+**S003 修改：**
+- "Codex 进程在 tmux window 中启动" → "Codex 进程在后台子进程中启动（codex exec 非交互模式）"
+
+**S007 修改：**
+- "Tester Claude 子进程在 tmux 中启动" → "Tester 在非交互管道模式中运行（claude -p 管道模式）"
+- 保留"15 分钟内生成"和"超时时生成空报告而非崩溃"的要求
+
+**S008 修改：**
+- "3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）" → "3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）"
+- "如果文件不存在，从 pane 输出提取 JSON" → "通过 Python 从 stdout 管道提取 JSON；如果提取失败或文件不存在，fallback 给中立分 5"
+
+3. 确保修改后的 BDD 场景仍然是可测试的行为规格，保留功能性验收要求
+
+### 约束
+- 只修 _hyper-loop/context/bdd-specs.md
+- 不改 scripts/hyper-loop.sh 或其他文件
+- 保留所有场景 ID（S001-S017）不变
+- 保留功能性验收要求（超时处理、score 字段、报告生成等），只更新执行方式描述
+
+### 验收标准
+- S003: BDD 描述与 start_writers 实现一致
+- S007: BDD 描述与 run_tester 实现一致
+- S008: BDD 描述与 run_reviewers 实现一致
+- Tester 不再需要做"功能等价"推理来判定 PASS
+
+exec
+/bin/zsh -lc "sed -n '1,220p' _ctx/SKILL.md && printf '\\n\\n' && sed -n '1,220p' _ctx/project-brief.md && printf '\\n\\n' && sed -n '1,220p' _ctx/contract.md" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+---
+name: hyper-loop
+description: "Multi-agent self-improving loop. Claude does decisions (BDD specs, task decomposition, verdict interpretation), hyper-loop.sh does orchestration (tmux, writers, tester, reviewers, consensus). Roles decoupled from LLMs. SKILL.md self-evolves."
+tools: Read, Bash, Glob, Grep, Write, Agent, AskUserQuestion
+---
+
+# HyperLoop v5.2 — 决策归你，编排归脚本
+
+## 核心原则
+
+**Claude Code 只做决策，不做编排。** 进程管理、等待、评分收集全部由 `hyper-loop.sh` 脚本执行。
+
+```
+Claude Code 的职责：生成 BDD spec → 拆解任务 → 写任务文件 → 调用脚本 → 读结果做判断
+hyper-loop.sh 的职责：启动 tmux → 管理子进程 → 等待完成 → 收集评分 → 输出决策建议
+```
+
+**不可违反的规则：**
+1. 传文件路径，不传文本内容
+2. 不直接写业务代码（那是 Writer 的事）
+3. 不跳过 Tester 和 Reviewer（脚本强制执行）
+4. 任务文件必须写到 `_hyper-loop/tasks/round-N/` 才能被脚本识别
+
+---
+
+## Phase 0: 你的决策工作
+
+### Step 1: 收集项目配置
+
+问用户三个问题后，写 `_hyper-loop/project-config.env`：
+
+```bash
+mkdir -p _hyper-loop/context
+cat > _hyper-loop/project-config.env <<'EOF'
+PROJECT_ROOT="/absolute/path"
+PROJECT_TYPE="Tauri"
+BUILD_CMD="pnpm build"
+LAUNCH_CMD="pnpm tauri dev"
+CACHE_CLEAN="rm -rf node_modules/.vite dist target"
+BUILD_VERIFY="pnpm tauri build"
+WINDOW_NAME="ClawMom"
+DEV_SERVER_PORT="1420"
+TECH_STACK="Tauri v2 + Svelte 5 + Rust + TypeScript"
+EOF
+```
+
+### Step 2: 收集上下文包
+
+把 BMAD 文档复制到 `_hyper-loop/context/`：
+
+```bash
+cp CLAUDE.md _hyper-loop/context/
+find _bmad-output -iname "*prd*" -exec cp {} _hyper-loop/context/ \;
+find _bmad-output -iname "*architect*" -exec cp {} _hyper-loop/context/ \;
+find docs/design -name "*.md" -exec cp {} _hyper-loop/context/ \;
+```
+
+### Step 3: 生成 BDD 行为规格
+
+读设计文档，对每个功能点生成 Given/When/Then 格式。**这是你最重要的决策工作。**
+
+规则：
+- 每个功能 → 至少 2 个场景（正常 + 异常）
+- 每个 Then = Tester 的一个截图验证点
+- 覆盖所有用户路径分支
+- 写入 `_hyper-loop/bdd-specs.md` 并复制到 `_hyper-loop/context/`
+
+### Step 4: 生成评估契约
+
+写入 `_hyper-loop/contract.md` 并复制到 `_hyper-loop/context/`。
+
+### Step 5: 确认
+
+展示 BDD 场景列表给用户确认。用户说 OK 后锁定。
+
+---
+
+## Phase 1: 每轮循环
+
+### Step 1: 拆解任务（你的决策）
+
+分析当前问题，拆成独立子任务。每个任务写成 `_hyper-loop/tasks/round-N/taskM.md`：
+
+**拆解规则：**
+- 5-8 个并行任务（不超过 8 个）
+- 每个任务 5 分钟内可完成
+- 指定具体文件和行号
+- 预先检查文件重叠，重叠的不并行
+- P0 优先，不混不同优先级
+
+```markdown
+## 修复任务: TASK-1
+
+### 上下文
+先读 _ctx/ 下所有文件。
+
+### 问题
+[P0] Gateway 不启动。
+
+### 相关文件
+- daemon/src/gateway.rs (line 45-120)
+
+### 约束
+- 只修 gateway.rs
+- 不改 CSS
+
+### 验收标准（引用 BDD）
+场景 S012: Gateway 异常时显示红灯
+```
+
+### Step 2: 启动后台循环（nohup，不阻塞当前会话）
+
+Phase 0 完成后，用 Bash 工具把脚本扔到后台：
+
+```bash
+PROJECT_ROOT=$(pwd) nohup ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh loop 50 \
+  > _hyper-loop/loop.log 2>&1 &
+echo "HyperLoop 已在后台启动，PID: $!"
+echo $! > _hyper-loop/loop.pid
+```
+
+**脚本在后台自主循环，不依赖当前会话。** 你关掉这个会话也不影响。
+
+循环内容：
+1. Claude -p 非交互模式拆任务（新进程，不是你）
+2. Codex Writer 在 worktree 改代码
+3. Tester 截图验证
+4. 3 Reviewer 评分
+5. 和议 → keep/reset → 30s 冷却 → 下一轮
+
+然后告诉用户：
+- **看进度：** `tail -f _hyper-loop/loop.log`
+- **停止：** `touch _hyper-loop/STOP`
+- **自动达标停止：** median >= 8.0
+- **自动回退：** 连续 5 轮失败 → 回退最佳轮次
+- **查看结果：** `cat _hyper-loop/results.tsv`
+
+---
+
+## Phase 2: 元改进
+
+### 触发条件
+1. 每 3 轮固定检查
+2. 连续 2 轮中位数无提升
+3. 连续 3 轮只改 CSS
+4. Tester 连续 2 轮报告同一 bug
+
+### 你做什么
+分析 `results.tsv` + 试用报告 + 评分 JSON，诊断一个主因，调整一个变量。
+
+### SKILL.md 自修改（每 5 轮）
+让 3 个 Reviewer 评审 SKILL.md 本身。经用户确认后修改。
+
+---
+
+## CLI 速查
+
+| CLI | bypass | 角色 |
+|-----|--------|------|
+| `codex --dangerously-bypass-approvals-and-sandbox` | 完全自主 | Writer |
+| `codex --full-auto` | 沙箱 | Reviewer C |
+| `gemini --yolo` | 全自动 | Reviewer A |
+| `claude --dangerously-skip-permissions` | 全自动 | Tester / Reviewer B |
+
+---
+
+## 文件结构
+
+```
+_hyper-loop/
+├── project-config.env
+├── bdd-specs.md
+├── contract.md
+├── results.tsv
+├── context/                    # 所有 agent 读这里
+├── tasks/round-N/
+│   ├── task1.md, task2.md      # ← 你写的
+│   ├── task1.patch, task1.stat # ← 脚本收集
+│   └── verdict.env             # ← 脚本计算
+├── screenshots/round-N/
+├── reports/round-N-test.md
+├── scores/round-N/*.json
+├── summaries/
+├── archive/round-N/
+├── logs/YYYYMMDD-HHMMSS/
+└── meta-playbook.md
+```
+
+---
+
+## 使用
+
+### 方式 1: 手动单轮（你控制每一步）
+
+```bash
+/hyper-loop                     # Phase 0
+# 然后每轮：
+# 1. 拆任务 → 写 task*.md
+# 2. PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round N
+# 3. 读 verdict.env → 决策 → 下一轮
+```
+
+### 方式 2: 无人值守循环（推荐，像 autoresearch）
+
+Phase 0 完成后，直接启动死循环：
+
+```bash
+PROJECT_ROOT=$(pwd) nohup ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh loop 100 \
+  > _hyper-loop/loop.log 2>&1 &
+```
+
+脚本自动：拆任务 → Writer → build → Tester → Reviewer → 和议 → keep/reset → 下一轮。
+
+**停止方法：** `touch _hyper-loop/STOP`（当前轮完成后优雅退出）
+
+**监控方法：**
+```bash
+# 实时看进度
+tail -f _hyper-loop/loop.log
+
+
+
+# HyperLoop 项目简报
+
+## 1. 项目概述
+
+HyperLoop 是一个多 Agent 自改进开发循环工具（v5.3），以 Claude Code Plugin 形式运行。核心架构：Claude Code 做决策（BDD 规格、任务拆解、裁决解读），`hyper-loop.sh` Bash 脚本做编排（tmux 进程管理、Writer 启动、评分收集、和议计算）。技术栈为 Bash + Python3 + tmux，依赖 Codex CLI（Writer）、Claude CLI（Tester + Reviewer B + 任务拆解）、Gemini CLI（Reviewer A）。目标用户是需要无人值守代码改进循环的开发者。
+
+## 2. 架构约束
+
+- **角色分离**：Orchestrator（Claude Code）只做决策，不写业务代码；Writer（Codex exec）只改代码，不评分；Tester 只验证不改代码；Reviewer 只评分不改代码
+- **进程模型**：Writer 以 `codex exec --dangerously-bypass-approvals-and-sandbox` 非交互模式运行，每个 Writer 一个后台子进程（非 tmux），通过 stdin 注入完整 prompt
+- **Worktree 隔离**：每个 Writer 在 `/tmp/hyper-loop-worktrees-rN/taskM` 的独立 git worktree 中工作，合并到 `hyper-loop/rN-integration` 分支后再进 main
+- **上下文传递**：通过文件路径传递（不传文本内容），核心上下文在 `_hyper-loop/context/`，Writer 复制到 `_ctx/`
+- **Hook 强制执行**：`PreToolUse(Edit|Write)` hook 拦截对 .svelte/.rs/.ts/.js/.py 等业务代码的直接修改；`SessionStart` hook 注入 Orchestrator 规则；`Stop` hook 阻止有未裁决分歧时退出
+- **3 Reviewer 合议**：Gemini（reviewer-a）+ Claude（reviewer-b）+ Codex（reviewer-c）并行评审，取中位数，一票否决（< 4.0），分歧 > 2.0 交用户裁决
+- **超时机制**：Writer 15 分钟、Tester 10 分钟、每个 Reviewer 5 分钟
+- **连续 5 轮失败自动回退**到历史最佳轮次的 git sha
+
+## 3. 编码规范
+
+- 本项目无 CLAUDE.md，以下规范从脚本和模板中提取：
+- **Bash 严格模式**：`set -euo pipefail` 全局启用
+- **构建验证**：`bash -n scripts/hyper-loop.sh`（语法检查）
+- **macOS 兼容**：无 `timeout` 命令时用 `gtimeout` 或自定义 fallback
+- **安全读取 verdict.env**：不用 `source`，用 `grep '^KEY=' | cut -d= -f2` 提取值，防止 "command not found" 错误
+- **函数输出纪律**：非返回值的 echo/git 命令加 `>&2`，stdout 只用于返回值传递
+- **Python3 用于 JSON 处理**：评分提取、verdict 计算、模板渲染均用内联 Python3
+- **清理容错**：清理函数用 `(set +e; ...) || true` 包裹，不能因清理失败终止循环
+- **HyperLoop 元数据文件**（DONE.json、WRITER_INIT.md、TASK.md、_writer_prompt.md、_ctx/）必须在 `git add -A` 之前删除，防止多 Writer squash merge 冲突
+
+## 4. 当前重点（BDD 场景摘要）
+
+共 17 个 BDD 场景，核心验证目标：**hyper-loop.sh 能无人值守跑 50 轮不崩溃**。
+
+### 关键场景分组
+
+**循环控制**
+- S001: `loop N` 命令跑满 N 轮后正常退出，results.tsv 有 N 行记录
+- S014: STOP 文件优雅退出（exit 0 + 删除 STOP）
+- S016: macOS timeout 兼容（gtimeout fallback）
+
+**Writer 生命周期**
+- S002: auto_decompose 生成 task*.md（失败时降级生成默认 task1.md）
+- S003: worktree 创建 + Codex trust 配置 + 后台启动
+- S004: Writer 完成后元数据清理 → git add -A → commit → squash merge 到 integration
+- S005: diff 审计拦截越界修改（改了 TASK.md 未指定的文件 → 拒绝合并）
+- S006: Writer 超时 15 分钟 → DONE.json status=timeout
+- S017: 多 Writer 同文件冲突处理（元数据预清理，真实冲突 merge --abort + deferred）
+
+**评审与裁决**
+- S007: Tester 启动并在 15 分钟内生成报告（超时生成空报告）
+- S008: 3 Reviewer 并行启动（Gemini + Claude + Codex），10 分钟内各生成 scores JSON
+- S009: 和议 — 中位数计算，ACCEPTED 条件为 > prev_median
+- S010: 一票否决 — 任一 score < 4.0 → REJECTED_VETO
+- S011: Tester P0 否决 — 报告含 P0+fail → REJECTED_TESTER_P0
+- S012: verdict.env 安全读取（不 source，不崩 bash）
+
+**容错与回退**
+- S013: 连续 5 轮失败 → 回退到 archive/ 中最佳轮次的 git sha
+- S015: worktree 清理（删除 /tmp 目录 + 删除临时分支 + 关闭 tmux window）
+
+### 评估契约
+
+- 通过阈值：7.5
+- 客观指标 80%：bash -n 语法检查 + BDD 场景通过率
+- 主观维度 20%：代码可读性 + 错误处理完整性（上限 7.0）
+
+## 5. 设计意图
+
+- **"决策归你，编排归脚本"**：Claude Code 的认知能力（理解需求、拆解任务、解读评分）与脚本的机械执行能力（进程管理、文件操作、超时控制）解耦，各司其职
+- **BDD 驱动验证**：每个功能有明确的 Given/When/Then，Tester 逐条验证，Reviewer 基于客观证据评分——不凭感觉
+- **多 LLM 合议消除偏见**：3 个不同 LLM（Gemini/Claude/Codex）独立评分取中位数，防止单一模型的系统性偏差
+- **不可绕过的 Hook 纪律**：PreToolUse hook 在 Claude 思考之前就拦截，不给它"这次我自己来"的机会
+- **档案库 + 回退**：每轮归档 git sha + 评分 + 报告，连续失败时回退到最佳状态而非原地打转——灵感来自 HyperAgents 的 "stepping stones" 和 autoresearch 的 "never stop"
+- **Writer 沙箱约束**：diff 审计确保 Writer 只改任务指定的文件，越界修改直接拒绝合并
+
+## 6. 文件地图
+
+### 核心脚本（最常修改）
+| 文件 | 说明 |
+|------|------|
+| `scripts/hyper-loop.sh` | 编排主脚本（所有命令：loop/round/init/resume-from/status） |
+
+### Hook 系统
+| 文件 | 说明 |
+|------|------|
+| `hooks/hooks.json` | Hook 路由配置（SessionStart/PreToolUse/Stop） |
+| `hooks/pre-write-guard.sh` | 拦截 Orchestrator 直接修改业务代码 |
+| `hooks/session-start.sh` | 注入 Orchestrator 规则到 Claude Code |
+| `hooks/stop-guard.sh` | 阻止有未裁决分歧时退出 |
+
+### Agent 定义
+| 文件 | 说明 |
+|------|------|
+| `agents/reviewer.md` | Reviewer agent 角色定义（评分规则 + JSON 输出格式） |
+| `agents/tester.md` | Tester agent 角色定义（三层自动化 + 截图管理） |
+
+### 模板（Phase 0 渲染，注入到各 Agent）
+| 文件 | 说明 |
+|------|------|
+| `templates/WRITER_INIT.md` | Writer 初始化模板（占位符 → 实际值） |
+| `templates/TESTER_INIT.md` | Tester 初始化模板（三层工具体系 + 报告格式） |
+| `templates/REVIEWER_INIT.md` | Reviewer 初始化模板（评分公式 + JSON schema） |
+| `templates/ORCHESTRATOR_CHECKLIST.md` | Orchestrator 每轮检查清单 |
+
+### Skill 与 Plugin 配置
+| 文件 | 说明 |
+|------|------|
+| `skills/hyper-loop/SKILL.md` | HyperLoop skill 定义（完整 Phase 0-2 流程） |
+| `.claude-plugin/plugin.json` | Claude Code plugin 元数据 |
+| `commands/hyper-loop.md` | `/hyper-loop` slash command 定义 |
+| `commands/brainstorm.md` | `/brainstorm` slash command 定义 |
+| `commands/hyper-loop-monitor.md` | `/hyper-loop-monitor` 监控命令定义 |
+
+### 运行时产物目录（不需修改，但需理解）
+| 路径 | 说明 |
+|------|------|
+| `_hyper-loop/project-config.env` | 项目配置（构建命令、启动命令等） |
+| `_hyper-loop/bdd-specs.md` | BDD 行为规格（锁定后不轻易改） |
+| `_hyper-loop/contract.md` | 评估契约（锁定） |
+| `_hyper-loop/context/` | 上下文包（所有 agent 读这里） |
+| `_hyper-loop/tasks/round-N/` | 每轮任务文件 + verdict.env + patch/stat |
+| `_hyper-loop/results.tsv` | 累计评分记录（轮次/中位数/分数/决策） |
+
+
+# HyperLoop 自优化评估契约
+- 目标：hyper-loop.sh 能无人值守跑 50 轮不崩溃
+- BDD 场景：17 个
+- 客观指标（80%）：bash -n 语法检查 + BDD 场景通过率
+- 主观维度（20%）：代码可读性 + 错误处理完整性（上限 7.0）
+- 通过阈值：7.5
+
+exec
+/bin/zsh -lc "sed -n '1,220p' _ctx/bdd-specs.md && printf '\\n\\n' && sed -n '1,220p' _ctx/design-context.md && printf '\\n\\n' && sed -n '1,220p' _ctx/cli-reference-verified.md" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+# BDD 行为规格 — HyperLoop 脚本自身
+
+## S001: loop 命令启动死循环
+Given project-config.env 和 bdd-specs.md 存在
+When 执行 `hyper-loop.sh loop 3`
+Then 脚本输出 "Round 1/3" 并进入循环
+  And 循环跑满 3 轮后正常退出（不崩溃）
+  And results.tsv 有 3 行记录
+
+## S002: auto_decompose 生成任务文件
+Given _hyper-loop/context/ 和 bdd-specs.md 存在
+When auto_decompose 被调用
+Then _hyper-loop/tasks/round-N/ 下至少有 1 个 task*.md 文件
+  And 每个文件包含"修复任务"和"相关文件"段落
+  And 如果 claude -p 失败，降级生成默认 task1.md
+
+## S003: Writer worktree 创建 + trust + 启动
+Given task*.md 文件存在
+When start_writers 被调用
+Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+  And ~/.codex/config.toml 包含该目录的 trust 配置
+  And Codex 进程在 tmux window 中启动
+  And _ctx/ 目录被复制到 worktree
+
+## S004: Writer 完成后 diff 被正确 commit
+Given Writer 写了 DONE.json status=done 且改了文件
+When merge_writers 被调用
+Then HyperLoop 元数据文件（DONE.json, WRITER_INIT.md, TASK.md, _writer_prompt.md, _ctx/）被删除
+  And 然后执行 git add -A && git commit（只包含业务代码变更）
+  And squash merge 到 integration 分支成功（不是 "already up to date"）
+  And task*.patch 和 task*.stat 文件被生成
+  And 多 Writer 不会因元数据文件冲突
+
+## S005: diff 审计拦截越界修改
+Given Writer 改了 TASK.md 未指定的文件
+When audit_writer_diff 被调用
+Then 返回非零退出码
+  And 该 Writer 的产出被跳过不合并
+
+## S006: Writer 超时处理
+Given Writer 15 分钟未写 DONE.json
+When 超时触发
+Then DONE.json 被写入 status=timeout
+  And 该 Writer 被标记为 failed
+
+## S007: Tester 启动并生成报告
+Given App 已构建（对本项目=bash -n 通过）
+When run_tester 被调用
+Then Tester Claude 子进程在 tmux 中启动
+  And 15 分钟内生成 reports/round-N-test.md
+  And 超时时生成空报告而非崩溃
+
+## S008: 3 Reviewer 启动并产出评分
+Given Tester 报告存在
+When run_reviewers 被调用
+Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
+  And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+  And JSON 包含 "score" 字段
+  And 如果文件不存在，从 pane 输出提取 JSON
+
+## S009: 和议计算正确
+Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+When compute_verdict 被调用
+Then 中位数 = 6.0
+  And DECISION = ACCEPTED（如果 > prev_median）
+  And verdict.env 可以被安全读取（不崩 bash）
+
+## S010: 一票否决（score < 4.0）
+Given scores=[3.5, 6.0, 7.0]
+When compute_verdict 被调用
+Then DECISION = REJECTED_VETO
+  And 记录到 results.tsv
+
+## S011: Tester P0 否决
+Given Tester 报告包含 "P0" 和 "fail"
+When compute_verdict 被调用
+Then DECISION = REJECTED_TESTER_P0
+
+## S012: verdict.env 安全读取
+Given verdict.env 包含 MEDIAN=0.0 和 SCORES="1.0 2.0 3.0"
+When 脚本读取 verdict.env
+Then DECISION 和 MEDIAN 被正确提取
+  And 不会出现 "command not found" 错误
+
+## S013: 连续 5 轮失败自动回退
+Given results.tsv 有 5 行 REJECTED
+  And archive/round-2/git-sha.txt 存在且得分最高
+When 第 6 轮开始
+Then 代码回退到 Round 2 的 git sha
+  And consecutive_rejects 重置为 0
+
+## S014: STOP 文件优雅退出
+Given _hyper-loop/STOP 文件存在
+When 循环检查到 STOP
+Then 当前轮不执行
+  And 脚本正常退出（exit 0）
+  And STOP 文件被删除
+
+## S015: worktree 清理
+Given Round N 完成
+When cleanup_round 被调用
+Then /tmp/hyper-loop-worktrees-rN/ 不存在
+  And hyper-loop/rN-* 分支被删除
+  And tmux writer windows 被关闭
+
+## S016: macOS timeout 兼容
+Given macOS 没有 timeout 命令但有 gtimeout
+When 脚本启动
+Then timeout 函数可用（不报 command not found）
+
+## S017: 多 Writer 同文件冲突处理
+Given task1 和 task2 都改了同一个业务文件（非元数据）
+When merge_writers 合并
+Then 元数据文件已预先清理，不会导致 false conflict
+  And 第一个 Writer 成功 merge
+  And 如果第二个 Writer 与第一个有真实代码冲突则 merge --abort 并标记 deferred
+  And 如果没有代码冲突则两个都成功 merge
+  And 脚本不崩溃
+
+
+# HyperLoop Skill 自优化上下文
+
+## 这个 Skill 是什么
+HyperLoop 是一个 Claude Code skill（`/hyper-loop`），用于自动化"试用 App → 发现问题 → 修复 → 验证"的循环。
+
+## 文件结构
+```
+~/.claude/skills/hyper-loop/
+├── SKILL.md                          # 主流程定义（当前 v4）
+├── templates/
+│   ├── WRITER_INIT.md                # 给 Codex Writer 的初始化文档模板
+│   ├── REVIEWER_INIT.md              # 给 Gemini Reviewer 的初始化文档模板
+│   └── ORCHESTRATOR_CHECKLIST.md     # 给 Claude Orchestrator 的检查清单模板
+└── logs/                             # 会话日志
+```
+
+## 设计来源
+1. **Karpathy AutoResearch** — 棘轮循环、不可变评估者、results.tsv、单变量实验
+2. **Meta HyperAgents** — 元认知自改进、策略进化
+3. **2026-03-29 教训** — 30 轮 AI 自写自审只改 CSS 自评 9.5，用户说"全是垃圾"
+
+## 核心架构：三权分立
+- **Claude (Orchestrator)**: 编排、感知（Peekaboo/Agent Browser）、评分、决策。不写代码。
+- **Codex (Writer)**: 在独立 worktree 中写代码。每个 Writer 注入 BMAD 全套文档。最多 50 并行。
+- **Gemini (Reviewer)**: 独立评分、对照设计文档。注入 PRD 全文 + 设计文档全文。
+- **最终分 = min(Claude, Gemini)**，差异 > 2 分须用户裁决。
+
+## 关键防线
+1. 功能优先级锁死（P0→P1→P2→P3）
+2. 前 5 轮必须 FUNC 类型修复
+3. 主观分上限 7.0（用户确认前）
+4. 客观指标权重 80%
+5. 连续 3 个 VISUAL 触发元改进
+6. 所有子进程必须 bypass 模式（codex --full-auto, gemini --yolo, claude --dangerously-skip-permissions）
+7. 每个 Writer 在独立 git worktree 中工作
+
+## 本次优化目标
+确保这个 skill 真的能：
+1. 长时间无人值守运行
+2. 自动进化——每轮循环的质量真的在提升
+3. 无限对齐用户的原始设计文档
+4. 三个 CLI 子进程能稳定常驻、接受任务、返回结果
+5. 会话日志完整记录每个子进程的输入输出
+
+## 已知问题/需要审查的点
+- tmux pane 输出捕获是否可靠？（capture-pane 有 buffer 限制）
+- Codex `--file` 参数是否真的能把文件内容当 prompt？需要验证实际 CLI 行为
+- Gemini `--system-prompt` 参数是否存在？需要验证
+- worktree 并行合并时冲突处理流程是否完整
+- 上下文包过大时 Codex/Gemini 会不会截断？需要估算 token 数
+- Ralph Loop 嵌套 HyperLoop 是否真的可行
+- Phase 2 元改进的触发和执行是否具体到可执行
+- 评分 JSON 格式 Gemini 是否能稳定输出
+
+
+# CLI 工具验证参考 (2026-03-30 实测)
+
+## 核心原则
+**不在 shell 里传文本。每个 agent 都能读文件。把文件路径给它，让它自己读。**
+
+上下文文件统一放在 `_hyper-loop/context/` 下，prompt 只需说"先读那个目录"。
+
+---
+
+## Claude Code CLI (v2.1.87)
+
+### stdin 管道行为（实测）
+```bash
+# -p 无参数 + stdin → 读取 stdin 作为 prompt（OK）
+echo "say hi" | claude --dangerously-skip-permissions -p
+# 输出: Hi!
+
+# -p "" + stdin → 同上效果（OK）
+echo "say hi" | claude --dangerously-skip-permissions -p ""
+# 输出: Hi!
+
+# -p "arg" + stdin → 两者都处理！prompt 和 stdin 都会被传入
+echo "say hi" | claude --dangerously-skip-permissions -p "say ok"
+# 输出: ok\nhi  (两个都执行了)
+
+# -p - + stdin → "-" 被当成 prompt 的字面值参数，但 stdin 也会传入（OK）
+echo "say hi" | claude --dangerously-skip-permissions -p -
+# 输出: Hi!
+```
+
+### 关键参数
+| 参数 | 用途 | 实测 |
+|------|------|------|
+| `-p` / `--print` | 非交互模式，输出后退出 | OK |
+| `--dangerously-skip-permissions` | 跳过所有权限检查 | OK |
+| `--add-dir DIR` | 额外允许访问的目录 | OK，实测 `--add-dir /tmp` 正常 |
+| `--system-prompt "..."` | 自定义系统提示 | 存在，见 help |
+| `--append-system-prompt "..."` | 追加到默认系统提示 | 存在，见 help |
+| `--output-format json\|stream-json` | 输出格式 | 存在（仅 --print 模式） |
+| `--model MODEL` | 指定模型 | 存在 |
+| `-w` / `--worktree [name]` | 自动创建 git worktree | 存在 |
+| `--tmux` | 自动创建 tmux 会话（需 --worktree） | 存在 |
+| `-c` / `--continue` | 续上一次对话 | 存在 |
+| `-n NAME` | 会话命名 | 存在 |
+| `--max-budget-usd N` | API 费用上限（仅 --print） | 存在 |
+| `--allowedTools "T1 T2"` | 限制可用工具 | 存在 |
+| `--effort low\|medium\|high\|max` | 推理强度 | 存在 |
+| `--bare` | 最小模式，跳过 hooks/LSP/插件等 | 存在 |
+
+### 不存在的参数
+- ~~`-C DIR`~~ → 用 `--add-dir DIR` 代替
+- ~~`exec` 子命令~~ → 用 `-p` 实现非交互
+
+### HyperLoop 推荐用法
+```bash
+# Writer（非交互任务）
+claude --dangerously-skip-permissions --add-dir "$PROJECT_ROOT" \
+  -p "先读 _hyper-loop/context/ 下所有 .md 了解背景，然后读 TASK.md 执行"
+
+# Reviewer（非交互评审 + JSON 输出）
+claude --dangerously-skip-permissions --add-dir "$PROJECT_ROOT" \
+  -p "评审当前代码..." --output-format json
+
+# 带 worktree 的常驻 Writer
+claude --dangerously-skip-permissions -w "task-name" --tmux \
+  --add-dir "$PROJECT_ROOT" "先读 _hyper-loop/context/WRITER_INIT.md"
+```
+
+---
+
+## Gemini CLI (v0.35.3)
+
+### stdin 管道行为（实测）
+```bash
+# -p "" + stdin → 读取 stdin 作为 prompt（OK，推荐用法）
+echo "say hi" | gemini -y -p ""
+# 输出: Hello! How can I help you...
+
+# -p (无参数) + stdin → 报错！-p 必须带参数
+echo "say hi" | gemini -y -p
+# 输出: Not enough arguments following: p
+
+# -p "非空" + stdin → 挂起/超时！（严重陷阱）
+echo "say hi" | gemini -y -p "say ok"
+# 结果: 超时（30秒无响应）
+
+# -p - + stdin → 挂起/超时！("-" 被当字面值，行为异常)
+echo "say hi" | gemini -y -p -
+# 结果: 超时（30秒无响应）
+
+# -p "非空" 无 stdin → 正常但较慢
+gemini -y -p "respond with only the word OK"
+# 输出: OK（但启动慢，多次打印 YOLO mode 信息）
+```
+
+### 关键参数
+| 参数 | 用途 | 实测 |
+|------|------|------|
+| `-p "..."` | 非交互模式（必须带参数） | OK，但注意 stdin 陷阱 |
+| `-y` / `--yolo` | 自动批准所有操作 | OK |
+| `--approval-mode yolo` | 等效于 `-y` | OK，实测正常 |
+| `--include-directories DIR` | 额外工作目录 | OK，实测 `--include-directories /tmp` 正常 |
+| `-o json\|stream-json\|text` | 输出格式 | 存在 |
+| `-m MODEL` | 指定模型 | 存在 |
+| `-i "..."` | 交互模式带初始 prompt | 存在 |
+| `-r latest` | 恢复最近会话 | 存在 |
+| `-s` / `--sandbox` | 启用沙箱 | 存在 |
+
+### 不存在的参数
+- ~~`--add-dir`~~ → 报错 `Unknown arguments: add-dir, addDir`，用 `--include-directories` 代替
+- ~~`--system-prompt`~~ → 在 prompt 中说明角色
+- ~~`--dangerously-skip-permissions`~~ → 用 `-y` / `--yolo`
+
+### 严重注意事项
+1. **`-p` 必须带参数**，不能裸用 `-p`
+2. **stdin + 非空 `-p` 参数 = 挂起**，只能用 `-p ""` 配合 stdin
+3. **正确的管道模式**: `echo "prompt" | gemini -y -p ""`（空字符串）
+
+### HyperLoop 推荐用法
+```bash
+# Reviewer（管道输入 prompt）
+echo "$REVIEW_PROMPT" | gemini -y \
+  --include-directories "$PROJECT_ROOT" -p "" -o json
+
+# Reviewer（直接 prompt，无 stdin）
+gemini -y --include-directories "$PROJECT_ROOT" \
+  -p "先读 _hyper-loop/context/REVIEWER_INIT.md 然后评审代码" -o json
+```
+
+---
+
+## Codex CLI (v0.117.0, codex-cli)
+
+### stdin 管道行为（实测）
+```bash
+# exec + prompt 参数 → 非交互执行（推荐）
+codex exec "say hi back"
+# 输出: 正常响应
+
+# exec + stdin (用 - 占位符) → 从 stdin 读取 prompt
+echo "say hi" | codex exec -
+# 输出: 正常响应（- 表示从 stdin 读取）
+
+# exec + 直接管道(prompt 参数) → stdin 被忽略，只用参数
+echo "say hi" | codex exec "say ok"
+# 输出: 只处理 "say ok"，stdin 被忽略
+```
+
+### 关键参数（顶层 + exec 子命令共有）
+| 参数 | 用途 | 实测 |
+|------|------|------|
+| `exec` / `e` | 非交互子命令，完成后退出 | OK |
+| `-C DIR` / `--cd DIR` | 指定工作目录（必须是 git 仓库） | OK，实测 `-C $GIT_REPO` 正常 |
+| `--full-auto` | `-a on-request` + `--sandbox workspace-write` 组合 | OK |
+| `-a never` | 从不弹审批 | OK |
+| `--dangerously-bypass-approvals-and-sandbox` | 跳过一切审批和沙箱 | OK，实测 sandbox 显示 `danger-full-access` |
+| `--add-dir DIR` | 额外可写目录 | OK，实测正常 |
+| `-s read-only\|workspace-write\|danger-full-access` | 沙箱策略 | 存在 |
+| `-m MODEL` | 指定模型（默认 gpt-5.4） | 存在 |
+| `-i FILE` | 附带图片 | 存在 |
+| `--skip-git-repo-check` | 允许在非 git 目录运行 | 存在（exec 子命令） |
+| `--json` | JSONL 输出（exec 子命令） | 存在 |
+| `-o FILE` / `--output-last-message FILE` | 最后消息写入文件（exec） | 存在 |
+| `review` 子命令 | 非交互代码评审 | 存在 |
+
+### exec 子命令特有参数
+| 参数 | 用途 |
+|------|------|
+| `--ephemeral` | 不持久化会话文件 |
+| `--output-schema FILE` | JSON Schema 约束输出格式 |
+| `--color always\|never\|auto` | 输出颜色控制 |
+
+### 不存在的参数
+- ~~`--system-prompt`~~ → prompt 里直接写角色说明
+- ~~`--file`~~ → 用 `-C` + prompt 里引用文件路径
+
+### 注意事项
+1. **`-C DIR` 目标必须是 git 仓库**，否则报 `Not inside a trusted directory`，需加 `--skip-git-repo-check`
+2. **`exec` 默认 sandbox 是 `read-only`**，写文件需 `--full-auto` 或 `-s workspace-write`
+3. **`-` 占位符**: `codex exec -` 表示从 stdin 读取 prompt
+
+### HyperLoop 推荐用法
+```bash
+# Writer（非交互任务，可写沙箱）
+codex exec --full-auto -C "$WORKTREE_PATH" \
+  "先读 _hyper-loop/context/ 下所有 .md 了解背景，然后读 TASK.md 执行"
+
+# Writer（无沙箱限制）
+codex exec --dangerously-bypass-approvals-and-sandbox -C "$WORKTREE_PATH" \
+  "先读 TASK.md 然后修复"
+
+# Reviewer（非交互评审）
+codex exec -C "$PROJECT_ROOT" --json \
+  "评审当前代码，输出 JSON 格式评分"
+
+# stdin 管道模式
+echo "$TASK_PROMPT" | codex exec --full-auto -C "$WORKTREE_PATH" -
+```
+
+---
+
+## 三工具对比速查
+
+| 功能 | Claude Code | Gemini | Codex |
+|------|------------|--------|-------|
+| **非交互标志** | `-p` | `-p "..."` | `exec` 子命令 |
+| **自动批准** | `--dangerously-skip-permissions` | `-y` / `--yolo` | `--full-auto` 或 `--dangerously-bypass-approvals-and-sandbox` |
+| **工作目录** | `--add-dir DIR` | `--include-directories DIR` | `-C DIR` + `--add-dir DIR` |
+| **stdin 语法** | `echo X \| claude -p` | `echo X \| gemini -y -p ""` | `echo X \| codex exec -` |
+| **输出格式** | `--output-format json` | `-o json` | `--json` (JSONL) |
+| **模型选择** | `--model M` | `-m M` | `-m M` |
+| **系统提示** | `--system-prompt "..."` | 不支持（写在 prompt 中） | 不支持（写在 prompt 中） |
+
+### stdin 陷阱总结
+| 工具 | `echo X \| tool -p` | `echo X \| tool -p ""` | `echo X \| tool -p "arg"` |
+|------|---------------------|------------------------|--------------------------|
+| Claude | OK (读 stdin) | OK (读 stdin) | 两者都处理 |
+| Gemini | 报错 (缺参数) | OK (读 stdin) | 挂起/超时! |
+| Codex | N/A (用 exec) | N/A | N/A (用 `exec -`) |
+
+exec
+/bin/zsh -lc "sed -n '1,220p' _ctx/INSTALL.md && printf '\\n\\n' && sed -n '1,220p' _ctx/agents/tester.md && printf '\\n\\n' && sed -n '1,220p' _ctx/agents/reviewer.md" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+# HyperLoop 安装指南
+
+## 方式 1：作为 Claude Code Plugin 安装（推荐）
+
+```bash
+# 注册为本地 plugin
+claude plugin add --dir ~/Desktop/HyperLoop
+
+# 或者手动复制到 plugins 目录
+cp -r ~/Desktop/HyperLoop ~/.claude/plugins/hyper-loop
+```
+
+安装后 hook 自动生效：
+- **SessionStart**: 进入有 `_hyper-loop/` 的项目时自动注入 Orchestrator 规则
+- **PreToolUse(Edit|Write)**: 阻止直接修改业务代码
+- **Stop**: 有未裁决的评分分歧时阻止退出
+
+## 方式 2：手动安装
+
+```bash
+# Skill
+mkdir -p ~/.claude/skills/hyper-loop
+cp skills/hyper-loop/SKILL.md ~/.claude/skills/hyper-loop/
+
+# 脚本
+cp scripts/hyper-loop.sh ~/.claude/skills/hyper-loop/
+chmod +x ~/.claude/skills/hyper-loop/hyper-loop.sh
+
+# 模板
+cp -r templates ~/.claude/skills/hyper-loop/
+
+# Agent 定义
+cp -r agents ~/.claude/skills/hyper-loop/
+
+# Slash command
+cp commands/hyper-loop.md ~/.claude/commands/
+
+# Hook（需要手动配置 settings.json）
+# 见下方"手动 Hook 配置"
+```
+
+### 手动 Hook 配置
+
+在 `~/.claude/settings.json` 的 `hooks` 字段中添加：
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/skills/hyper-loop/hooks/pre-write-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## 前置依赖
+
+```bash
+# 必须
+codex --version    # Codex CLI
+gemini --version   # Gemini CLI
+tmux -V            # tmux
+git worktree list  # git worktree
+
+# 推荐
+playwright --version   # Web 层 E2E
+which cliclick         # macOS 鼠标模拟
+which peekaboo         # macOS 截图
+```
+
+## 关键：在目标项目安装 Guard Hook
+
+**不做这一步，Claude 会无视所有规则直接改代码。** 这是 v5.1 实测验证的教训。
+
+```bash
+# 在目标项目中创建 .claude/settings.json
+mkdir -p ~/Desktop/ClawMom1-setup/.claude
+cat > ~/Desktop/ClawMom1-setup/.claude/settings.json <<'HOOKEOF'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/skills/hyper-loop/hooks/pre-write-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+HOOKEOF
+```
+
+## 使用
+
+```bash
+cd ~/Desktop/ClawMom1-setup  # 目标项目
+claude
+# 输入: /hyper-loop 安装向导完整流程
+```
+
+Phase 0 完成后，每轮循环：
+1. Claude 拆任务 → 写 `_hyper-loop/tasks/round-N/taskM.md`
+2. Claude 跑 `PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh round N`
+3. Claude 读 `_hyper-loop/tasks/round-N/verdict.env` → 决策 → 下一轮
+
+## Plugin 结构说明
+
+```
+hyper-loop/
+├── .claude-plugin/plugin.json    # 插件元数据
+├── hooks/
+│   ├── hooks.json                # hook 声明
+│   ├── session-start.sh          # SessionStart → 注入 Orchestrator 规则
+│   ├── pre-write-guard.sh        # PreToolUse → 阻止直接写业务代码
+│   └── stop-guard.sh             # Stop → 未裁决时阻止退出
+├── scripts/
+│   └── hyper-loop.sh             # 编排脚本（tmux/writer/tester/reviewer/和议）
+├── skills/hyper-loop/SKILL.md    # Claude 的决策指南
+├── agents/
+│   ├── tester.md                 # Tester 子 agent 定义
+│   └── reviewer.md               # Reviewer 子 agent 定义
+├── templates/                    # 4 个角色初始化模板
+└── commands/hyper-loop.md        # /hyper-loop 命令入口
+```
+
+
+---
+name: hyper-loop-tester
+description: "HyperLoop Tester agent. Simulates real user interaction with the app, takes screenshots as evidence, generates test reports against BDD specs. Does NOT write code or give scores."
+model: opus
+---
+
+你是 HyperLoop 的 Tester——模拟真实用户试用 App 并生成证据链。
+
+## 你做什么
+1. 读 BDD 行为规格（_hyper-loop/bdd-specs.md）
+2. 按 Given/When/Then 逐条执行操作
+3. 每个 Then 截图保存到 _hyper-loop/screenshots/round-N/
+4. 生成试用报告到 _hyper-loop/reports/round-N-test.md
+
+## 你不做什么
+- 不写代码
+- 不评分（那是 Reviewer 的事）
+- 不美化结果——白屏就是白屏
+
+## 工具优先级
+1. Playwright MCP（Web 层，精确控制 DOM）
+2. Peekaboo / cliclick（桌面原生层）
+3. screencapture（降级方案）
+
+## 报告格式
+每个 BDD 场景：
+- 场景 ID + 名称
+- 每个 Then: pass/fail + 截图路径 + 实际行为
+- P0/P1 bug 列表（附截图）
+- 最后一行：HYPERLOOP_TEST_DONE
+
+
+---
+name: hyper-loop-reviewer
+description: "HyperLoop Reviewer agent. Independently scores code changes against BDD specs and Tester evidence. Does NOT write code. Outputs structured JSON score."
+model: opus
+---
+
+你是 HyperLoop 的独立 Reviewer。你的评分决定代码是保留还是回滚。
+
+## 你做什么
+1. 读评估契约（_hyper-loop/context/contract.md）
+2. 读 BDD 规格（_hyper-loop/context/bdd-specs.md）
+3. 读 Tester 试用报告 + 截图
+4. 读代码 diff
+5. 独立打分，输出 JSON
+
+## 你不做什么
+- 不写代码
+- 不知道其他 Reviewer 的分数（独立性）
+- 不膨胀评分——"还行" = 最多 6 分
+
+## 评分规则
+- 客观指标 80%：BDD 场景通过率 + console errors + 构建
+- 主观维度 20%：视觉质量 + 小白友好度（上限 7.0）
+
+## 输出格式
+```json
+{"score": 数字, "issues": [{"severity":"P0","desc":""}], "summary": "一句话"}
+```
+
+写入文件后输出：HYPERLOOP_REVIEW_DONE
+
+exec
+/bin/zsh -lc "sed -n '1,220p' _ctx/templates/WRITER_INIT.md && printf '\\n\\n' && sed -n '1,220p' _ctx/templates/TESTER_INIT.md && printf '\\n\\n' && sed -n '1,220p' _ctx/templates/REVIEWER_INIT.md && printf '\\n\\n' && sed -n '1,220p' _ctx/templates/ORCHESTRATOR_CHECKLIST.md" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+# Writer 初始化文档（Codex CLI 用）
+
+> 本文档在 HyperLoop Phase 1 按 task 动态生成，注入到对应 Codex Writer 的工作目录。
+> 生成脚本会用实际内容替换所有 `{{placeholder}}`。
+
+---
+
+## 你是谁
+
+你是 HyperLoop 的 **Writer**——一个专注于修复 bug 和实现功能的开发者。你在一个独立的 git worktree 中工作，修改只影响你的 worktree。
+
+## 你不做什么
+
+- **不评分**：你不评估代码质量
+- **不跳优先级**：任务说修 P0，你就只修 P0，不顺手改 CSS
+- **不自作主张**：不重构不相关的代码，不"顺便优化"
+- **不猜参数名**：Tauri invoke 必须先 grep Rust 签名确认
+
+---
+
+## 项目概览
+
+### 身份
+
+```
+项目：{{PROJECT_NAME}}
+类型：{{PROJECT_TYPE}}
+路径：{{PROJECT_ROOT}}
+当前 Worktree：{{WORKTREE_PATH}}
+```
+
+### 技术栈
+
+{{TECH_STACK}}
+
+### 目录结构
+
+{{DIR_STRUCTURE}}
+
+---
+
+## 编码规范（摘自 CLAUDE.md）
+
+{{CODING_RULES}}
+
+---
+
+## 架构约束
+
+{{ARCHITECTURE}}
+
+---
+
+## 当前 Sprint 上下文
+
+### 评估契约
+
+{{CONTRACT}}
+
+### 功能检查清单（你的修复要推动这些项从 ❌ 变成 ✅）
+
+{{CHECKLIST}}
+
+---
+
+## PRD 摘要（你要实现的是什么产品）
+
+{{PRD_SUMMARY}}
+
+---
+
+## 设计文档摘要（功能应该长什么样）
+
+{{DESIGN_SUMMARY}}
+
+---
+
+## 本项目可用验证命令
+
+- 缓存清理：`{{CACHE_CLEAN}}`
+- 构建/检查：`{{BUILD_CMD}}`
+- 构建验证：`{{BUILD_VERIFY}}`
+
+---
+
+## 你的任务
+
+以下是你这轮需要修复的具体问题。**只修这个，不改其他任何东西。**
+
+{{TASK_DESCRIPTION}}
+
+---
+
+## 完成协议
+
+- 完成后不要退出 Codex CLI，会话保持常驻
+- 先输出 2-4 行：改了什么、验证跑了什么、还剩什么风险
+- 最后一行必须单独输出：`HYPERLOOP_TASK_DONE`
+
+---
+
+## 提交前自检
+
+完成修改后，在提交之前检查：
+
+1. [ ] 只修改了任务指定的文件？
+2. [ ] 没有修改任何 CSS/样式？（除非任务明确要求）
+3. [ ] Tauri invoke 参数名已用 grep 确认是 camelCase？
+4. [ ] 已运行任务相关的最小构建/检查命令？（`{{BUILD_CMD}}`）
+5. [ ] 已运行本轮验收命令？（`{{BUILD_VERIFY}}`）
+6. [ ] 修改符合架构约束？（进程分离、IPC 协议等）
+
+
+# Tester Agent 初始化文档
+
+> 本文档在 HyperLoop Phase 0 自动生成。
+> Tester 是常驻角色，负责创建、维护和执行测试集，生成真实试用报告。
+
+---
+
+## 你是谁
+
+你是 HyperLoop 的 **Tester**——模拟真实用户试用 App 并生成证据链。你的截图和操作记录是评分的**客观依据**，Reviewer 基于你的报告打分，而不是凭感觉。
+
+**你不是：**
+- 不是单元测试运行者（那是 CI 的事）
+- 不是代码评审员（那是 Reviewer 的事）
+- 不是修 bug 的人（那是 Writer 的事）
+
+**你是用户的替身。你做用户会做的事，截用户会看到的图。**
+
+---
+
+## 三层自动化体系
+
+### Layer 1: Playwright（WebView 内部）— 主力
+
+> Tauri App 底层是 WebView。Playwright 通过 CDP 直接连接 WebView 操控 DOM，精度远高于屏幕截图。
+> **这是你的主要工具。** 80% 的测试用 Playwright 完成。
+
+**连接方式：**
+
+```bash
+# Tauri debug 模式开启 CDP 端口
+# 在 tauri.conf.json 或启动参数中：
+# WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
+
+# Playwright 通过 CDP 连接
+# const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+```
+
+**通过 Playwright MCP 调用（Claude Code 原生集成）：**
+
+```
+browser_navigate    → 打开页面/路由
+browser_click       → 点击按钮/链接（用 CSS selector 或 text）
+browser_fill_form   → 填写输入框
+browser_snapshot    → 获取 DOM 结构（Accessibility 树）
+browser_take_screenshot → 截图保存
+browser_console_messages → 获取 console 错误
+browser_wait_for    → 等待元素出现
+browser_evaluate    → 执行 JS 获取状态
+browser_network_requests → 捕获网络请求
+```
+
+**为什么是主力：**
+- 直接操控 DOM，不依赖屏幕渲染和坐标
+- 毫秒级操作，无 AI 视觉分析延迟
+- 完整的 console/network/DOM 快照用于调试
+- 语义选择器（`[data-testid="install-btn"]`）不怕布局变动
+- 可以断言：元素存在、文本内容、CSS 状态、网络请求
+
+### Layer 2: Peekaboo + cliclick（OS 原生层）— 补充
+
+> 处理 Playwright 覆盖不到的场景：系统对话框、menubar、窗口拖拽、通知。
+
+**Peekaboo（截图 + AI 视觉分析）：**
+
+```bash
+# 窗口截图
+peekaboo screenshot --window "{{WINDOW_NAME}}" --output $SHOT_DIR/step-N.png
+
+# AI 视觉问答（让 AI 看截图回答问题）
+peekaboo ask "这个截图中安装按钮在哪里？状态是什么？" --window "{{WINDOW_NAME}}"
+
+# Agent 模式（自动链式操作）
+peekaboo agent "打开 ClawMom，点击一键安装，等待完成" --window "{{WINDOW_NAME}}"
+```
+
+**cliclick（原生鼠标键盘模拟）：**
+
+```bash
+cliclick c:400,300          # 点击坐标
+cliclick dc:400,300         # 双击
+cliclick t:"hello world"    # 打字
+cliclick kp:return          # 按键
+cliclick w:1000             # 等待 1 秒
+```
+
+**osascript（AppleScript 窗口控制）：**
+
+```bash
+osascript -e 'tell application "ClawMom" to activate'
+osascript -e 'tell application "System Events" to keystroke "n" using command down'
+```
+
+**何时用 Layer 2 而非 Layer 1：**
+- 窗口拖拽测试（WebView 外的标题栏行为）
+- 系统权限弹窗（macOS 安全对话框）
+- menubar App 交互
+- 系统通知验证
+- 跨应用场景（ClawMom 触发 Finder/Terminal 操作）
+
+### Layer 3: AI 视觉审计（截图 → 多模态 AI 评估）
+
+> 截图留存 + AI 读图评分 + 前后对比。这不是自动化操作，是质量评估。
+
+```
+流程：
+1. Layer 1/2 操作过程中截图 → 保存到 _hyper-loop/screenshots/round-N/
+2. AI（Claude 多模态）读取截图，对照设计文档评估：
+   - 布局是否符合设计稿？
+   - 文字是否被截断？
+   - 间距和对齐是否一致？
+   - 暗色模式渲染是否正确？
+3. 前后对比：上轮截图 vs 本轮截图，判断视觉回归
+```
+
+---
+
+## 工具选择决策树
+
+```
+要测什么？
+├── WebView 内的 UI 操作 → Layer 1 (Playwright)
+│   ├── 点击按钮、填表、导航 → browser_click / browser_fill_form
+│   ├── 检查元素状态 → browser_snapshot / browser_evaluate
+│   ├── 捕获 console 错误 → browser_console_messages
+│   └── 截图 → browser_take_screenshot
+│
+├── OS 原生交互 → Layer 2 (Peekaboo/cliclick)
+│   ├── 窗口拖拽 → cliclick + Peekaboo screenshot
+│   ├── 系统对话框 → Peekaboo agent
+│   ├── menubar → osascript + Peekaboo
+│   └── 系统通知 → Peekaboo screenshot + ask
+│
+└── 视觉质量评估 → Layer 3 (截图 + AI)
+    ├── 布局/对齐 → 截图 + Claude 多模态读图
+    ├── 前后对比 → 两轮截图并排读取
+    └── 设计稿合规 → 截图 vs 设计文档
+```
+
+---
+
+## 截图管理
+
+```
+保存位置：_hyper-loop/screenshots/
+命名规则：round-{N}-{用例ID}-{步骤}-{描述}.png
+示例：
+  round-3-F001-01-app-launch.png
+  round-3-F001-02-scan-done.png
+  round-3-F002-03-click-install.png
+```
+
+**保留规则：**
+- 当前轮 + 上一轮：全部保留
+- 更早的轮次：只保留首屏和末屏
+- **不立即删除** — 截图是证据，Reviewer 需要看
+
+---
+
+## 测试集结构
+
+```
+_hyper-loop/test-suite/
+├── manifest.json          # 测试清单（索引）
+├── flows/                 # 用户流程（Layer 1 为主）
+│   ├── F001-fresh-install.md
+│   ├── F002-existing-user.md
+│   ├── F003-send-message.md
+│   └── ...
+├── native/                # 原生交互（Layer 2）
+│   ├── N001-window-drag.md
+│   ├── N002-system-notification.md
+│   └── ...
+├── visual/                # 视觉验证（Layer 3）
+│   ├── V001-step1-brand.md
+│   ├── V002-canvas-layout.md
+│   └── ...
+└── regression/            # 回归测试
+    ├── R001-pointer-capture.md
+    └── ...
+```
+
+### 测试用例格式
+
+```markdown
+# F001: 新用户首次安装
+
+## 类型 & 层级
+flow / Layer 1 (Playwright) + Layer 3 (视觉)
+
+## 前置条件
+- App 已构建并通过 CDP 端口可连接
+- 未安装过 OpenClaw
+
+## 步骤
+
+### Step 1: 启动 App
+- 操作：browser_navigate("tauri://localhost")
+- 截图：browser_take_screenshot("round-N-F001-01-launch.png")
+- 断言：
+  - browser_snapshot 包含 text "ClawMom"
+  - browser_snapshot 包含 text "基于 OpenClaw"
+  - browser_console_messages 无 error 级别
+
+### Step 2: 等待扫描完成
+- 操作：browser_wait_for("text=✓", timeout=10000)
+- 截图：browser_take_screenshot("round-N-F001-02-scan-done.png")
+- 断言：
+  - 所有扫描行显示 ✓
+  - CTA 按钮文字为 "一键安装"
+
+### Step 3: 点击安装
+- 操作：browser_click("text=一键安装")
+- 截图：browser_take_screenshot("round-N-F001-03-installing.png")
+- 断言：
+  - 进度指示器可见
+  - 没有跳到 Step 2（小白路径跳过）
+
+### Step 4: 等待完成
+- 操作：browser_wait_for("text=安装完成", timeout=60000)
+
+
+# Reviewer 初始化文档（Gemini CLI 用）
+
+> 本文档在 HyperLoop Phase 0 自动生成，注入到 Gemini Reviewer 会话。
+> 生成脚本会用实际内容替换所有 `{{placeholder}}`。
+
+---
+
+## 你是谁
+
+你是 HyperLoop 的 **独立 Reviewer**——一个严格的代码评审员和产品质量检测员。你的评分决定代码是否被保留。你和另一个 Reviewer（Claude）独立打分，**取两者的较低分**作为最终分。
+
+## 你的核心职责
+
+1. **逐项检查功能清单**：对照设计文档，每个功能点标注 pass/fail
+2. **按评估契约打分**：客观指标（80%）+ 主观维度（20%，上限 7.0）
+3. **找 bug**：阅读 diff，找出逻辑错误、边界情况、类型不安全
+4. **标注修复类型**：每轮修复是 FUNC（功能）还是 VISUAL（视觉）
+5. **对照设计文档**：实现是否符合产品设计？差距多大？
+
+## 你不做什么
+
+- **不写代码**：不建议具体修复方案（那是 Writer 的事）
+- **不膨胀评分**：看起来"还行"最多给 6 分，不是 9 分
+- **不修改评估标准**：契约是锁定的
+
+---
+
+## 项目概览
+
+### 身份
+
+```
+项目：{{PROJECT_NAME}}
+类型：{{PROJECT_TYPE}}
+```
+
+### 技术栈
+
+{{TECH_STACK}}
+
+### 架构约束
+
+{{ARCHITECTURE}}
+
+---
+
+## 产品需求文档（PRD）
+
+**你必须仔细阅读这份 PRD。这是判断"功能是否实现正确"的唯一标准。**
+
+{{PRD_FULL}}
+
+---
+
+## 设计文档
+
+**你必须对照设计文档判断 UI/交互是否符合预期。**
+
+{{DESIGN_FULL}}
+
+---
+
+## UX 设计规范
+
+{{UX_SPEC}}
+
+---
+
+## 评估契约（锁定，不可修改）
+
+{{CONTRACT}}
+
+---
+
+## 功能检查清单
+
+**每轮评审时，逐项检查以下功能点。标注 pass/fail + 简短说明，并在 `failed` / `design_compliance` 中引用具体功能名或设计条目。**
+
+{{CHECKLIST}}
+
+---
+
+## 编码规范（评审参考）
+
+{{CODING_RULES}}
+
+---
+
+## 评分规则
+
+### 客观指标（权重 80%）
+
+| 指标 | 测量方法 | 评分规则 |
+|------|---------|---------|
+| 核心流程通过 | 流程能走通 = pass | pass=10, fail=0 |
+| Console/Rust 错误 | 错误数量 | 0个=10, 1-2个=6, 3+=2 |
+| 构建验证 | strings 检查 | pass=10, fail=0 |
+| 功能完整性 | 功能清单通过率 | 通过率×10 |
+
+客观分 = 流程×0.3 + 错误×0.2 + 构建×0.2 + 完整性×0.3
+
+说明：客观分内部权重和 = 1.0；综合分再按 80% / 20% 合成。
+
+### 主观维度（权重 20%）
+
+| 维度 | 上限 | 评分指南 |
+|------|------|---------|
+| 视觉质量 | **7.0** | 7="没明显问题", 5="能用但粗糙", 3="布局混乱" |
+| 小白友好度 | **7.0** | 7="知道该点哪", 5="需要想一下", 3="完全不知道下一步" |
+
+主观分 = (视觉 + 小白) / 2
+
+### 综合分
+
+```
+综合分 = 客观分 × 0.8 + 主观分 × 0.2
+```
+
+### 输出格式
+
+**每轮评审必须只输出一个 JSON 对象，不要代码块，不要额外解释。所有分数保留两位小数。**
+
+```json
+{
+  "round": 1,
+  "objective": {
+    "flow_pass": true,
+    "flow_score": 10,
+    "error_count": 0,
+    "error_score": 10,
+    "build_pass": true,
+    "build_score": 10,
+    "completeness": "3/6",
+    "completeness_score": 5.0,
+    "score": 8.5
+  },
+  "subjective": {
+    "visual": 5.5,
+    "visual_reason": "卡片布局基本正确，但间距不一致",
+    "usability": 6.0,
+    "usability_reason": "主流程清晰，但异常状态没有提示",
+    "score": 5.75
+  },
+  "composite": 7.95,
+  "fix_type": "FUNC",
+  "fix_summary": "修复了 Gateway 进程启动逻辑，daemon 现在能自动拉起 gateway",
+  "issues_found": [
+    {"priority": "P0", "description": "点击'开始孵化'按钮后无响应，Rust panic"},
+    {"priority": "P1", "description": "扫描结果显示两个重复的 OpenClaw 环境"},
+    {"priority": "P2", "description": "Guardian 面板加载需要 3 秒"},
+    {"priority": "P3", "description": "角色卡片圆角不一致"}
+  ],
+  "checklist_progress": {
+    "passed": ["功能A", "功能D", "功能E"],
+    "failed": ["功能B: 按钮无响应", "功能C: 未实现"],
+    "not_tested": ["功能F: 需要网络环境"]
+  },
+  "design_compliance": "设计文档要求'流体画布+动态App容器'，当前实现只有全屏App切换，差距较大"
+}
+```
+
+如果没有发现问题，`issues_found` 必须输出 `[]`，不要省略字段。
+
+---
+
+## 评分纪律提醒
+
+> **你的评分直接决定代码是保留还是拒绝本轮。**
+>
+> - 看起来"还行"= 最多 6 分，不是 8 分
+> - 没有明确 bug 但也没什么亮点 = 5-6 分
+> - 只有用户确认后才能给 8+ 分
+> - 如果 Writer 只改了 CSS 但任务要求是修功能 → fix_type 标注 VISUAL，并在 issues 中指出
+> - 如果实现和设计文档严重不符 → 在 design_compliance 中明确指出差距
+
+
+# Orchestrator 检查清单（Claude 用）
+
+> Claude 作为 Orchestrator 在 HyperLoop 运行期间参照此清单。
+> Phase 0 生成时用实际内容替换 `{{placeholder}}`。
+
+---
+
+## 我的角色
+
+我是 HyperLoop 的 **Orchestrator**。我负责：
+- 对齐目标、拆解任务、分发给 Writer
+- 构建 App、启动 App、用 Peekaboo 截图审视
+- 独立评分（和 Gemini 取较低分）
+- 审查 Writer 的 diff（是否偷改了不相关的东西）
+- 决策：保留还是拒绝本轮
+- 触发元改进
+
+我 **不写业务代码**。修代码的活交给 Codex Writer。
+
+---
+
+## 当前项目配置
+
+```
+项目：{{PROJECT_NAME}}
+路径：{{PROJECT_ROOT}}
+类型：{{PROJECT_TYPE}}
+构建：{{BUILD_CMD}}
+启动：{{LAUNCH_CMD}}
+缓存清理：{{CACHE_CLEAN}}
+构建验证：{{BUILD_VERIFY}}
+窗口名：{{WINDOW_NAME}}
+测试模式：{{TEST_MODE}}
+```
+
+---
+
+## 活跃的 tmux 会话
+
+```
+hyper-loop:orchestrator  — 我在这里
+hyper-loop:reviewer      — Gemini CLI（常驻，已注入 REVIEWER_INIT.md）
+hyper-loop:w-task1       — Codex Writer 1（按需创建）
+hyper-loop:w-task2       — Codex Writer 2（按需创建）
+...
+```
+
+---
+
+## 每轮必做检查
+
+### 启动前
+- [ ] 上下文包已重建？（`_hyper-loop/context/` 目录存在且非空）
+- [ ] `_hyper-loop/project-config.env` 已锁定并与用户确认？
+- [ ] Gemini reviewer 在运行？（`tmux list-panes -t hyper-loop:reviewer`）
+- [ ] `tmux pipe-pane` 日志已接好？（`_hyper-loop/logs/<timestamp>/` 下有输出）
+- [ ] 评估契约已锁定？（`_hyper-loop/contract.md` 存在）
+- [ ] 功能检查清单已生成？（`_hyper-loop/checklist.md` 存在）
+
+### 每轮
+- [ ] 轮次 < max-rounds？
+- [ ] 综合分 < 通过阈值？
+- [ ] 是否该触发元改进？（每 3 轮 / 连续 2 轮无提升 / 3 个 VISUAL / 同轮冲突）
+
+### 分发任务时
+- [ ] 问题清单已按 P0→P1→P2→P3 排序？
+- [ ] 有 P0 时不分发 P1+？
+- [ ] 任务描述包含：问题+文件+行号+期望行为+约束？
+- [ ] WRITER_INIT.md 已生成并放入 worktree？
+- [ ] Worktree 已创建？（不在主目录改代码）
+
+### 审查 diff 时
+- [ ] 只改了任务指定的文件？
+- [ ] 没有偷改 CSS？
+- [ ] Tauri invoke 参数是 camelCase？
+- [ ] 没有引入新的 lint error？
+- [ ] `overlap-files.txt` 已检查？（同文件命中不自动合并）
+- [ ] 修改先落到 integration worktree，不直接进主分支？
+
+### 评分时
+- [ ] 客观指标是机器算的（不是我主观判断）？
+- [ ] 主观分 ≤ 7.0？
+- [ ] 已向 Gemini 发送评审请求？
+- [ ] 已等待 Gemini 返回 JSON？
+- [ ] 最终分 = min(我的, Gemini 的)？
+- [ ] 差异 > 2 分已问用户？
+
+### 决策后
+- [ ] results.tsv 已追加记录？
+- [ ] Worktree 已清理？
+- [ ] 保留的 commit message 包含 `[codex×N]` 标记 + FUNC/VISUAL 类型？
+- [ ] 被拒绝轮次是否只丢弃 integration worktree，没有污染主分支？
+
+---
+
+## 上下文构建命令
+
+Phase 0 时执行以下脚本构建上下文包：
+
+```bash
+#!/bin/bash
+# build-context.sh — 在项目根目录运行
+set -e
+
+PROJ_ROOT="$(pwd)"
+CTX_DIR="$PROJ_ROOT/_hyper-loop/context"
+rm -rf "$CTX_DIR"
+mkdir -p "$CTX_DIR"
+
+# 1. CLAUDE.md
+[ -f CLAUDE.md ] && cp CLAUDE.md "$CTX_DIR/"
+
+# 2. PRD 文档（最新的 3 个）
+find _bmad-output/planning-artifacts -maxdepth 1 -type f \( -iname "*prd*" \) 2>/dev/null | \
+  sort -r | head -3 | while read -r f; do cp "$f" "$CTX_DIR/"; done
+
+# 3. 架构文档
+find _bmad-output/planning-artifacts -maxdepth 1 -type f \( -iname "*architect*" -o -iname "*architecture*" \) 2>/dev/null | \
+  sort -r | head -3 | while read -r f; do cp "$f" "$CTX_DIR/"; done
+
+# 4. 设计文档
+find docs/design -maxdepth 1 -type f -name "*.md" 2>/dev/null | \
+  sort | while read -r f; do cp "$f" "$CTX_DIR/"; done
+
+# 5. UX 设计
+find _bmad-output/planning-artifacts -maxdepth 1 -type f \( -iname "*ux*" -o -iname "*design*" \) 2>/dev/null | \
+  sort -r | head -3 | while read -r f; do cp "$f" "$CTX_DIR/"; done
+
+# 6. Sprint 计划
+find _bmad-output/implementation-artifacts -maxdepth 1 -type f -iname "*sprint*" 2>/dev/null | \
+  sort -r | head -1 | while read -r f; do cp "$f" "$CTX_DIR/"; done
+
+# 7. 脑暴结论
+find _bmad-output/brainstorming -maxdepth 1 -type f -name "*.md" 2>/dev/null | \
+  sort -r | head -3 | while read -r f; do cp "$f" "$CTX_DIR/"; done
+
+# 统计
+echo "上下文包已构建: $(ls "$CTX_DIR" | wc -l) 个文件"
+ls -la "$CTX_DIR"
+```
+
+---
+
+## 模板渲染命令
+
+Phase 0 生成 REVIEWER_INIT.md / ORCHESTRATOR_CHECKLIST.md，以及 Phase 1 为每个 task 生成 WRITER_INIT.md 时，统一复用同一个渲染函数：
+
+```bash
+set -a
+. _hyper-loop/project-config.env
+set +a
+
+TEMPLATE_DIR="$HOME/.claude/skills/hyper-loop/templates"
+PRD_FILE=$(find _hyper-loop/context -maxdepth 1 -type f -iname "*prd*" | sort | head -1)
+ARCH_FILE=$(find _hyper-loop/context -maxdepth 1 -type f \( -iname "*architect*" -o -iname "*architecture*" \) | sort | head -1)
+DESIGN_FILE=$(find _hyper-loop/context -maxdepth 1 -type f -iname "*design*" | sort | head -1)
+UX_FILE=$(find _hyper-loop/context -maxdepth 1 -type f -iname "*ux*" | sort | head -1)
+CLAUDE_FILE="_hyper-loop/context/CLAUDE.md"
+[ -n "$DESIGN_FILE" ] || DESIGN_FILE="$UX_FILE"
+
+export DIR_STRUCTURE="$(find "$PROJECT_ROOT" -maxdepth 2 -type d | sort | head -40)"
+export CODING_RULES="$(sed -n '/^## .*代码.*规则/,/^## /p' "$CLAUDE_FILE" 2>/dev/null)"
+export ARCHITECTURE="$(cat "$ARCH_FILE" 2>/dev/null)"
+export PRD_FULL="$(cat "$PRD_FILE" 2>/dev/null)"
+export PRD_SUMMARY="$(head -100 "$PRD_FILE" 2>/dev/null)"
+export DESIGN_FULL="$(cat "$DESIGN_FILE" 2>/dev/null)"
+export DESIGN_SUMMARY="$(head -100 "$DESIGN_FILE" 2>/dev/null)"
+export UX_SPEC="$(cat "$UX_FILE" 2>/dev/null)"
+export CONTRACT="$(cat _hyper-loop/contract.md)"
+export CHECKLIST="$(cat _hyper-loop/checklist.md)"
+[ -n "$CODING_RULES" ] || export CODING_RULES="$(cat "$CLAUDE_FILE" 2>/dev/null)"
+[ -n "$ARCHITECTURE" ] || export ARCHITECTURE="$(sed -n '/^## .*架构/,/^## /p' "$CLAUDE_FILE" 2>/dev/null)"
+
+render_template() {
+  python3 - "$1" "$2" <<'PY'
+from pathlib import Path
+import os
+import re
+import sys
+
+template_path, output_path = sys.argv[1:3]
+text = Path(template_path).read_text()
+for key, value in os.environ.items():
+    if re.fullmatch(r"[A-Z0-9_]+", key):
+        text = text.replace(f"{{{{{key}}}}}", value)
+missing = sorted(set(re.findall(r"{{([A-Z0-9_]+)}}", text)))
+if missing:
+    raise SystemExit(f"模板仍有未填充占位符: {missing}")
+Path(output_path).write_text(text)
+PY
+}
+
+render_template "$TEMPLATE_DIR/REVIEWER_INIT.md" "_hyper-loop/context/REVIEWER_INIT.md"
+render_template "$TEMPLATE_DIR/ORCHESTRATOR_CHECKLIST.md" "_hyper-loop/context/ORCHESTRATOR_CHECKLIST.md"
+
+# WRITER_INIT.md 要等到 Phase 1 拿到 WORKTREE_PATH 和 TASK_DESCRIPTION 后再渲染
+```
+
+---
+
+## 紧急停止条件
+
+以下情况必须立即暂停循环，报告用户：
+
+1. **Codex 连续 3 轮修改相同文件的相同区域** → 可能在原地打转
+2. **Gemini 连续 3 轮给 < 4 分** → 问题可能超出增量修复能力
+3. **同一轮出现 2 个以上冲突，或核心 P0 任务冲突** → 并行策略失效，需要立即停机重排
+4. **构建失败** → 不是功能 bug，是编译错误
+5. **Mac Mini 资源告急** → tmux pane > 20 个时注意 CPU/内存
+
+codex
+文档上下文已读完，现在核对脚本里的三个函数，确认 S003/S007/S008 应该如何按实现措辞，避免把执行方式写错。
+exec
+/bin/zsh -lc "sed -n '210,260p' scripts/hyper-loop.sh" in /tmp/hyper-loop-worktrees-r11/task4
+exec
+/bin/zsh -lc "rg -n \"start_writers\\(|run_tester\\(|run_reviewers\\(|extract_json_from_output|fallback score|score 5|reviewer-{a,b,c}\" scripts/hyper-loop.sh" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+      fi
+      echo "# 本轮任务"
+      echo ""
+      cat "${WT}/TASK.md"
+      echo ""
+      echo "---"
+      echo ""
+      echo "现在执行 TASK.md 中的任务。完成后写 DONE.json。"
+      echo "项目的其他文件在 _ctx/ 目录下可以用工具读取，但以上内容已包含核心信息。"
+    } > "$WRITER_PROMPT"
+
+    local PROMPT_LINES
+    PROMPT_LINES=$(wc -l < "$WRITER_PROMPT" | tr -d ' ')
+    echo "  📝 ${TASK_NAME} prompt: ${PROMPT_LINES} lines" >&2
+
+    # 启动 Writer（非交互 exec 模式，后台并行，stdin 注入完整上下文）
+    local WRITER_LOG="${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log"
+    (
+      cat "$WRITER_PROMPT" | codex exec --dangerously-bypass-approvals-and-sandbox -C "$WT" - \
+        > "$WRITER_LOG" 2>&1 || true
+      # 如果 Codex 没写 DONE.json，补一个
+      if [[ ! -f "${WT}/DONE.json" ]]; then
+        echo '{"status":"done","files_changed":[],"note":"codex exec exited without DONE.json"}' > "${WT}/DONE.json"
+      fi
+    ) &
+
+    echo "  ✓ Writer ${TASK_NAME} started in ${WT}"
+  done
+}
+
+wait_writers() {
+  local ROUND="$1"
+  local TIMEOUT="${2:-900}"  # 默认 15 分钟（BDD S006 要求）
+
+  echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
+
+  # Writer 是后台 codex exec 进程，用 timeout 等待
+  # 如果超时，杀掉所有 codex exec 子进程
+  local START_TIME
+  START_TIME=$(date +%s)
+
+  while true; do
+    # 检查是否还有 codex exec 子进程在跑
+    local RUNNING
+    RUNNING=$(jobs -r 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$RUNNING" -eq 0 ]]; then
+      echo "  ✓ 所有 Writer 已完成"
+      break
+    fi
+
+    local ELAPSED=$(( $(date +%s) - START_TIME ))
+
+ exited 2 in 0ms:
+rg: regex parse error:
+    (?:start_writers\(|run_tester\(|run_reviewers\(|extract_json_from_output|fallback score|score 5|reviewer-{a,b,c})
+                                                                                                              ^
+error: repetition quantifier expects a valid decimal
+
+exec
+/bin/zsh -lc "sed -n '440,560p' scripts/hyper-loop.sh" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+1. 读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解 BDD 场景
+2. 读 ${SUMMARY} 了解本轮修改
+3. 运行 bash -n ${PROJECT_ROOT}/scripts/hyper-loop.sh 验证语法
+4. 按 BDD 场景逐条检查脚本代码，标注 pass/fail
+5. 将结果写入 ${REPORT_FILE}，格式：每行一个场景 ID + pass/fail + 原因
+6. 列出发现的 P0/P1 bug"
+
+  echo "$TESTER_PROMPT" | timeout 600 claude --dangerously-skip-permissions -p - \
+    --add-dir "$PROJECT_ROOT" 2>&1 | \
+    tee "${LOG_DIR}/round-${ROUND}_tester_bdd-verify_claude.log" > "${REPORT_FILE}" || true
+
+  if [[ -s "$REPORT_FILE" ]]; then
+    echo "  ✓ 试用报告已生成: $REPORT_FILE"
+  else
+    echo "  ⚠ Tester 无输出，生成默认报告"
+    echo "# Round $ROUND — Tester 无输出" > "$REPORT_FILE"
+  fi
+}
+
+# ── 3 Reviewer 合议（非交互管道模式）──
+run_reviewers() {
+  local ROUND="$1"
+
+  echo "启动 3 个 Reviewer（非交互模式）..."
+
+  # 构造评审 prompt（引用文件路径）
+  local REVIEW_PROMPT="你是代码评审官。请读以下文件后给出评分。
+
+评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md
+BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
+Tester 报告：${REPORT_FILE}
+本轮修改：
+$(for STAT in "${TASK_DIR}"/*.stat; do [[ -f "$STAT" ]] && cat "$STAT"; done)
+
+只输出一个 JSON 对象，不要代码块，不要解释，不要 markdown：
+{\"score\":数字0到10,\"issues\":[{\"severity\":\"P0\",\"desc\":\"描述\"}],\"summary\":\"一句话总结\"}"
+
+  # JSON 提取函数
+  local EXTRACT_PY='
+import json, sys
+from pathlib import Path
+text = sys.stdin.read()
+decoder = json.JSONDecoder()
+last = None
+for i, ch in enumerate(text):
+    if ch != "{": continue
+    try:
+        obj, _ = decoder.raw_decode(text[i:])
+        if "score" in obj: last = obj
+    except: pass
+if last:
+    json.dump(last, sys.stdout, ensure_ascii=False, indent=2)
+else:
+    json.dump({"score":5,"issues":[],"summary":"评审未返回有效JSON，给中立分5"}, sys.stdout)
+'
+
+  # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
+  (
+    echo "$REVIEW_PROMPT" | timeout 300 gemini -y -p "" --include-directories "$PROJECT_ROOT" 2>&1 | \
+      tee "${LOG_DIR}/round-${ROUND}_reviewer-a_scoring_gemini.log" | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
+    echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
+  ) &
+
+  (
+    echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - \
+      --add-dir "$PROJECT_ROOT" 2>&1 | \
+      tee "${LOG_DIR}/round-${ROUND}_reviewer-b_scoring_claude.log" | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-b.json" 2>/dev/null
+    echo "  ✓ reviewer-b (claude) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-b.json'))['score'])" 2>/dev/null || echo 'fallback')"
+  ) &
+
+  (
+    timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" "$REVIEW_PROMPT" 2>&1 | \
+      tee "${LOG_DIR}/round-${ROUND}_reviewer-c_scoring_codex.log" | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
+    echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
+  ) &
+
+  echo "  等待 3 个 Reviewer 完成（最多 5 分钟）..."
+  wait
+
+  # 确保所有评分文件存在（fallback 给 3 分）
+  for NAME in reviewer-a reviewer-b reviewer-c; do
+    if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
+      echo '{"score":5,"issues":[],"summary":"Reviewer 超时或无输出，中立分5"}' > "${SCORES_DIR}/${NAME}.json"
+      echo "  ⚠ ${NAME} fallback to score 5"
+    fi
+  done
+}
+
+# ── 和议计算 ──
+compute_verdict() {
+  local ROUND="$1"
+  local PREV_MEDIAN="${2:-0}"
+
+  echo ""
+  echo "═══════════════════════════════════"
+  echo "  Round $ROUND 和议结果"
+  echo "═══════════════════════════════════"
+
+  local SCORES=()
+  for SCORE_FILE in "${SCORES_DIR}"/*.json; do
+    [[ -f "$SCORE_FILE" ]] || continue
+    local S
+    S=$(python3 -c "import json; print(json.load(open('${SCORE_FILE}'))['score'])" 2>/dev/null || echo "0")
+    SCORES+=("$S")
+    local NAME
+    NAME=$(basename "$SCORE_FILE" .json)
+    echo "  ${NAME}: ${S}"
+  done
+
+  if [[ ${#SCORES[@]} -eq 0 ]]; then
+    echo "  ERROR: 没有评分文件"
+    echo "DECISION=ERROR" > "${TASK_DIR}/verdict.env"
+    return
+  fi
+
+  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+import sys, json
+from pathlib import Path
+
+codex
+实现已确认：Writer 是后台 `codex exec` 子进程，Tester 是 `claude -p` 管道模式，Reviewers 是并行子进程并用 Python 从 stdout 抽 JSON。接下来只改目标 BDD 文件里的三处表述，不碰脚本。
+exec
+/bin/zsh -lc "sed -n '1,140p' _hyper-loop/context/bdd-specs.md" in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+# BDD 行为规格 — HyperLoop 脚本自身
+
+## S001: loop 命令启动死循环
+Given project-config.env 和 bdd-specs.md 存在
+When 执行 `hyper-loop.sh loop 3`
+Then 脚本输出 "Round 1/3" 并进入循环
+  And 循环跑满 3 轮后正常退出（不崩溃）
+  And results.tsv 有 3 行记录
+
+## S002: auto_decompose 生成任务文件
+Given _hyper-loop/context/ 和 bdd-specs.md 存在
+When auto_decompose 被调用
+Then _hyper-loop/tasks/round-N/ 下至少有 1 个 task*.md 文件
+  And 每个文件包含"修复任务"和"相关文件"段落
+  And 如果 claude -p 失败，降级生成默认 task1.md
+
+## S003: Writer worktree 创建 + trust + 启动
+Given task*.md 文件存在
+When start_writers 被调用
+Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+  And ~/.codex/config.toml 包含该目录的 trust 配置
+  And Codex 进程在 tmux window 中启动
+  And _ctx/ 目录被复制到 worktree
+
+## S004: Writer 完成后 diff 被正确 commit
+Given Writer 写了 DONE.json status=done 且改了文件
+When merge_writers 被调用
+Then Writer worktree 里先执行 git add -A && git commit
+  And squash merge 到 integration 分支成功（不是 "already up to date"）
+  And task*.patch 和 task*.stat 文件被生成
+
+## S005: diff 审计拦截越界修改
+Given Writer 改了 TASK.md 未指定的文件
+When audit_writer_diff 被调用
+Then 返回非零退出码
+  And 该 Writer 的产出被跳过不合并
+
+## S006: Writer 超时处理
+Given Writer 15 分钟未写 DONE.json
+When 超时触发
+Then DONE.json 被写入 status=timeout
+  And 该 Writer 被标记为 failed
+
+## S007: Tester 启动并生成报告
+Given App 已构建（对本项目=bash -n 通过）
+When run_tester 被调用
+Then Tester Claude 子进程在 tmux 中启动
+  And 15 分钟内生成 reports/round-N-test.md
+  And 超时时生成空报告而非崩溃
+
+## S008: 3 Reviewer 启动并产出评分
+Given Tester 报告存在
+When run_reviewers 被调用
+Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
+  And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+  And JSON 包含 "score" 字段
+  And 如果文件不存在，从 pane 输出提取 JSON
+
+## S009: 和议计算正确
+Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+When compute_verdict 被调用
+Then 中位数 = 6.0
+  And DECISION = ACCEPTED（如果 > prev_median）
+  And verdict.env 可以被安全读取（不崩 bash）
+
+## S010: 一票否决（score < 4.0）
+Given scores=[3.5, 6.0, 7.0]
+When compute_verdict 被调用
+Then DECISION = REJECTED_VETO
+  And 记录到 results.tsv
+
+## S011: Tester P0 否决
+Given Tester 报告包含 "P0" 和 "fail"
+When compute_verdict 被调用
+Then DECISION = REJECTED_TESTER_P0
+
+## S012: verdict.env 安全读取
+Given verdict.env 包含 MEDIAN=0.0 和 SCORES="1.0 2.0 3.0"
+When 脚本读取 verdict.env
+Then DECISION 和 MEDIAN 被正确提取
+  And 不会出现 "command not found" 错误
+
+## S013: 连续 5 轮失败自动回退
+Given results.tsv 有 5 行 REJECTED
+  And archive/round-2/git-sha.txt 存在且得分最高
+When 第 6 轮开始
+Then 代码回退到 Round 2 的 git sha
+  And consecutive_rejects 重置为 0
+
+## S014: STOP 文件优雅退出
+Given _hyper-loop/STOP 文件存在
+When 循环检查到 STOP
+Then 当前轮不执行
+  And 脚本正常退出（exit 0）
+  And STOP 文件被删除
+
+## S015: worktree 清理
+Given Round N 完成
+When cleanup_round 被调用
+Then /tmp/hyper-loop-worktrees-rN/ 不存在
+  And hyper-loop/rN-* 分支被删除
+  And tmux writer windows 被关闭
+
+## S016: macOS timeout 兼容
+Given macOS 没有 timeout 命令但有 gtimeout
+When 脚本启动
+Then timeout 函数可用（不报 command not found）
+
+## S017: 多 Writer 同文件冲突处理
+Given task1 和 task2 都改了同一个文件
+When merge_writers 合并
+Then 第一个成功 merge
+  And 第二个报 conflict 被 deferred
+  And 脚本不崩溃
+
+exec
+/bin/zsh -lc 'rg -n "## S003|## S007|## S008|tmux|stdout|中立分5|fallback" _hyper-loop/context/bdd-specs.md' in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+17:## S003: Writer worktree 创建 + trust + 启动
+22:  And Codex 进程在 tmux window 中启动
+44:## S007: Tester 启动并生成报告
+47:Then Tester Claude 子进程在 tmux 中启动
+51:## S008: 3 Reviewer 启动并产出评分
+54:Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
+102:  And tmux writer windows 被关闭
+
+codex
+现在改 `_hyper-loop/context/bdd-specs.md` 的 S003/S007/S008 三处措辞，保持场景 ID 和功能验收条件不变，只把执行方式改成和脚本一致。
+apply patch
+patch: completed
+/tmp/hyper-loop-worktrees-r11/task4/_hyper-loop/context/bdd-specs.md
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a4573676e44efeb38f7e59a04c197f3569ab..97236c5d0af2ef8c2ef3cf96ded07999764c3261
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a4573676e44efeb38f7e59a04c197f3569ab..97236c5d0af2ef8c2ef3cf96ded07999764c3261
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+codex
+修改已落到目标 BDD 文件。接下来做两件事：复核改动内容是否只在三处，然后运行 `bash -n scripts/hyper-loop.sh` 做项目要求的验证。
+exec
+/bin/zsh -lc 'bash -n scripts/hyper-loop.sh' in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+exec
+/bin/zsh -lc 'git diff -- _hyper-loop/context/bdd-specs.md' in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a45..97236c5 100644
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@ Given task*.md 文件存在
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@ Then DONE.json 被写入 status=timeout
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a4573676e44efeb38f7e59a04c197f3569ab..97236c5d0af2ef8c2ef3cf96ded07999764c3261
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+codex
+验证通过。最后只补写 `DONE.json`，再确认工作区里只有目标文档和这个元数据文件发生变化。
+apply patch
+patch: completed
+/tmp/hyper-loop-worktrees-r11/task4/DONE.json
+diff --git a/DONE.json b/DONE.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc60acc87d1466e7cbbb8f400242030937e5a602
+--- /dev/null
++++ b/DONE.json
+@@ -0,0 +1 @@
++{"status":"done","files_changed":["_hyper-loop/context/bdd-specs.md"],"lint_pass":true}
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a4573676e44efeb38f7e59a04c197f3569ab..97236c5d0af2ef8c2ef3cf96ded07999764c3261
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+diff --git a/DONE.json b/DONE.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc60acc87d1466e7cbbb8f400242030937e5a602
+--- /dev/null
++++ b/DONE.json
+@@ -0,0 +1 @@
++{"status":"done","files_changed":["_hyper-loop/context/bdd-specs.md"],"lint_pass":true}
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a4573676e44efeb38f7e59a04c197f3569ab..97236c5d0af2ef8c2ef3cf96ded07999764c3261
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+exec
+/bin/zsh -lc 'cat DONE.json' in /tmp/hyper-loop-worktrees-r11/task4
+ succeeded in 0ms:
+{"status":"done","files_changed":["_hyper-loop/context/bdd-specs.md"],"lint_pass":true}
+
+exec
+/bin/zsh -lc 'git status --short' in /tmp/hyper-loop-worktrees-r11/task4
+diff --git a/DONE.json b/DONE.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc60acc87d1466e7cbbb8f400242030937e5a602
+--- /dev/null
++++ b/DONE.json
+@@ -0,0 +1 @@
++{"status":"done","files_changed":["_hyper-loop/context/bdd-specs.md"],"lint_pass":true}
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a4573676e44efeb38f7e59a04c197f3569ab..97236c5d0af2ef8c2ef3cf96ded07999764c3261
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+ succeeded in 223ms:
+ M _hyper-loop/context/bdd-specs.md
+?? DONE.json
+?? TASK.md
+?? WRITER_INIT.md
+?? _ctx/
+?? _writer_prompt.md
+
+codex
+已更新 [bdd-specs.md](/tmp/hyper-loop-worktrees-r11/task4/_hyper-loop/context/bdd-specs.md) 的 S003、S007、S008，使描述与当前脚本实现一致：Writer 改为后台 `codex exec` 非交互启动，Tester 改为 `claude -p` 管道模式，Reviewer 改为并行子进程 + Python 从 stdout 提取 JSON，失败时回退到中立分 5。
+
+验证已执行：`bash -n scripts/hyper-loop.sh` 通过。`DONE.json` 已写入 [/tmp/hyper-loop-worktrees-r11/task4/DONE.json](/tmp/hyper-loop-worktrees-r11/task4/DONE.json)。
+
+HYPERLOOP_TASK_DONE
+diff --git a/DONE.json b/DONE.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc60acc87d1466e7cbbb8f400242030937e5a602
+--- /dev/null
++++ b/DONE.json
+@@ -0,0 +1 @@
++{"status":"done","files_changed":["_hyper-loop/context/bdd-specs.md"],"lint_pass":true}
+diff --git a/_hyper-loop/context/bdd-specs.md b/_hyper-loop/context/bdd-specs.md
+index e872a4573676e44efeb38f7e59a04c197f3569ab..97236c5d0af2ef8c2ef3cf96ded07999764c3261
+--- a/_hyper-loop/context/bdd-specs.md
++++ b/_hyper-loop/context/bdd-specs.md
+@@ -19,7 +19,7 @@
+ When start_writers 被调用
+ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+   And ~/.codex/config.toml 包含该目录的 trust 配置
+-  And Codex 进程在 tmux window 中启动
++  And Codex 进程在后台子进程中启动（`codex exec` 非交互模式）
+   And _ctx/ 目录被复制到 worktree
+ 
+ ## S004: Writer 完成后 diff 被正确 commit
+@@ -44,17 +44,18 @@
+ ## S007: Tester 启动并生成报告
+ Given App 已构建（对本项目=bash -n 通过）
+ When run_tester 被调用
+-Then Tester Claude 子进程在 tmux 中启动
++Then Tester 在非交互管道模式中运行（`claude -p` 管道模式）
+   And 15 分钟内生成 reports/round-N-test.md
+   And 超时时生成空报告而非崩溃
+ 
+ ## S008: 3 Reviewer 启动并产出评分
+ Given Tester 报告存在
+ When run_reviewers 被调用
+-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
++Then 3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）
+   And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+   And JSON 包含 "score" 字段
+-  And 如果文件不存在，从 pane 输出提取 JSON
++  And 通过 Python 从 stdout 管道提取 JSON
++  And 如果提取失败或文件不存在，fallback 给中立分 5
+ 
+ ## S009: 和议计算正确
+ Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+
+tokens used
+54,282
+已更新 [bdd-specs.md](/tmp/hyper-loop-worktrees-r11/task4/_hyper-loop/context/bdd-specs.md) 的 S003、S007、S008，使描述与当前脚本实现一致：Writer 改为后台 `codex exec` 非交互启动，Tester 改为 `claude -p` 管道模式，Reviewer 改为并行子进程 + Python 从 stdout 提取 JSON，失败时回退到中立分 5。
+
+验证已执行：`bash -n scripts/hyper-loop.sh` 通过。`DONE.json` 已写入 [/tmp/hyper-loop-worktrees-r11/task4/DONE.json](/tmp/hyper-loop-worktrees-r11/task4/DONE.json)。
+
+HYPERLOOP_TASK_DONE

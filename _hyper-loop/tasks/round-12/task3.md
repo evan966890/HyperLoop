@@ -1,29 +1,48 @@
 ## 修复任务: TASK-3
 ### 上下文
 先读 _ctx/ 下所有文件。
+
 ### 问题
-[P1] auto_decompose 和 archive_round 引用错误的 bdd-specs.md / contract.md 路径 + cmd_status() 重复定义
+[P1] `cmd_loop` 重启后 `BEST_ROUND`/`BEST_MEDIAN` 不从历史初始化
 
-三个路径 bug：
-1. `auto_decompose()` line 719: `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md` → 应为 `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`
-2. `auto_decompose()` line 720: `${PROJECT_ROOT}/_hyper-loop/contract.md` → 应为 `${PROJECT_ROOT}/_hyper-loop/context/contract.md`
-3. `archive_round()` line 797: `${PROJECT_ROOT}/_hyper-loop/bdd-specs.md` → 应为 `${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md`
+`cmd_loop`（~line 1056-1058）硬编码：
+```bash
+local CONSECUTIVE_REJECTS=0
+local BEST_ROUND=0
+local BEST_MEDIAN=0
+```
 
-一个 P2 代码质量问题：
-4. `cmd_status()` 在 line 697 和 line 957 各有一个定义。line 697 是死代码（被 line 957 的定义覆盖）。删除 line 697-703 的第一个 `cmd_status()` 定义。
+重启 loop 后，即使 `results.tsv` 中有历史 ACCEPTED 轮次，`BEST_ROUND` 仍为 0。
+当连续 5 轮失败触发回退逻辑（~line 1157）时，条件 `BEST_ROUND -gt 0` 不满足，无法回退。
+
+**影响**: 重启后的自动回退机制完全失效，脚本只能持续失败而无法自愈。
 
 ### 相关文件
-- scripts/hyper-loop.sh (lines 695-800)
+- scripts/hyper-loop.sh (行 1046-1068, `cmd_loop` 函数初始化段)
+
+### 修复策略
+1. 在 `BEST_ROUND=0` / `BEST_MEDIAN=0` 初始化之后，加入从 `results.tsv` 读取历史最佳轮次的逻辑
+2. 扫描所有 `ACCEPTED` 或 `ACCEPTED_UNCHANGED` 行，找到 median 最高的轮次：
+   ```bash
+   if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+     while IFS=$'\t' read -r r med _ dec; do
+       [[ "$dec" == ACCEPTED* ]] || continue
+       if python3 -c "exit(0 if float('${med}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+         BEST_ROUND=$r; BEST_MEDIAN=$med
+       fi
+     done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+     [[ "$BEST_ROUND" -gt 0 ]] && echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+   fi
+   ```
+3. 同时初始化 `CONSECUTIVE_REJECTS`：扫描 results.tsv 末尾连续非 ACCEPTED 行数
+4. 运行 `bash -n scripts/hyper-loop.sh` 确认语法正确
 
 ### 约束
-- 只修 scripts/hyper-loop.sh 中 auto_decompose()、archive_round() 的路径引用和删除第一个 cmd_status()
-- 不改其他函数
-- 不改 CSS
-- 修改范围：lines 695-800
+- 只修 scripts/hyper-loop.sh 的 `cmd_loop` 函数初始化段（行 1046-1068）
+- 不改循环体内的 BEST_ROUND 更新逻辑（~line 1142-1145）
+- 不改回退逻辑（~line 1157-1167）
 
 ### 验收标准
-引用 BDD 场景 S002 (auto_decompose 生成任务文件)
-- auto_decompose 中 BDD 规格和评估契约路径指向 `_hyper-loop/context/` 下的实际文件
-- archive_round 中 bdd-specs.md 路径也已修正
-- cmd_status() 只有一个定义（line 957 附近的版本保留）
-- `bash -n scripts/hyper-loop.sh` 语法检查通过
+- BDD S013: 连续 5 轮失败自动回退到历史最佳轮次
+- 重启 loop 后 BEST_ROUND 从 results.tsv 正确恢复
+- `bash -n scripts/hyper-loop.sh` 通过

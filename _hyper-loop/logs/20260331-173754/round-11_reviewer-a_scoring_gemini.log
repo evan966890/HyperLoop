@@ -1,0 +1,4 @@
+YOLO mode is enabled. All tool calls will be automatically approved.
+Loaded cached credentials.
+YOLO mode is enabled. All tool calls will be automatically approved.
+{"score":6.8,"issues":[{"severity":"P0","desc":"audit_writer_diff 遗漏 _writer_prompt.md 白名单，导致所有 Writer 产出审计失败被拒绝合并，回归阻塞核心流程。"},{"severity":"P1","desc":"BEST_ROUND 未从历史 results.tsv 初始化，loop 命令重启后连续失败无法回退到历史最佳分叉点。"}],"summary":"BDD 场景通过率达 94% 但存在 P0 审计回归导致合并功能完全失效，且循环状态持久化不完整。"}

@@ -25,9 +25,11 @@ Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
 ## S004: Writer 完成后 diff 被正确 commit
 Given Writer 写了 DONE.json status=done 且改了文件
 When merge_writers 被调用
-Then Writer worktree 里先执行 git add -A && git commit
+Then HyperLoop 元数据文件（DONE.json, WRITER_INIT.md, TASK.md, _writer_prompt.md, _ctx/）被删除
+  And 然后执行 git add -A && git commit（只包含业务代码变更）
   And squash merge 到 integration 分支成功（不是 "already up to date"）
   And task*.patch 和 task*.stat 文件被生成
+  And 多 Writer 不会因元数据文件冲突
 
 ## S005: diff 审计拦截越界修改
 Given Writer 改了 TASK.md 未指定的文件
@@ -107,8 +109,10 @@ When 脚本启动
 Then timeout 函数可用（不报 command not found）
 
 ## S017: 多 Writer 同文件冲突处理
-Given task1 和 task2 都改了同一个文件
+Given task1 和 task2 都改了同一个业务文件（非元数据）
 When merge_writers 合并
-Then 第一个成功 merge
-  And 第二个报 conflict 被 deferred
+Then 元数据文件已预先清理，不会导致 false conflict
+  And 第一个 Writer 成功 merge
+  And 如果第二个 Writer 与第一个有真实代码冲突则 merge --abort 并标记 deferred
+  And 如果没有代码冲突则两个都成功 merge
   And 脚本不崩溃

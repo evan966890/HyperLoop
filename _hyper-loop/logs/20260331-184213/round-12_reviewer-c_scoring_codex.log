@@ -1,0 +1,2181 @@
+OpenAI Codex v0.117.0 (research preview)
+--------
+workdir: /Users/xiaomimacmini3/Desktop/HyperLoop
+model: gpt-5.4
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR, /Users/xiaomimacmini3/.codex/memories]
+reasoning effort: xhigh
+reasoning summaries: none
+session id: 019d438a-5e06-75e1-bfeb-c2f479736b2f
+--------
+user
+你是代码评审官。请读以下文件后给出评分。
+
+评估契约：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/contract.md
+BDD 规格：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md
+Tester 报告：/Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-12-test.md
+本轮修改：
+ scripts/hyper-loop.sh | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+ scripts/hyper-loop.sh | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+ scripts/hyper-loop.sh | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+ scripts/hyper-loop.sh | 54 ++++++++-------------------------------------------
+ 1 file changed, 8 insertions(+), 46 deletions(-)
+
+只输出一个 JSON 对象，不要代码块，不要解释，不要 markdown：
+{"score":数字0到10,"issues":[{"severity":"P0","desc":"描述"}],"summary":"一句话总结"}
+
+codex
+先读取评估契约、BDD 规格、测试报告和当前 `scripts/hyper-loop.sh`，确认本轮修改是否满足约束并定位风险。
+exec
+/bin/zsh -lc "sed -n '1,260p' /Users/xiaomimacmini3/Desktop/HyperLoop/scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "sed -n '1,260p' /Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/reports/round-12-test.md" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "sed -n '1,260p' /Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/bdd-specs.md" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "sed -n '1,220p' /Users/xiaomimacmini3/Desktop/HyperLoop/_hyper-loop/context/contract.md" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+# Round 12 — Tester BDD 验证报告
+
+**测试对象**: `scripts/hyper-loop.sh` (integration branch: `hyper-loop/r12-integration`, commit `81bad6e`)
+**语法检查**: `bash -n` PASS
+**测试时间**: 2026-03-31
+
+## 本轮修改摘要 (4 tasks)
+
+| Task | 修改 | 优先级 |
+|------|------|--------|
+| task1 | `audit_writer_diff` 白名单加 `_writer_prompt.md` + untracked 文件检测 | P0 |
+| task2 | `compute_verdict` Tester P0 否决阈值降低至 `>= 1 and >= 1` | P1 |
+| task3 | `cmd_loop` 重启后从 `results.tsv` 初始化 `BEST_ROUND`/`BEST_MEDIAN`/`CONSECUTIVE_REJECTS` | P1 |
+| task4 | 删除废弃函数 `start_agent`/`kill_agent` + `build_app` 子 shell 隔离 `cd` | P2 |
+
+## BDD 场景逐条验证
+
+| 场景 | 结果 | 原因 |
+|------|------|------|
+| S001 | **PASS** | `cmd_loop` 接受 MAX_ROUNDS 参数，输出 "Round N/M"，循环结束后正常退出，`record_result` 每轮写 results.tsv |
+| S002 | **PASS** | `auto_decompose` 用 claude -p 生成任务文件；如失败，降级生成默认 task1.md（line 792-844）|
+| S003 | **PASS** | `start_writers` 创建 worktree、写 trust 到 `~/.codex/config.toml`、复制 `_ctx/`、启动 codex exec 后台进程。注：实际用 subshell 而非 tmux window，是已知设计变更 |
+| S004 | **PASS** | `merge_writers` 先删元数据（DONE.json, WRITER_INIT.md, TASK.md, _writer_prompt.md, _ctx/）再 git add -A && commit，然后 squash merge。R12 task1 修复了 `_writer_prompt.md` 白名单遗漏 |
+| S005 | **PASS** | `audit_writer_diff` 对比 TASK.md 允许文件列表与实际变更；越界返回 1；`merge_writers` 据此跳过合并。R12 task1 增加了 untracked 文件检测 |
+| S006 | **PASS** | `wait_writers` 超时（默认 900s=15min）后杀进程并写 `{"status":"timeout"}` 到 DONE.json，`merge_writers` 跳过 status!=done 的 writer |
+| S007 | **PASS** | `run_tester` 用 claude -p 管道模式运行，超时 600s；空输出时生成默认报告不崩溃。注：BDD 说 15min tmux，实际 10min 管道，是已知设计变更 |
+| S008 | **PASS** | `run_reviewers` 3 个 reviewer 并行 &（gemini/claude/codex），timeout 300s，JSON 提取 + fallback score 5。注：BDD 说 10min tmux，实际 5min subshell |
+| S009 | **PASS** | Python 中位数计算正确（奇数取中间值，偶数取均值）；scores=[5,6,7] -> median=6.0 -> ACCEPTED（如 >prev）；verdict.env 用 grep 读取不会 crash |
+| S010 | **PASS** | `veto = any(s < 4.0 for s in scores)` 正确；scores=[3.5,6,7] -> veto=True -> REJECTED_VETO |
+| S011 | **PASS** | R12 task2 修复：从 `>=2 or (>=1 and >3)` 改为 `>=1 and >=1`，现在 1 个 `### P0` heading + 1 个 FAIL 即触发 REJECTED_TESTER_P0，符合 BDD 规格 |
+| S012 | **PASS** | `record_result` 和 `cmd_round`/`cmd_loop` 都用 `grep '^KEY=' | cut -d= -f2` 读取 verdict.env，不 source；SCORES 带引号也能正确处理 |
+| S013 | **PASS** | R12 task3 修复：`cmd_loop` 启动时遍历 results.tsv 恢复 BEST_ROUND/BEST_MEDIAN（找最高 median 的 ACCEPTED 轮）和 CONSECUTIVE_REJECTS；rollback 逻辑 `>=5 && BEST_ROUND>0` 重启后不再失效 |
+| S014 | **PASS** | `cmd_loop` 每轮开头检查 STOP 文件 -> rm -> break -> 正常退出 exit 0 |
+| S015 | **PASS** | `cleanup_round` 在子 shell(set +e) 中：杀 tmux windows -> 移除 worktree+branch -> `rm -rf $WORKTREE_BASE`。容错不崩溃 |
+| S016 | **PASS** | 脚本开头：先检查 gtimeout，再检查 timeout，最后定义 polyfill 函数 |
+| S017 | **PASS** | `merge_writers` 先删元数据文件再 git add，消除 false conflict；真实冲突 `merge --abort` 标记 deferred；脚本不崩溃 |
+
+## R12 Task 修复验证
+
+| Task | 验证项 | 结果 |
+|------|--------|------|
+| task1 | `_writer_prompt.md` 在 audit whitelist (line 284) | **PASS** |
+| task1 | untracked 文件检测 (line 258-262) | **PASS** |
+| task1 | merge_writers rm 列表一致性 | **PASS** |
+| task2 | P0 否决条件 (line 558) | **PASS** |
+| task2 | 其他 verdict 逻辑不受影响 | **PASS** |
+| task3 | BEST_ROUND 从 results.tsv 初始化 (line 1025-1045) | **PASS** |
+| task3 | CONSECUTIVE_REJECTS 从历史恢复 | **PASS** |
+| task3 | HIST_DECISION glob 匹配 ACCEPTED* | **PASS** |
+| task4 | start_agent/kill_agent 已删除 | **PASS** |
+| task4 | build_app 子 shell 隔离 (line 376-380) | **PASS** |
+| task4 | build_app 返回值正确 (line 381-387) | **PASS** |
+
+## P0 Bugs
+
+无。
+
+## P1 Bugs
+
+无。
+
+## 备注（非 Bug，已知设计偏差）
+
+1. **S003/S007/S008 — tmux vs subshell**: BDD 规格说 Writer/Tester/Reviewer 在 "tmux window 中启动"，实际实现使用 `codex exec` 后台 subshell 和 `claude -p` 管道。这是从交互模式到非交互模式的有意设计变更，非回归。
+2. **S007 timeout**: BDD 说 15 分钟，实际 `run_tester` 用 `timeout 600`（10 分钟）。
+3. **S008 timeout**: BDD 说 10 分钟，实际 `run_reviewers` 用 `timeout 300`（5 分钟）。
+4. **建议**: 更新 BDD 规格中 S003/S007/S008 的 tmux 描述和超时值以反映当前非交互架构。
+
+## 总结
+
+- **17/17 BDD 场景 PASS**
+- **R12 全部 4 个 task 修复验证通过**
+- **0 P0 bugs, 0 P1 bugs**
+
+ succeeded in 0ms:
+# BDD 行为规格 — HyperLoop 脚本自身
+
+## S001: loop 命令启动死循环
+Given project-config.env 和 bdd-specs.md 存在
+When 执行 `hyper-loop.sh loop 3`
+Then 脚本输出 "Round 1/3" 并进入循环
+  And 循环跑满 3 轮后正常退出（不崩溃）
+  And results.tsv 有 3 行记录
+
+## S002: auto_decompose 生成任务文件
+Given _hyper-loop/context/ 和 bdd-specs.md 存在
+When auto_decompose 被调用
+Then _hyper-loop/tasks/round-N/ 下至少有 1 个 task*.md 文件
+  And 每个文件包含"修复任务"和"相关文件"段落
+  And 如果 claude -p 失败，降级生成默认 task1.md
+
+## S003: Writer worktree 创建 + trust + 启动
+Given task*.md 文件存在
+When start_writers 被调用
+Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+  And ~/.codex/config.toml 包含该目录的 trust 配置
+  And Codex 进程在 tmux window 中启动
+  And _ctx/ 目录被复制到 worktree
+
+## S004: Writer 完成后 diff 被正确 commit
+Given Writer 写了 DONE.json status=done 且改了文件
+When merge_writers 被调用
+Then HyperLoop 元数据文件（DONE.json, WRITER_INIT.md, TASK.md, _writer_prompt.md, _ctx/）被删除
+  And 然后执行 git add -A && git commit（只包含业务代码变更）
+  And squash merge 到 integration 分支成功（不是 "already up to date"）
+  And task*.patch 和 task*.stat 文件被生成
+  And 多 Writer 不会因元数据文件冲突
+
+## S005: diff 审计拦截越界修改
+Given Writer 改了 TASK.md 未指定的文件
+When audit_writer_diff 被调用
+Then 返回非零退出码
+  And 该 Writer 的产出被跳过不合并
+
+## S006: Writer 超时处理
+Given Writer 15 分钟未写 DONE.json
+When 超时触发
+Then DONE.json 被写入 status=timeout
+  And 该 Writer 被标记为 failed
+
+## S007: Tester 启动并生成报告
+Given App 已构建（对本项目=bash -n 通过）
+When run_tester 被调用
+Then Tester Claude 子进程在 tmux 中启动
+  And 15 分钟内生成 reports/round-N-test.md
+  And 超时时生成空报告而非崩溃
+
+## S008: 3 Reviewer 启动并产出评分
+Given Tester 报告存在
+When run_reviewers 被调用
+Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
+  And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+  And JSON 包含 "score" 字段
+  And 如果文件不存在，从 pane 输出提取 JSON
+
+## S009: 和议计算正确
+Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
+When compute_verdict 被调用
+Then 中位数 = 6.0
+  And DECISION = ACCEPTED（如果 > prev_median）
+  And verdict.env 可以被安全读取（不崩 bash）
+
+## S010: 一票否决（score < 4.0）
+Given scores=[3.5, 6.0, 7.0]
+When compute_verdict 被调用
+Then DECISION = REJECTED_VETO
+  And 记录到 results.tsv
+
+## S011: Tester P0 否决
+Given Tester 报告包含 "P0" 和 "fail"
+When compute_verdict 被调用
+Then DECISION = REJECTED_TESTER_P0
+
+## S012: verdict.env 安全读取
+Given verdict.env 包含 MEDIAN=0.0 和 SCORES="1.0 2.0 3.0"
+When 脚本读取 verdict.env
+Then DECISION 和 MEDIAN 被正确提取
+  And 不会出现 "command not found" 错误
+
+## S013: 连续 5 轮失败自动回退
+Given results.tsv 有 5 行 REJECTED
+  And archive/round-2/git-sha.txt 存在且得分最高
+When 第 6 轮开始
+Then 代码回退到 Round 2 的 git sha
+  And consecutive_rejects 重置为 0
+
+## S014: STOP 文件优雅退出
+Given _hyper-loop/STOP 文件存在
+When 循环检查到 STOP
+Then 当前轮不执行
+  And 脚本正常退出（exit 0）
+  And STOP 文件被删除
+
+## S015: worktree 清理
+Given Round N 完成
+When cleanup_round 被调用
+Then /tmp/hyper-loop-worktrees-rN/ 不存在
+  And hyper-loop/rN-* 分支被删除
+  And tmux writer windows 被关闭
+
+## S016: macOS timeout 兼容
+Given macOS 没有 timeout 命令但有 gtimeout
+When 脚本启动
+Then timeout 函数可用（不报 command not found）
+
+## S017: 多 Writer 同文件冲突处理
+Given task1 和 task2 都改了同一个业务文件（非元数据）
+When merge_writers 合并
+Then 元数据文件已预先清理，不会导致 false conflict
+  And 第一个 Writer 成功 merge
+  And 如果第二个 Writer 与第一个有真实代码冲突则 merge --abort 并标记 deferred
+  And 如果没有代码冲突则两个都成功 merge
+  And 脚本不崩溃
+
+ succeeded in 0ms:
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================================================
+# HyperLoop v5.3 — 编排脚本
+#
+# 像 autoresearch 的 program.md：一个死循环，改→跑→评→keep/reset→重复
+# 像 HyperAgents 的 generate_loop.py：硬编码进化循环，有档案库和 parent 选择
+#
+# Claude Code 调用 `loop` 命令后脚本自主循环，不需要 Claude 再介入。
+# 脚本自动：拆任务 → Writer → merge → build → Tester → Reviewer → 和议 → keep/reset
+# ============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# macOS 没有 timeout，用 coreutils 的 gtimeout
+if command -v gtimeout >/dev/null 2>&1; then
+  timeout() { gtimeout "$@"; }
+elif ! command -v timeout >/dev/null 2>&1; then
+  timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
+fi
+
+# ── 加载项目配置 ──
+load_config() {
+  local CONFIG_FILE="${PROJECT_ROOT:-.}/_hyper-loop/project-config.env"
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "ERROR: 找不到 $CONFIG_FILE，先跑 Phase 0" >&2
+    exit 1
+  fi
+  set -a
+  # shellcheck source=/dev/null
+  . "$CONFIG_FILE"
+  set +a
+}
+
+# ── 目录初始化 ──
+init_dirs() {
+  local ROUND="$1"
+  LOG_DIR="${PROJECT_ROOT}/_hyper-loop/logs/$(date +%Y%m%d-%H%M%S)"
+  SCREENSHOT_DIR="${PROJECT_ROOT}/_hyper-loop/screenshots/round-${ROUND}"
+  SCORES_DIR="${PROJECT_ROOT}/_hyper-loop/scores/round-${ROUND}"
+  REPORT_FILE="${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md"
+  SUMMARY_DIR="${PROJECT_ROOT}/_hyper-loop/summaries"
+  TASK_DIR="${PROJECT_ROOT}/_hyper-loop/tasks/round-${ROUND}"
+  WORKTREE_BASE="/tmp/hyper-loop-worktrees-r${ROUND}"
+
+  mkdir -p "$LOG_DIR" "$SCREENSHOT_DIR" "$SCORES_DIR" "$SUMMARY_DIR" "$TASK_DIR" \
+    "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}" \
+    "$(dirname "$REPORT_FILE")"
+}
+
+# ── tmux 会话管理 ──
+ensure_session() {
+  tmux kill-session -t hyper-loop 2>/dev/null || true
+  tmux new-session -d -s hyper-loop -n orchestrator
+  echo "tmux session 'hyper-loop' created"
+}
+
+start_agent() {
+  local NAME="$1"    # tmux window name
+  local CLI="$2"     # e.g. "codex --full-auto"
+  local INIT="$3"    # 初始化文件的绝对路径
+  local ROUND="$4"
+
+  tmux new-window -t "hyper-loop" -n "$NAME"
+  tmux pipe-pane -o -t "hyper-loop:${NAME}" "cat >> '${LOG_DIR}/${NAME}-r${ROUND}.log'"
+  tmux send-keys -t "hyper-loop:${NAME}" "cd ${PROJECT_ROOT} && ${CLI}" Enter
+  sleep 3
+
+  # 注入初始化文件（传路径，不传内容）
+  local INJECT="/tmp/hyper-loop-inject-${NAME}-r${ROUND}.md"
+  {
+    echo "请先读以下文件了解你的角色和上下文："
+    echo "- 角色定义：${INIT}"
+    echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
+    # 注入最近 3 轮摘要
+    if ls "${SUMMARY_DIR}/${NAME}-r"*.md >/dev/null 2>&1; then
+      echo "- 你的历史摘要（最近 3 轮）："
+      ls -t "${SUMMARY_DIR}/${NAME}-r"*.md 2>/dev/null | head -3 | while read -r f; do
+        echo "  - $f"
+      done
+    fi
+    echo ""
+    echo "当前是第 ${ROUND} 轮。读完上述文件后回复'已就绪'。"
+  } > "$INJECT"
+
+  tmux load-buffer -b "inject-${NAME}-r${ROUND}" "$INJECT"
+  tmux paste-buffer -d -r -b "inject-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
+  tmux send-keys -t "hyper-loop:${NAME}" Enter
+  echo "  ✓ ${NAME} started (${CLI})"
+}
+
+kill_agent() {
+  local NAME="$1"
+  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
+}
+
+# ── Writer 管理 ──
+start_writers() {
+  local ROUND="$1"
+
+  mkdir -p "$WORKTREE_BASE"
+
+  local TASK_COUNT
+  TASK_COUNT=$(find "$TASK_DIR" -maxdepth 1 -name 'task*.md' | wc -l | tr -d ' ')
+
+  if [[ "$TASK_COUNT" -eq 0 ]]; then
+    echo "ERROR: $TASK_DIR 下没有任务文件（task*.md）" >&2
+    echo "Claude Code 需要先拆解任务并写入 task*.md 文件" >&2
+    exit 1
+  fi
+
+  echo "启动 ${TASK_COUNT} 个 Writer..."
+
+  for TASK_FILE in "$TASK_DIR"/task*.md; do
+    local TASK_NAME
+    TASK_NAME=$(basename "$TASK_FILE" .md)
+    local WT="${WORKTREE_BASE}/${TASK_NAME}"
+    local BRANCH="hyper-loop/r${ROUND}-${TASK_NAME}"
+
+    # 创建 worktree
+    git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>/dev/null
+
+    # 预 trust worktree 目录（解决 Codex "Do you trust?" 弹窗）
+    # Codex 的 trust 存在 ~/.codex/config.toml
+    local REAL_WT
+    REAL_WT=$(cd "$WT" && pwd -P)  # 解析 /private/tmp → /tmp 等符号链接
+    if ! grep -q "\"$REAL_WT\"" ~/.codex/config.toml 2>/dev/null; then
+      printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$REAL_WT" >> ~/.codex/config.toml
+      echo "  ✓ Codex trusted: $REAL_WT"
+    fi
+
+    # 复制上下文包 + 任务文件
+    cp -r "${PROJECT_ROOT}/_hyper-loop/context" "${WT}/_ctx"
+    cp "$TASK_FILE" "${WT}/TASK.md"
+
+    # 生成 Writer 初始化——让 Writer 清楚知道自己是谁、能做什么、不能做什么
+    cat > "${WT}/WRITER_INIT.md" <<WINIT
+# 你是 HyperLoop Writer
+
+你在一个独立的 git worktree 中工作。你的修改只影响这个 worktree。
+你是一个临时工——改完这个任务就退出，不参与评审或其他决策。
+
+## 你的工作流程
+1. 先读 _ctx/ 下所有 .md 文件了解项目：
+   - CLAUDE.md = 编码规范（Tauri invoke camelCase、TDD 等铁律）
+   - *prd*.md = 产品需求（你要实现的是什么产品）
+   - *architect*.md = 架构约束（进程分离、IPC 协议等）
+   - *design*.md = 设计文档（功能应该长什么样）
+   - contract.md = 评估契约（你的代码将按什么标准评分）
+   - bdd-specs.md = BDD 行为规格（你的验收标准）
+2. 读 TASK.md 了解本次具体任务
+3. **只修改 TASK.md 中指定的文件**——改其他文件会被 diff 审计拒绝
+4. 运行验证命令确认无报错
+5. 将结果写入 DONE.json
+
+## 你不能做的事
+- 不改 TASK.md 没提到的文件（会被审计拒绝）
+- 不改 CSS/样式（除非 TASK.md 明确要求）
+- 不重构"顺便看到"的代码
+- 不猜 Tauri invoke 参数名（用 grep 确认）
+- 不评分、不评价其他代码
+
+## 完成协议
+修改完成后：
+1. 运行项目的构建/检查命令验证
+2. 写 DONE.json：{"status":"done","files_changed":["实际改了的文件"],"lint_pass":true}
+3. 最后一行输出：HYPERLOOP_TASK_DONE
+
+如果你无法完成任务（比如需要改的文件不存在、逻辑太复杂需要拆分）：
+1. 写 DONE.json：{"status":"blocked","reason":"具体原因","files_changed":[]}
+2. 最后一行输出：HYPERLOOP_TASK_DONE
+WINIT
+
+    # 构造完整 prompt（WRITER_INIT + 项目简报 + BDD + 契约 + TASK），通过 stdin 注入
+    local WRITER_PROMPT="${WT}/_writer_prompt.md"
+    {
+      cat "${WT}/WRITER_INIT.md"
+      echo ""
+      echo "---"
+      echo ""
+      # 项目简报（init 生成的提炼版，不是原始文档）
+      if [[ -f "${WT}/_ctx/project-brief.md" ]]; then
+        echo "# 项目简报"
+        echo ""
+        cat "${WT}/_ctx/project-brief.md"
+        echo ""
+        echo "---"
+        echo ""
+      fi
+      # BDD 规格（完整版，这是验收标准）
+      if [[ -f "${WT}/_ctx/bdd-specs.md" ]]; then
+        echo "# BDD 行为规格"
+        echo ""
+        cat "${WT}/_ctx/bdd-specs.md"
+        echo ""
+        echo "---"
+        echo ""
+      fi
+      # 评估契约
+      if [[ -f "${WT}/_ctx/contract.md" ]]; then
+        echo "# 评估契约"
+        echo ""
+        cat "${WT}/_ctx/contract.md"
+        echo ""
+        echo "---"
+        echo ""
+      fi
+      echo "# 本轮任务"
+      echo ""
+      cat "${WT}/TASK.md"
+      echo ""
+      echo "---"
+      echo ""
+      echo "现在执行 TASK.md 中的任务。完成后写 DONE.json。"
+      echo "项目的其他文件在 _ctx/ 目录下可以用工具读取，但以上内容已包含核心信息。"
+    } > "$WRITER_PROMPT"
+
+    local PROMPT_LINES
+    PROMPT_LINES=$(wc -l < "$WRITER_PROMPT" | tr -d ' ')
+    echo "  📝 ${TASK_NAME} prompt: ${PROMPT_LINES} lines" >&2
+
+    # 启动 Writer（非交互 exec 模式，后台并行，stdin 注入完整上下文）
+    local WRITER_LOG="${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log"
+    (
+      cat "$WRITER_PROMPT" | codex exec --dangerously-bypass-approvals-and-sandbox -C "$WT" - \
+        > "$WRITER_LOG" 2>&1 || true
+      # 如果 Codex 没写 DONE.json，补一个
+      if [[ ! -f "${WT}/DONE.json" ]]; then
+        echo '{"status":"done","files_changed":[],"note":"codex exec exited without DONE.json"}' > "${WT}/DONE.json"
+      fi
+    ) &
+
+    echo "  ✓ Writer ${TASK_NAME} started in ${WT}"
+  done
+}
+
+wait_writers() {
+  local ROUND="$1"
+  local TIMEOUT="${2:-900}"  # 默认 15 分钟（BDD S006 要求）
+
+  echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
+
+  # Writer 是后台 codex exec 进程，用 timeout 等待
+  # 如果超时，杀掉所有 codex exec 子进程
+  local START_TIME
+  START_TIME=$(date +%s)
+
+  while true; do
+    # 检查是否还有 codex exec 子进程在跑
+    local RUNNING
+    RUNNING=$(jobs -r 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$RUNNING" -eq 0 ]]; then
+      echo "  ✓ 所有 Writer 已完成"
+      break
+    fi
+
+    local ELAPSED=$(( $(date +%s) - START_TIME ))
+
+ succeeded in 0ms:
+# HyperLoop 自优化评估契约
+- 目标：hyper-loop.sh 能无人值守跑 50 轮不崩溃
+- BDD 场景：17 个
+- 客观指标（80%）：bash -n 语法检查 + BDD 场景通过率
+- 主观维度（20%）：代码可读性 + 错误处理完整性（上限 7.0）
+- 通过阈值：7.5
+
+codex
+已拿到契约和测试报告，下一步补读脚本中本轮相关函数，重点核对 `audit_writer_diff`、`compute_verdict`、`cmd_loop` 是否和 BDD、测试结论一致。
+exec
+/bin/zsh -lc "sed -n '240,360p' scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+wait_writers() {
+  local ROUND="$1"
+  local TIMEOUT="${2:-900}"  # 默认 15 分钟（BDD S006 要求）
+
+  echo "等待所有 Writer 完成（超时 ${TIMEOUT}s）..."
+
+  # Writer 是后台 codex exec 进程，用 timeout 等待
+  # 如果超时，杀掉所有 codex exec 子进程
+  local START_TIME
+  START_TIME=$(date +%s)
+
+  while true; do
+    # 检查是否还有 codex exec 子进程在跑
+    local RUNNING
+    RUNNING=$(jobs -r 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$RUNNING" -eq 0 ]]; then
+      echo "  ✓ 所有 Writer 已完成"
+      break
+    fi
+
+    local ELAPSED=$(( $(date +%s) - START_TIME ))
+    if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
+      echo "  ⚠ 超时（${TIMEOUT}s），强制结束未完成的 Writer"
+      # 杀掉所有后台 subshell 及其子进程（codex exec）
+      for PID in $(jobs -p 2>/dev/null); do
+        # kill 整个进程组，确保 codex exec 子进程也被杀
+        kill -- -"$PID" 2>/dev/null || kill "$PID" 2>/dev/null || true
+      done
+      wait 2>/dev/null || true
+      # 给没有 DONE.json 的 Writer 写 timeout 状态
+      for WT in "${WORKTREE_BASE}"/task*; do
+        [[ -d "$WT" ]] || continue
+        [[ -f "${WT}/DONE.json" ]] || echo '{"status":"timeout"}' > "${WT}/DONE.json"
+      done
+      break
+    fi
+
+    sleep 10
+  done
+}
+
+# ── Diff 审计（autoresearch 启示：产出必须在可控范围内）──
+audit_writer_diff() {
+  local WT="$1"
+  local TASK_FILE="${WT}/TASK.md"
+
+  # 从 TASK.md 提取"相关文件"列表
+  local ALLOWED_FILES
+  ALLOWED_FILES=$(grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
+    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html|sh|bash|toml|json|md|yaml|yml)' | \
+    sed 's/^[[:space:]]*//' | sort -u || true)
+
+  if [[ -z "$ALLOWED_FILES" ]]; then
+    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计" >&2
+    return 0
+  fi
+
+  # 获取实际改了哪些文件
+  local CHANGED_FILES
+  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+
+  if [[ -z "$CHANGED_FILES" ]]; then
+    echo "  ⚠ Writer 没有改任何文件" >&2
+    return 0
+  fi
+
+  # 检查是否有越界改动
+  local VIOLATIONS=""
+  while IFS= read -r changed; do
+    local FOUND=false
+    while IFS= read -r allowed; do
+      [[ -z "$allowed" ]] && continue
+      if [[ "$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then
+        FOUND=true
+        break
+      fi
+    done <<< "$ALLOWED_FILES"
+
+    # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+    case "$changed" in
+      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+    esac
+
+    if ! $FOUND; then
+      VIOLATIONS="${VIOLATIONS}    越界: ${changed}\n"
+    fi
+  done <<< "$CHANGED_FILES"
+
+  if [[ -n "$VIOLATIONS" ]]; then
+    echo "  ✗ Diff 审计失败：Writer 改了 TASK.md 范围外的文件" >&2
+    echo -e "$VIOLATIONS" >&2
+    return 1
+  fi
+
+  echo "  ✓ Diff 审计通过" >&2
+  return 0
+}
+
+# ── 合并 ──
+merge_writers() {
+  local ROUND="$1"
+  local INTEGRATION_BRANCH="hyper-loop/r${ROUND}-integration"
+  local INTEGRATION_WT="${WORKTREE_BASE}/integration"
+  local BASE_SHA
+  BASE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
+
+  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" >&2 2>/dev/null
+
+  local MERGED=0
+  local FAILED=0
+
+  echo "合并 Writer 产出..." >&2
+
+  for WT in "${WORKTREE_BASE}"/task*; do
+    [[ -d "$WT" ]] || continue
+    local TASK_NAME
+    TASK_NAME=$(basename "$WT")
+
+    local STATUS
+    STATUS=$(python3 -c "import json; print(json.load(open('${WT}/DONE.json'))['status'])" 2>/dev/null || echo "unknown")
+    if [[ "$STATUS" != "done" ]]; then
+
+exec
+/bin/zsh -lc "sed -n '520,610p' scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "sed -n '990,1085p' scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc 'rg -n "''^(audit_writer_diff|compute_verdict|cmd_loop|build_app|merge_writers|record_result)'"\\(\" scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+    cat "$REVIEW_PROMPT_FILE" | timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" - 2>&1 | \
+      tee "${LOG_DIR}/round-${ROUND}_reviewer-c_scoring_codex.log" | \
+      python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
+    echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
+  ) &
+
+  echo "  等待 3 个 Reviewer 完成（最多 5 分钟）..."
+  wait
+
+  # 清理临时文件
+  rm -f "$REVIEW_PROMPT_FILE" 2>/dev/null
+
+  # 确保所有评分文件存在（fallback 给 5 分）
+  for NAME in reviewer-a reviewer-b reviewer-c; do
+    if [[ ! -s "${SCORES_DIR}/${NAME}.json" ]]; then
+      echo '{"score":5,"issues":[],"summary":"Reviewer 超时或无输出，中立分5"}' > "${SCORES_DIR}/${NAME}.json"
+      echo "  ⚠ ${NAME} fallback to score 5"
+    fi
+  done
+}
+
+# ── 和议计算 ──
+compute_verdict() {
+  local ROUND="$1"
+  local PREV_MEDIAN="${2:-0}"
+
+  echo ""
+  echo "═══════════════════════════════════"
+  echo "  Round $ROUND 和议结果"
+  echo "═══════════════════════════════════"
+
+  local SCORES=()
+  for SCORE_FILE in "${SCORES_DIR}"/*.json; do
+    [[ -f "$SCORE_FILE" ]] || continue
+    local S
+    S=$(python3 -c "import json; print(json.load(open('${SCORE_FILE}'))['score'])" 2>/dev/null || echo "0")
+    SCORES+=("$S")
+    local NAME
+    NAME=$(basename "$SCORE_FILE" .json)
+    echo "  ${NAME}: ${S}"
+  done
+
+  if [[ ${#SCORES[@]} -eq 0 ]]; then
+    echo "  ERROR: 没有评分文件"
+    echo "DECISION=ERROR" > "${TASK_DIR}/verdict.env"
+    return
+  fi
+
+  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+import sys, json
+from pathlib import Path
+
+scores_str, prev_median_str, report_path, output_path = sys.argv[1:5]
+scores = sorted([float(s) for s in scores_str.split()])
+n = len(scores)
+median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
+max_diff = max(scores) - min(scores)
+prev_median = float(prev_median_str)
+
+veto = any(s < 4.0 for s in scores)
+
+tester_p0 = False
+report = Path(report_path)
+if report.exists():
+    text = report.read_text()
+    import re
+    # Count actual P0 bug entries (### P0- headings), not section headers (## P0 Bugs)
+    p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+    # Count BDD scenario failures from the results table
+    bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
+    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
+    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
+
+if veto:
+    decision = "REJECTED_VETO"
+elif tester_p0:
+    decision = "REJECTED_TESTER_P0"
+elif max_diff > 2.0:
+    decision = "PENDING_USER"
+elif median > prev_median:
+    decision = "ACCEPTED"
+elif median == prev_median and median > 0:
+    decision = "ACCEPTED_UNCHANGED"
+else:
+    decision = "REJECTED_NO_IMPROVEMENT"
+
+print(f"  中位数: {median}")
+print(f"  分歧: {max_diff}")
+print(f"  否决: {veto}")
+print(f"  Tester P0: {tester_p0}")
+
+ succeeded in 0ms:
+
+  cat "$SCAN_RESULT" >> "$BRIEF_PROMPT"
+
+  local BRIEF_FILE="${CTX_DIR}/project-brief.md"
+  local BRIEF_LOG="${PROJECT_ROOT}/_hyper-loop/logs/init-brief-claude.log"
+  mkdir -p "$(dirname "$BRIEF_LOG")"
+  cat "$BRIEF_PROMPT" | claude --dangerously-skip-permissions -p \
+    --add-dir "$PROJECT_ROOT" \
+    > "$BRIEF_FILE" 2>"$BRIEF_LOG" || true
+
+  if [[ -s "$BRIEF_FILE" ]]; then
+    local BRIEF_LINES
+    BRIEF_LINES=$(wc -l < "$BRIEF_FILE" | tr -d ' ')
+    echo "  ✓ 项目简报已生成: ${BRIEF_FILE} (${BRIEF_LINES} 行)"
+  else
+    echo "  ⚠ Claude 未生成简报（日志: ${BRIEF_LOG}），使用原始扫描结果"
+    head -300 "$SCAN_RESULT" > "$BRIEF_FILE"
+  fi
+
+  # Step 3: 复制核心文件到 context
+  echo "Step 3: 同步核心文件..."
+  [[ -f "${PROJECT_ROOT}/CLAUDE.md" ]] && cp "${PROJECT_ROOT}/CLAUDE.md" "${CTX_DIR}/" 2>/dev/null
+  cp "${PROJECT_ROOT}/scripts/hyper-loop.sh" "${CTX_DIR}/hyper-loop.sh" 2>/dev/null || true
+
+  echo "  ✓ context/ 目录已就绪"
+  echo ""
+  echo "context/ 内容:"
+  ls -la "$CTX_DIR"/*.md 2>/dev/null | awk '{print "  " $NF " (" $5 " bytes)"}'
+  echo ""
+  echo "═══ Init 完成 ═══"
+  echo "接下来："
+  echo "  1. 检查 _hyper-loop/context/project-brief.md 是否准确"
+  echo "  2. 确认 bdd-specs.md 和 contract.md"
+  echo "  3. 启动循环: hyper-loop.sh loop N"
+}
+
+# ── 死循环模式（autoresearch 启示：NEVER STOP）──
+cmd_loop() {
+  local MAX_ROUNDS="${1:-999}"
+  local STOP_FILE="${PROJECT_ROOT:-.}/_hyper-loop/STOP"
+
+  load_config
+
+  # 检查是否已初始化
+  if [[ ! -f "${PROJECT_ROOT}/_hyper-loop/context/project-brief.md" ]]; then
+    echo "⚠ 未找到 project-brief.md，先运行 init 扫描项目..."
+    cmd_init
+  fi
+
+  echo ""
+  echo "╔══════════════════════════════════════════════════╗"
+  echo "║  HyperLoop LOOP 模式 — 最多 ${MAX_ROUNDS} 轮             "
+  echo "║  创建 _hyper-loop/STOP 文件可优雅停止          "
+  echo "╚══════════════════════════════════════════════════╝"
+  echo ""
+
+  # 确定起始轮次
+  local ROUND=1
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    local LAST_ROUND
+    LAST_ROUND=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f1 || echo 0)
+    if [[ -n "$LAST_ROUND" ]] && [[ "$LAST_ROUND" =~ ^[0-9]+$ ]]; then
+      ROUND=$((LAST_ROUND + 1))
+    fi
+  fi
+
+  local CONSECUTIVE_REJECTS=0
+  local BEST_ROUND=0
+  local BEST_MEDIAN=0
+  # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
+  local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
+
+  while [[ "$ROUND" -le "$END_ROUND" ]]; do
+    # 检查停止信号
+    if [[ -f "$STOP_FILE" ]]; then
+      echo "检测到 STOP 文件，优雅退出"
+      rm "$STOP_FILE"
+      break
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  LOOP: Round ${ROUND}/${END_ROUND}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
+    init_dirs "$ROUND"
+    ensure_session
+    # 重置本轮状态（防止前一轮的 MEDIAN/DECISION 影响后续判断）
+    DECISION="" MEDIAN=0
+
+    # 自动拆解任务
+    auto_decompose "$ROUND"
+
+    local PREV_MEDIAN=0
+    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+
+ succeeded in 0ms:
+282:audit_writer_diff() {
+339:merge_writers() {
+409:build_app() {
+542:compute_verdict() {
+652:record_result() {
+1027:cmd_loop() {
+
+codex
+脚本现状和测试报告有明显不一致：`compute_verdict` 仍是旧阈值逻辑，`cmd_loop` 也还没有从历史恢复最佳轮次与连续拒绝数。我继续补读后半段，确认这是当前真实回归还是仅报告过期。
+exec
+/bin/zsh -lc "sed -n '1085,1185p' scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+      PREV_MEDIAN=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f2 || echo 0)
+      [[ -z "$PREV_MEDIAN" ]] && PREV_MEDIAN=0
+      [[ "$PREV_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || PREV_MEDIAN=0
+    fi
+
+    start_writers "$ROUND"
+    wait_writers "$ROUND"
+
+    local INTEGRATION_WT
+    INTEGRATION_WT=$(merge_writers "$ROUND")
+
+    # 检查是否有任何 Writer 成功合并
+    local MERGE_COUNT
+    MERGE_COUNT=$(cat "${TASK_DIR}/merge-count.txt" 2>/dev/null || echo 0)
+    if [[ "$MERGE_COUNT" -eq 0 ]]; then
+      echo "所有 Writer 失败或被跳过"
+      echo "DECISION=NO_MERGE" > "${TASK_DIR}/verdict.env"
+      echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+      echo "SCORES=\"0\"" >> "${TASK_DIR}/verdict.env"
+      record_result "$ROUND"
+      archive_round "$ROUND"
+      cleanup_round "$ROUND"
+      ((CONSECUTIVE_REJECTS++)) || true
+      ((ROUND++))
+      sleep 30
+      continue
+    fi
+
+    if ! build_app "$INTEGRATION_WT"; then
+      echo "构建失败"
+      echo "DECISION=BUILD_FAILED" > "${TASK_DIR}/verdict.env"
+      echo "MEDIAN=0" >> "${TASK_DIR}/verdict.env"
+      echo "SCORES=\"0\"" >> "${TASK_DIR}/verdict.env"
+      record_result "$ROUND"
+      archive_round "$ROUND"
+      cleanup_round "$ROUND"
+      ((CONSECUTIVE_REJECTS++)) || true
+    else
+      run_tester "$ROUND"
+      run_reviewers "$ROUND"
+      compute_verdict "$ROUND" "$PREV_MEDIAN"
+      record_result "$ROUND"
+
+      # 读取决策
+      # shellcheck source=/dev/null
+      # 安全读取 verdict.env（不 source，用 grep 提取）
+  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+
+      if [[ "$DECISION" == "ACCEPTED" ]] || [[ "$DECISION" == "ACCEPTED_UNCHANGED" ]]; then
+        echo "  → KEEP: 合并到 main"
+        git -C "$PROJECT_ROOT" merge --no-ff "hyper-loop/r${ROUND}-integration" \
+          -m "hyper-loop R${ROUND}: median=${MEDIAN}" 2>/dev/null || true
+        CONSECUTIVE_REJECTS=0
+
+        # 追踪最佳轮次
+        if python3 -c "exit(0 if float('${MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+          BEST_ROUND=$ROUND
+          BEST_MEDIAN=$MEDIAN
+        fi
+      else
+        echo "  → RESET: 丢弃本轮 ($DECISION)"
+        ((CONSECUTIVE_REJECTS++)) || true
+      fi
+
+      # 归档
+      archive_round "$ROUND"
+      cleanup_round "$ROUND"
+    fi
+
+    # 连续 5 轮失败 → 回退到最佳轮次重新开始
+    if [[ "$CONSECUTIVE_REJECTS" -ge 5 ]] && [[ "$BEST_ROUND" -gt 0 ]]; then
+      echo ""
+      echo "⚠ 连续 ${CONSECUTIVE_REJECTS} 轮失败，回退到 Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+      local BEST_SHA
+      BEST_SHA=$(cat "${PROJECT_ROOT}/_hyper-loop/archive/round-${BEST_ROUND}/git-sha.txt" 2>/dev/null)
+      if [[ -n "$BEST_SHA" ]]; then
+        git -C "$PROJECT_ROOT" checkout "$BEST_SHA" -- . 2>/dev/null || true
+        echo "  ✓ 代码已回退"
+      fi
+      CONSECUTIVE_REJECTS=0
+    fi
+
+    # 中位数 >= 8.0 → 达标，停止
+    if python3 -c "exit(0 if float('${MEDIAN:-0}') >= 8.0 else 1)" 2>/dev/null; then
+      echo ""
+      echo "🎉 中位数达到 ${MEDIAN} >= 8.0，目标达成！"
+      break
+    fi
+
+    ((ROUND++))
+
+    # 轮间冷却 30 秒（让系统资源恢复）
+    echo "轮间冷却 30s..."
+    sleep 30
+  done
+
+  echo ""
+  echo "═══════════════════════════════════"
+  echo "  LOOP 结束"
+
+exec
+/bin/zsh -lc "sed -n '360,470p' scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+    if [[ "$STATUS" != "done" ]]; then
+      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过" >&2
+      ((FAILED++)) || true
+      continue
+    fi
+
+    # Diff 审计：检查 Writer 是否只改了指定范围的文件
+    if ! audit_writer_diff "$WT"; then
+      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并" >&2
+      ((FAILED++)) || true
+      continue
+    fi
+
+    local BRANCH
+    BRANCH=$(git -C "$WT" branch --show-current)
+
+    # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
+    # 必须先 commit 才能 merge
+    # 先删除 HyperLoop 元数据文件，防止多 Writer squash merge 冲突（P0-1 修复）
+    rm -f "${WT}/DONE.json" "${WT}/WRITER_INIT.md" "${WT}/TASK.md" "${WT}/_writer_prompt.md" 2>/dev/null
+    rm -rf "${WT}/_ctx" 2>/dev/null
+    git -C "$WT" add -A 2>/dev/null
+    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty >&2 2>/dev/null || true
+
+    # 保存 diff（对比 worktree 创建时的 parent commit）
+    git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
+      git -C "$WT" diff HEAD > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null
+    git -C "$WT" diff --stat HEAD~1 > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null || \
+      git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
+
+    # squash merge
+    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit >&2 2>/dev/null; then
+      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" >&2 2>/dev/null
+      echo "  ✓ ${TASK_NAME} merged" >&2
+      ((MERGED++)) || true
+    else
+      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+      echo "  ✗ ${TASK_NAME} conflict, deferred" >&2
+      ((FAILED++)) || true
+    fi
+  done
+
+  echo "合并完成: ${MERGED} merged, ${FAILED} failed/skipped" >&2
+  # 写 merge 统计供调用方检查
+  echo "$MERGED" > "${TASK_DIR}/merge-count.txt"
+  echo "$INTEGRATION_WT"
+}
+
+# ── 构建 ──
+build_app() {
+  local BUILD_DIR="$1"
+  echo "构建 App..."
+  cd "$BUILD_DIR"
+  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+    echo "  ✓ 构建成功"
+    return 0
+  else
+    echo "  ✗ 构建失败"
+    return 1
+  fi
+}
+
+# ── Tester（非交互 -p 模式）──
+run_tester() {
+  local ROUND="$1"
+
+  echo "启动 Tester（非交互模式）..."
+
+  # 先生成轮次摘要给 Tester 看
+  local SUMMARY="${TASK_DIR}/round-summary.txt"
+  {
+    echo "本轮修改统计："
+    for STAT in "${TASK_DIR}"/*.stat; do
+      [[ -f "$STAT" ]] && cat "$STAT"
+    done
+    echo ""
+    echo "构建结果：$(eval "${BUILD_VERIFY:-echo 'no verify'}" 2>&1 | tail -3)"
+  } > "$SUMMARY" 2>/dev/null
+
+  local TESTER_PROMPT="你是代码测试员。请执行以下操作：
+
+1. 读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解 BDD 场景
+2. 读 ${SUMMARY} 了解本轮修改
+3. 运行 bash -n ${PROJECT_ROOT}/scripts/hyper-loop.sh 验证语法
+4. 按 BDD 场景逐条检查脚本代码，标注 pass/fail
+5. 将结果写入 ${REPORT_FILE}，格式：每行一个场景 ID + pass/fail + 原因
+6. 列出发现的 P0/P1 bug"
+
+  echo "$TESTER_PROMPT" | timeout 600 claude --dangerously-skip-permissions -p - \
+    --add-dir "$PROJECT_ROOT" 2>&1 | \
+    tee "${LOG_DIR}/round-${ROUND}_tester_bdd-verify_claude.log" > "${REPORT_FILE}" || true
+
+  if [[ -s "$REPORT_FILE" ]]; then
+    echo "  ✓ 试用报告已生成: $REPORT_FILE"
+  else
+    echo "  ⚠ Tester 无输出，生成默认报告"
+    echo "# Round $ROUND — Tester 无输出" > "$REPORT_FILE"
+  fi
+}
+
+# ── 3 Reviewer 合议（非交互管道模式）──
+run_reviewers() {
+  local ROUND="$1"
+
+  echo "启动 3 个 Reviewer（非交互模式）..."
+
+  # 构造评审 prompt（引用文件路径）
+  local REVIEW_PROMPT="你是代码评审官。请读以下文件后给出评分。
+
+评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md
+
+exec
+/bin/zsh -lc "sed -n '610,700p' scripts/hyper-loop.sh" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+print(f"  Tester P0: {tester_p0}")
+print(f"  决策: {decision}")
+
+with open(output_path, 'w') as f:
+    f.write(f"DECISION={decision}\n")
+    f.write(f"MEDIAN={median}\n")
+    f.write(f"MAX_DIFF={max_diff}\n")
+    f.write(f"VETO={veto}\n")
+    f.write(f"TESTER_P0={tester_p0}\n")
+    f.write(f"SCORES=\"{' '.join(str(s) for s in scores)}\"\n")
+PYVERDICT
+
+  echo "═══════════════════════════════════"
+}
+
+# ── 清理（所有命令容错，不能因为清理失败终止循环）──
+cleanup_round() {
+  local ROUND="$1"
+
+  # 用 subshell + set +e 确保清理不会触发 set -e 退出
+  (
+    set +e
+    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
+      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+    done
+
+    for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
+      [[ -d "$WT" ]] || continue
+      local BRANCH
+      BRANCH=$(git -C "$WT" branch --show-current 2>/dev/null || echo "")
+      git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null
+      [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null
+    done
+
+    cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
+
+    # S015: 删除 worktree 父目录
+    rm -rf "${WORKTREE_BASE}" 2>/dev/null
+  ) || true
+}
+
+# ── 记录结果 ──
+record_result() {
+  local ROUND="$1"
+  local VERDICT_FILE="${TASK_DIR}/verdict.env"
+
+  [[ -f "$VERDICT_FILE" ]] || return
+
+  # 安全读取（不 source，用 grep）
+  local R_DECISION R_MEDIAN R_SCORES
+  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)
+  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)
+  R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')
+
+  printf '%s\t%s\t%s\t%s\n' \
+    "$ROUND" "${R_MEDIAN:-0}" "${R_SCORES:-}" "${R_DECISION:-ERROR}" \
+    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+}
+
+# ============================================================================
+# 主命令
+# ============================================================================
+
+cmd_round() {
+  local ROUND="${1:?用法: hyper-loop.sh round <轮次号>}"
+
+  load_config
+  init_dirs "$ROUND"
+  ensure_session
+
+  echo ""
+  echo "╔══════════════════════════════════╗"
+  echo "║  HyperLoop Round $ROUND 开始      "
+  echo "╚══════════════════════════════════╝"
+  echo ""
+
+  local PREV_MEDIAN=0
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    PREV_MEDIAN=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f2 || echo 0)
+    # Validate: must be a number (integer or float), default to 0 if not
+    [[ -z "$PREV_MEDIAN" ]] && PREV_MEDIAN=0
+    [[ "$PREV_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || PREV_MEDIAN=0
+  fi
+
+  start_writers "$ROUND"
+  wait_writers "$ROUND"
+
+  local INTEGRATION_WT
+  INTEGRATION_WT=$(merge_writers "$ROUND")
+
+  # 检查是否有任何 Writer 成功合并
+
+exec
+/bin/zsh -lc 'git diff -- scripts/hyper-loop.sh' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+codex
+当前工作树没有未提交 diff，说明要评的是已提交版本本身，不是暂存修改。我再核对一下 `HEAD` 与测试报告里的提交号，避免把过期报告当成现状。
+exec
+/bin/zsh -lc 'git rev-parse --short HEAD' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+bde898f
+
+exec
+/bin/zsh -lc 'git show --stat --oneline --decorate -n 1 HEAD -- scripts/hyper-loop.sh' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+bde898f (HEAD -> main) fix: mktemp suffix breaks macOS — remove .md from template
+ scripts/hyper-loop.sh | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+exec
+/bin/zsh -lc 'git log --oneline -n 8 -- scripts/hyper-loop.sh' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+bde898f fix: mktemp suffix breaks macOS — remove .md from template
+e371019 fix: 11 edge cases — P0 false positive, merge guard, audit whitelist
+f64d278 fix: 3 reviewer suggestions + ralph-loop registry cleanup
+4f7adb3 fix: dual review findings — 8 issues from Claude + Codex reviewers
+d77255d feat: cmd_init — project scan → Claude brief → persistent context
+86e1fec fix: Codex review findings — _writer_prompt.md cleanup + process group kill
+c3fbdc4 fix: Writer exec mode — inject full context via stdin pipe
+b7ef288 refactor: Writer from tmux interactive to codex exec non-interactive
+
+exec
+/bin/zsh -lc "git diff 81bad6e..HEAD -- scripts/hyper-loop.sh | sed -n '1,260p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc 'git show --stat --oneline 81bad6e -- scripts/hyper-loop.sh' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+81bad6e hyper-loop R12 task4
+ scripts/hyper-loop.sh | 54 ++++++++-------------------------------------------
+ 1 file changed, 8 insertions(+), 46 deletions(-)
+
+ succeeded in 0ms:
+diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
+index 1eacb33..a8b7d61 100755
+--- a/scripts/hyper-loop.sh
++++ b/scripts/hyper-loop.sh
+@@ -56,6 +56,47 @@ ensure_session() {
+   echo "tmux session 'hyper-loop' created"
+ }
+ 
++start_agent() {
++  local NAME="$1"    # tmux window name
++  local CLI="$2"     # e.g. "codex --full-auto"
++  local INIT="$3"    # 初始化文件的绝对路径
++  local ROUND="$4"
++
++  tmux new-window -t "hyper-loop" -n "$NAME"
++  tmux pipe-pane -o -t "hyper-loop:${NAME}" "cat >> '${LOG_DIR}/${NAME}-r${ROUND}.log'"
++  tmux send-keys -t "hyper-loop:${NAME}" "cd ${PROJECT_ROOT} && ${CLI}" Enter
++  sleep 3
++
++  # 注入初始化文件（传路径，不传内容）
++  local INJECT="/tmp/hyper-loop-inject-${NAME}-r${ROUND}.md"
++  {
++    echo "请先读以下文件了解你的角色和上下文："
++    echo "- 角色定义：${INIT}"
++    echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
++    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
++    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
++    # 注入最近 3 轮摘要
++    if ls "${SUMMARY_DIR}/${NAME}-r"*.md >/dev/null 2>&1; then
++      echo "- 你的历史摘要（最近 3 轮）："
++      ls -t "${SUMMARY_DIR}/${NAME}-r"*.md 2>/dev/null | head -3 | while read -r f; do
++        echo "  - $f"
++      done
++    fi
++    echo ""
++    echo "当前是第 ${ROUND} 轮。读完上述文件后回复'已就绪'。"
++  } > "$INJECT"
++
++  tmux load-buffer -b "inject-${NAME}-r${ROUND}" "$INJECT"
++  tmux paste-buffer -d -r -b "inject-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
++  tmux send-keys -t "hyper-loop:${NAME}" Enter
++  echo "  ✓ ${NAME} started (${CLI})"
++}
++
++kill_agent() {
++  local NAME="$1"
++  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
++}
++
+ # ── Writer 管理 ──
+ start_writers() {
+   local ROUND="$1"
+@@ -255,12 +296,7 @@ audit_writer_diff() {
+ 
+   # 获取实际改了哪些文件
+   local CHANGED_FILES
+-  CHANGED_FILES=$(
+-    {
+-      git -C "$WT" diff --name-only HEAD 2>/dev/null
+-      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
+-    } | sort -u
+-  )
++  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+ 
+   if [[ -z "$CHANGED_FILES" ]]; then
+     echo "  ⚠ Writer 没有改任何文件" >&2
+@@ -281,7 +317,7 @@ audit_writer_diff() {
+ 
+     # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+     case "$changed" in
+-      DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
++      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+     esac
+ 
+     if ! $FOUND; then
+@@ -373,18 +409,15 @@ merge_writers() {
+ build_app() {
+   local BUILD_DIR="$1"
+   echo "构建 App..."
+-  (
+-    cd "$BUILD_DIR"
+-    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+-    eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"
+-  )
+-  local RC=$?
+-  if [[ $RC -eq 0 ]]; then
++  cd "$BUILD_DIR"
++  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
++  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+     echo "  ✓ 构建成功"
++    return 0
+   else
+     echo "  ✗ 构建失败"
++    return 1
+   fi
+-  return "$RC"
+ }
+ 
+ # ── Tester（非交互 -p 模式）──
+@@ -554,8 +587,9 @@ if report.exists():
+     p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+     # Count BDD scenario failures from the results table
+     bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+-    # BDD S011: any tester report with at least one P0 bug and one FAIL auto-rejects
+-    tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
++    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
++    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
++    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
+ 
+ if veto:
+     decision = "REJECTED_VETO"
+@@ -1022,27 +1056,6 @@ cmd_loop() {
+   local CONSECUTIVE_REJECTS=0
+   local BEST_ROUND=0
+   local BEST_MEDIAN=0
+-  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+-    local HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION
+-    while IFS=$'\t' read -r HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION; do
+-      [[ "$HIST_ROUND" =~ ^[0-9]+$ ]] || continue
+-
+-      if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
+-        CONSECUTIVE_REJECTS=0
+-        [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
+-        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+-          BEST_ROUND=$HIST_ROUND
+-          BEST_MEDIAN=$HIST_MEDIAN
+-        fi
+-      else
+-        ((CONSECUTIVE_REJECTS++)) || true
+-      fi
+-    done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+-
+-    if [[ "$BEST_ROUND" -gt 0 ]]; then
+-      echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+-    fi
+-  fi
+   # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
+   local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
+ 
+
+exec
+/bin/zsh -lc "git log --oneline --all --decorate | rg '81bad6e|e371019|bde898f'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+81bad6e (hyper-loop/r12-integration) hyper-loop R12 task4
+bde898f (HEAD -> main) fix: mktemp suffix breaks macOS — remove .md from template
+e371019 fix: 11 edge cases — P0 false positive, merge guard, audit whitelist
+
+codex
+我已经确认：`HEAD` 比测试报告对应的 `81bad6e` 多了后续提交，而且把 round-12 修复里的几项关键逻辑回退了。最后补跑一遍最基本的语法检查，再给出基于当前代码的评分。
+exec
+/bin/zsh -lc "nl -ba scripts/hyper-loop.sh | sed -n '286,322p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc 'bash -n scripts/hyper-loop.sh && echo PASS || echo FAIL' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+PASS
+
+ succeeded in 0ms:
+   286	  # 从 TASK.md 提取"相关文件"列表
+   287	  local ALLOWED_FILES
+   288	  ALLOWED_FILES=$(grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
+   289	    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html|sh|bash|toml|json|md|yaml|yml)' | \
+   290	    sed 's/^[[:space:]]*//' | sort -u || true)
+   291	
+   292	  if [[ -z "$ALLOWED_FILES" ]]; then
+   293	    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计" >&2
+   294	    return 0
+   295	  fi
+   296	
+   297	  # 获取实际改了哪些文件
+   298	  local CHANGED_FILES
+   299	  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+   300	
+   301	  if [[ -z "$CHANGED_FILES" ]]; then
+   302	    echo "  ⚠ Writer 没有改任何文件" >&2
+   303	    return 0
+   304	  fi
+   305	
+   306	  # 检查是否有越界改动
+   307	  local VIOLATIONS=""
+   308	  while IFS= read -r changed; do
+   309	    local FOUND=false
+   310	    while IFS= read -r allowed; do
+   311	      [[ -z "$allowed" ]] && continue
+   312	      if [[ "$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then
+   313	        FOUND=true
+   314	        break
+   315	      fi
+   316	    done <<< "$ALLOWED_FILES"
+   317	
+   318	    # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+   319	    case "$changed" in
+   320	      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+   321	    esac
+   322	
+
+exec
+/bin/zsh -lc "nl -ba scripts/hyper-loop.sh | sed -n '409,425p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "nl -ba scripts/hyper-loop.sh | sed -n '554,592p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+   409	build_app() {
+   410	  local BUILD_DIR="$1"
+   411	  echo "构建 App..."
+   412	  cd "$BUILD_DIR"
+   413	  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+   414	  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+   415	    echo "  ✓ 构建成功"
+   416	    return 0
+   417	  else
+   418	    echo "  ✗ 构建失败"
+   419	    return 1
+   420	  fi
+   421	}
+   422	
+   423	# ── Tester（非交互 -p 模式）──
+   424	run_tester() {
+   425	  local ROUND="$1"
+
+ succeeded in 0ms:
+   554	    local S
+   555	    S=$(python3 -c "import json; print(json.load(open('${SCORE_FILE}'))['score'])" 2>/dev/null || echo "0")
+   556	    SCORES+=("$S")
+   557	    local NAME
+   558	    NAME=$(basename "$SCORE_FILE" .json)
+   559	    echo "  ${NAME}: ${S}"
+   560	  done
+   561	
+   562	  if [[ ${#SCORES[@]} -eq 0 ]]; then
+   563	    echo "  ERROR: 没有评分文件"
+   564	    echo "DECISION=ERROR" > "${TASK_DIR}/verdict.env"
+   565	    return
+   566	  fi
+   567	
+   568	  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+   569	import sys, json
+   570	from pathlib import Path
+   571	
+   572	scores_str, prev_median_str, report_path, output_path = sys.argv[1:5]
+   573	scores = sorted([float(s) for s in scores_str.split()])
+   574	n = len(scores)
+   575	median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
+   576	max_diff = max(scores) - min(scores)
+   577	prev_median = float(prev_median_str)
+   578	
+   579	veto = any(s < 4.0 for s in scores)
+   580	
+   581	tester_p0 = False
+   582	report = Path(report_path)
+   583	if report.exists():
+   584	    text = report.read_text()
+   585	    import re
+   586	    # Count actual P0 bug entries (### P0- headings), not section headers (## P0 Bugs)
+   587	    p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+   588	    # Count BDD scenario failures from the results table
+   589	    bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+   590	    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
+   591	    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
+   592	    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
+
+exec
+/bin/zsh -lc "nl -ba scripts/hyper-loop.sh | sed -n '1054,1078p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+  1054	  fi
+  1055	
+  1056	  local CONSECUTIVE_REJECTS=0
+  1057	  local BEST_ROUND=0
+  1058	  local BEST_MEDIAN=0
+  1059	  # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
+  1060	  local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
+  1061	
+  1062	  while [[ "$ROUND" -le "$END_ROUND" ]]; do
+  1063	    # 检查停止信号
+  1064	    if [[ -f "$STOP_FILE" ]]; then
+  1065	      echo "检测到 STOP 文件，优雅退出"
+  1066	      rm "$STOP_FILE"
+  1067	      break
+  1068	    fi
+  1069	
+  1070	    echo ""
+  1071	    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  1072	    echo "  LOOP: Round ${ROUND}/${END_ROUND}"
+  1073	    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  1074	
+  1075	    # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
+  1076	    init_dirs "$ROUND"
+  1077	    ensure_session
+  1078	    # 重置本轮状态（防止前一轮的 MEDIAN/DECISION 影响后续判断）
+
+codex
+测试报告明确标注了被测提交 `81bad6e`，而当前 `main` 已经漂移到别的版本。为了避免把后续提交误算到 round-12，我切回按 `81bad6e` 这轮实际产物做最终评分。
+exec
+/bin/zsh -lc 'git log --oneline --decorate --graph --max-count=12 81bad6e''^..81bad6e' in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc 'git branch --contains 81bad6e' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+* 81bad6e (hyper-loop/r12-integration) hyper-loop R12 task4
+
+ succeeded in 0ms:
++ hyper-loop/r12-integration
+
+exec
+/bin/zsh -lc "git show 81bad6e:scripts/hyper-loop.sh | sed -n '520,610p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "git show 81bad6e:scripts/hyper-loop.sh | sed -n '240,360p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+    [[ -f "$SCORE_FILE" ]] || continue
+    local S
+    S=$(python3 -c "import json; print(json.load(open('${SCORE_FILE}'))['score'])" 2>/dev/null || echo "0")
+    SCORES+=("$S")
+    local NAME
+    NAME=$(basename "$SCORE_FILE" .json)
+    echo "  ${NAME}: ${S}"
+  done
+
+  if [[ ${#SCORES[@]} -eq 0 ]]; then
+    echo "  ERROR: 没有评分文件"
+    echo "DECISION=ERROR" > "${TASK_DIR}/verdict.env"
+    return
+  fi
+
+  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
+import sys, json
+from pathlib import Path
+
+scores_str, prev_median_str, report_path, output_path = sys.argv[1:5]
+scores = sorted([float(s) for s in scores_str.split()])
+n = len(scores)
+median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
+max_diff = max(scores) - min(scores)
+prev_median = float(prev_median_str)
+
+veto = any(s < 4.0 for s in scores)
+
+tester_p0 = False
+report = Path(report_path)
+if report.exists():
+    text = report.read_text()
+    import re
+    # Count actual P0 bug entries (### P0- headings), not section headers (## P0 Bugs)
+    p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+    # Count BDD scenario failures from the results table
+    bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+    # BDD S011: any tester report with at least one P0 bug and one FAIL auto-rejects
+    tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
+
+if veto:
+    decision = "REJECTED_VETO"
+elif tester_p0:
+    decision = "REJECTED_TESTER_P0"
+elif max_diff > 2.0:
+    decision = "PENDING_USER"
+elif median > prev_median:
+    decision = "ACCEPTED"
+elif median == prev_median and median > 0:
+    decision = "ACCEPTED_UNCHANGED"
+else:
+    decision = "REJECTED_NO_IMPROVEMENT"
+
+print(f"  中位数: {median}")
+print(f"  分歧: {max_diff}")
+print(f"  否决: {veto}")
+print(f"  Tester P0: {tester_p0}")
+print(f"  决策: {decision}")
+
+with open(output_path, 'w') as f:
+    f.write(f"DECISION={decision}\n")
+    f.write(f"MEDIAN={median}\n")
+    f.write(f"MAX_DIFF={max_diff}\n")
+    f.write(f"VETO={veto}\n")
+    f.write(f"TESTER_P0={tester_p0}\n")
+    f.write(f"SCORES=\"{' '.join(str(s) for s in scores)}\"\n")
+PYVERDICT
+
+  echo "═══════════════════════════════════"
+}
+
+# ── 清理（所有命令容错，不能因为清理失败终止循环）──
+cleanup_round() {
+  local ROUND="$1"
+
+  # 用 subshell + set +e 确保清理不会触发 set -e 退出
+  (
+    set +e
+    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
+      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+    done
+
+    for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
+      [[ -d "$WT" ]] || continue
+      local BRANCH
+      BRANCH=$(git -C "$WT" branch --show-current 2>/dev/null || echo "")
+      git -C "$PROJECT_ROOT" worktree remove "$WT" --force 2>/dev/null
+      [[ -n "$BRANCH" ]] && git -C "$PROJECT_ROOT" branch -D "$BRANCH" 2>/dev/null
+    done
+
+    cp "${TASK_DIR}/verdict.env" "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}/" 2>/dev/null
+
+ succeeded in 0ms:
+# ── Diff 审计（autoresearch 启示：产出必须在可控范围内）──
+audit_writer_diff() {
+  local WT="$1"
+  local TASK_FILE="${WT}/TASK.md"
+
+  # 从 TASK.md 提取"相关文件"列表
+  local ALLOWED_FILES
+  ALLOWED_FILES=$(grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
+    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html|sh|bash|toml|json|md|yaml|yml)' | \
+    sed 's/^[[:space:]]*//' | sort -u || true)
+
+  if [[ -z "$ALLOWED_FILES" ]]; then
+    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计" >&2
+    return 0
+  fi
+
+  # 获取实际改了哪些文件
+  local CHANGED_FILES
+  CHANGED_FILES=$(
+    {
+      git -C "$WT" diff --name-only HEAD 2>/dev/null
+      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
+    } | sort -u
+  )
+
+  if [[ -z "$CHANGED_FILES" ]]; then
+    echo "  ⚠ Writer 没有改任何文件" >&2
+    return 0
+  fi
+
+  # 检查是否有越界改动
+  local VIOLATIONS=""
+  while IFS= read -r changed; do
+    local FOUND=false
+    while IFS= read -r allowed; do
+      [[ -z "$allowed" ]] && continue
+      if [[ "$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then
+        FOUND=true
+        break
+      fi
+    done <<< "$ALLOWED_FILES"
+
+    # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+    case "$changed" in
+      DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
+    esac
+
+    if ! $FOUND; then
+      VIOLATIONS="${VIOLATIONS}    越界: ${changed}\n"
+    fi
+  done <<< "$CHANGED_FILES"
+
+  if [[ -n "$VIOLATIONS" ]]; then
+    echo "  ✗ Diff 审计失败：Writer 改了 TASK.md 范围外的文件" >&2
+    echo -e "$VIOLATIONS" >&2
+    return 1
+  fi
+
+  echo "  ✓ Diff 审计通过" >&2
+  return 0
+}
+
+# ── 合并 ──
+merge_writers() {
+  local ROUND="$1"
+  local INTEGRATION_BRANCH="hyper-loop/r${ROUND}-integration"
+  local INTEGRATION_WT="${WORKTREE_BASE}/integration"
+  local BASE_SHA
+  BASE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
+
+  git -C "$PROJECT_ROOT" worktree add "$INTEGRATION_WT" -b "$INTEGRATION_BRANCH" "$BASE_SHA" >&2 2>/dev/null
+
+  local MERGED=0
+  local FAILED=0
+
+  echo "合并 Writer 产出..." >&2
+
+  for WT in "${WORKTREE_BASE}"/task*; do
+    [[ -d "$WT" ]] || continue
+    local TASK_NAME
+    TASK_NAME=$(basename "$WT")
+
+    local STATUS
+    STATUS=$(python3 -c "import json; print(json.load(open('${WT}/DONE.json'))['status'])" 2>/dev/null || echo "unknown")
+    if [[ "$STATUS" != "done" ]]; then
+      echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过" >&2
+      ((FAILED++)) || true
+      continue
+    fi
+
+    # Diff 审计：检查 Writer 是否只改了指定范围的文件
+    if ! audit_writer_diff "$WT"; then
+      echo "  ✗ ${TASK_NAME}: diff 审计失败，拒绝合并" >&2
+      ((FAILED++)) || true
+      continue
+    fi
+
+    local BRANCH
+    BRANCH=$(git -C "$WT" branch --show-current)
+
+    # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
+    # 必须先 commit 才能 merge
+    # 先删除 HyperLoop 元数据文件，防止多 Writer squash merge 冲突（P0-1 修复）
+    rm -f "${WT}/DONE.json" "${WT}/WRITER_INIT.md" "${WT}/TASK.md" "${WT}/_writer_prompt.md" 2>/dev/null
+    rm -rf "${WT}/_ctx" 2>/dev/null
+    git -C "$WT" add -A 2>/dev/null
+    git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty >&2 2>/dev/null || true
+
+    # 保存 diff（对比 worktree 创建时的 parent commit）
+    git -C "$WT" diff HEAD~1 > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null || \
+      git -C "$WT" diff HEAD > "${TASK_DIR}/${TASK_NAME}.patch" 2>/dev/null
+    git -C "$WT" diff --stat HEAD~1 > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null || \
+      git -C "$WT" diff --stat HEAD > "${TASK_DIR}/${TASK_NAME}.stat" 2>/dev/null
+
+    # squash merge
+    if git -C "$INTEGRATION_WT" merge "$BRANCH" --squash --no-edit >&2 2>/dev/null; then
+      git -C "$INTEGRATION_WT" commit --no-edit -m "hyper-loop R${ROUND} ${TASK_NAME}" >&2 2>/dev/null
+      echo "  ✓ ${TASK_NAME} merged" >&2
+      ((MERGED++)) || true
+    else
+      git -C "$INTEGRATION_WT" merge --abort 2>/dev/null || true
+
+exec
+/bin/zsh -lc "git show 81bad6e:scripts/hyper-loop.sh | sed -n '1018,1085p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+      ROUND=$((LAST_ROUND + 1))
+    fi
+  fi
+
+  local CONSECUTIVE_REJECTS=0
+  local BEST_ROUND=0
+  local BEST_MEDIAN=0
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    local HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION
+    while IFS=$'\t' read -r HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION; do
+      [[ "$HIST_ROUND" =~ ^[0-9]+$ ]] || continue
+
+      if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
+        CONSECUTIVE_REJECTS=0
+        [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
+        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+          BEST_ROUND=$HIST_ROUND
+          BEST_MEDIAN=$HIST_MEDIAN
+        fi
+      else
+        ((CONSECUTIVE_REJECTS++)) || true
+      fi
+    done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+
+    if [[ "$BEST_ROUND" -gt 0 ]]; then
+      echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+    fi
+  fi
+  # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
+  local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
+
+  while [[ "$ROUND" -le "$END_ROUND" ]]; do
+    # 检查停止信号
+    if [[ -f "$STOP_FILE" ]]; then
+      echo "检测到 STOP 文件，优雅退出"
+      rm "$STOP_FILE"
+      break
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  LOOP: Round ${ROUND}/${END_ROUND}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # 初始化目录（必须在 auto_decompose 之前，否则日志目录不存在）
+    init_dirs "$ROUND"
+    ensure_session
+    # 重置本轮状态（防止前一轮的 MEDIAN/DECISION 影响后续判断）
+    DECISION="" MEDIAN=0
+
+    # 自动拆解任务
+    auto_decompose "$ROUND"
+
+    local PREV_MEDIAN=0
+    if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+      PREV_MEDIAN=$(grep -E '^[0-9]' "${PROJECT_ROOT}/_hyper-loop/results.tsv" | tail -1 | cut -f2 || echo 0)
+      [[ -z "$PREV_MEDIAN" ]] && PREV_MEDIAN=0
+      [[ "$PREV_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || PREV_MEDIAN=0
+    fi
+
+    start_writers "$ROUND"
+    wait_writers "$ROUND"
+
+    local INTEGRATION_WT
+    INTEGRATION_WT=$(merge_writers "$ROUND")
+
+    # 检查是否有任何 Writer 成功合并
+    local MERGE_COUNT
+
+exec
+/bin/zsh -lc "git show 81bad6e:scripts/hyper-loop.sh | nl -ba | sed -n '372,392p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "git show 81bad6e:scripts/hyper-loop.sh | nl -ba | sed -n '548,590p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+   372	# ── 构建 ──
+   373	build_app() {
+   374	  local BUILD_DIR="$1"
+   375	  echo "构建 App..."
+   376	  (
+   377	    cd "$BUILD_DIR"
+   378	    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+   379	    eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"
+   380	  )
+   381	  local RC=$?
+   382	  if [[ $RC -eq 0 ]]; then
+   383	    echo "  ✓ 构建成功"
+   384	  else
+   385	    echo "  ✗ 构建失败"
+   386	  fi
+   387	  return "$RC"
+   388	}
+   389	
+   390	# ── Tester（非交互 -p 模式）──
+   391	run_tester() {
+   392	  local ROUND="$1"
+
+ succeeded in 0ms:
+   548	tester_p0 = False
+   549	report = Path(report_path)
+   550	if report.exists():
+   551	    text = report.read_text()
+   552	    import re
+   553	    # Count actual P0 bug entries (### P0- headings), not section headers (## P0 Bugs)
+   554	    p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+   555	    # Count BDD scenario failures from the results table
+   556	    bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+   557	    # BDD S011: any tester report with at least one P0 bug and one FAIL auto-rejects
+   558	    tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
+   559	
+   560	if veto:
+   561	    decision = "REJECTED_VETO"
+   562	elif tester_p0:
+   563	    decision = "REJECTED_TESTER_P0"
+   564	elif max_diff > 2.0:
+   565	    decision = "PENDING_USER"
+   566	elif median > prev_median:
+   567	    decision = "ACCEPTED"
+   568	elif median == prev_median and median > 0:
+   569	    decision = "ACCEPTED_UNCHANGED"
+   570	else:
+   571	    decision = "REJECTED_NO_IMPROVEMENT"
+   572	
+   573	print(f"  中位数: {median}")
+   574	print(f"  分歧: {max_diff}")
+   575	print(f"  否决: {veto}")
+   576	print(f"  Tester P0: {tester_p0}")
+   577	print(f"  决策: {decision}")
+   578	
+   579	with open(output_path, 'w') as f:
+   580	    f.write(f"DECISION={decision}\n")
+   581	    f.write(f"MEDIAN={median}\n")
+   582	    f.write(f"MAX_DIFF={max_diff}\n")
+   583	    f.write(f"VETO={veto}\n")
+   584	    f.write(f"TESTER_P0={tester_p0}\n")
+   585	    f.write(f"SCORES=\"{' '.join(str(s) for s in scores)}\"\n")
+   586	PYVERDICT
+   587	
+   588	  echo "═══════════════════════════════════"
+   589	}
+   590	
+
+exec
+/bin/zsh -lc "git show 81bad6e:scripts/hyper-loop.sh | nl -ba | sed -n '1018,1048p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+  1018	      ROUND=$((LAST_ROUND + 1))
+  1019	    fi
+  1020	  fi
+  1021	
+  1022	  local CONSECUTIVE_REJECTS=0
+  1023	  local BEST_ROUND=0
+  1024	  local BEST_MEDIAN=0
+  1025	  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+  1026	    local HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION
+  1027	    while IFS=$'\t' read -r HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION; do
+  1028	      [[ "$HIST_ROUND" =~ ^[0-9]+$ ]] || continue
+  1029	
+  1030	      if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
+  1031	        CONSECUTIVE_REJECTS=0
+  1032	        [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
+  1033	        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+  1034	          BEST_ROUND=$HIST_ROUND
+  1035	          BEST_MEDIAN=$HIST_MEDIAN
+  1036	        fi
+  1037	      else
+  1038	        ((CONSECUTIVE_REJECTS++)) || true
+  1039	      fi
+  1040	    done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+  1041	
+  1042	    if [[ "$BEST_ROUND" -gt 0 ]]; then
+  1043	      echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+  1044	    fi
+  1045	  fi
+  1046	  # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
+  1047	  local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
+  1048	
+
+exec
+/bin/zsh -lc 'git show 81bad6e:scripts/hyper-loop.sh | bash -n && echo PASS || echo FAIL' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+PASS
+
+exec
+/bin/zsh -lc 'git rev-list --parents -n 1 81bad6e' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+81bad6ee394b665b4581194fe858d731026edd39 36c8303f2aa9c924608d2567888489b41da54a94
+
+exec
+/bin/zsh -lc 'git log --oneline --decorate --graph --ancestry-path 86e1fec..81bad6e' in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc 'git log --oneline --decorate --graph --max-count=8 81bad6e''^' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+* 81bad6e (hyper-loop/r12-integration) hyper-loop R12 task4
+* 36c8303 hyper-loop R12 task3
+* b647426 hyper-loop R12 task2
+* 7f24197 hyper-loop R12 task1
+* bde898f (HEAD -> main) fix: mktemp suffix breaks macOS — remove .md from template
+* e371019 fix: 11 edge cases — P0 false positive, merge guard, audit whitelist
+* f125671 doc: improvement log for 2026-03-30/31 session
+* f64d278 fix: 3 reviewer suggestions + ralph-loop registry cleanup
+* 4f7adb3 fix: dual review findings — 8 issues from Claude + Codex reviewers
+* d77255d feat: cmd_init — project scan → Claude brief → persistent context
+
+ succeeded in 0ms:
+* 36c8303 hyper-loop R12 task3
+* b647426 hyper-loop R12 task2
+* 7f24197 hyper-loop R12 task1
+* bde898f (HEAD -> main) fix: mktemp suffix breaks macOS — remove .md from template
+* e371019 fix: 11 edge cases — P0 false positive, merge guard, audit whitelist
+* f125671 doc: improvement log for 2026-03-30/31 session
+* f64d278 fix: 3 reviewer suggestions + ralph-loop registry cleanup
+* 4f7adb3 fix: dual review findings — 8 issues from Claude + Codex reviewers
+
+exec
+/bin/zsh -lc 'git diff --stat 86e1fec..81bad6e -- scripts/hyper-loop.sh' in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+ scripts/hyper-loop.sh | 365 +++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 288 insertions(+), 77 deletions(-)
+
+codex
+范围已经明确：待评版本是 `hyper-loop/r12-integration` 上的 4 个 task 提交，不是当前 `main`。我再扫一遍 round-12 的实际 diff，确认有没有测试报告没覆盖到的残留问题。
+exec
+/bin/zsh -lc "git diff bde898f..81bad6e -- scripts/hyper-loop.sh | sed -n '480,720p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "git diff bde898f..81bad6e -- scripts/hyper-loop.sh | sed -n '1,240p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "git diff bde898f..81bad6e -- scripts/hyper-loop.sh | sed -n '240,480p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+ succeeded in 0ms:
+diff --git a/scripts/hyper-loop.sh b/scripts/hyper-loop.sh
+index a8b7d61..1eacb33 100755
+--- a/scripts/hyper-loop.sh
++++ b/scripts/hyper-loop.sh
+@@ -56,47 +56,6 @@ ensure_session() {
+   echo "tmux session 'hyper-loop' created"
+ }
+ 
+-start_agent() {
+-  local NAME="$1"    # tmux window name
+-  local CLI="$2"     # e.g. "codex --full-auto"
+-  local INIT="$3"    # 初始化文件的绝对路径
+-  local ROUND="$4"
+-
+-  tmux new-window -t "hyper-loop" -n "$NAME"
+-  tmux pipe-pane -o -t "hyper-loop:${NAME}" "cat >> '${LOG_DIR}/${NAME}-r${ROUND}.log'"
+-  tmux send-keys -t "hyper-loop:${NAME}" "cd ${PROJECT_ROOT} && ${CLI}" Enter
+-  sleep 3
+-
+-  # 注入初始化文件（传路径，不传内容）
+-  local INJECT="/tmp/hyper-loop-inject-${NAME}-r${ROUND}.md"
+-  {
+-    echo "请先读以下文件了解你的角色和上下文："
+-    echo "- 角色定义：${INIT}"
+-    echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+-    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
+-    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
+-    # 注入最近 3 轮摘要
+-    if ls "${SUMMARY_DIR}/${NAME}-r"*.md >/dev/null 2>&1; then
+-      echo "- 你的历史摘要（最近 3 轮）："
+-      ls -t "${SUMMARY_DIR}/${NAME}-r"*.md 2>/dev/null | head -3 | while read -r f; do
+-        echo "  - $f"
+-      done
+-    fi
+-    echo ""
+-    echo "当前是第 ${ROUND} 轮。读完上述文件后回复'已就绪'。"
+-  } > "$INJECT"
+-
+-  tmux load-buffer -b "inject-${NAME}-r${ROUND}" "$INJECT"
+-  tmux paste-buffer -d -r -b "inject-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
+-  tmux send-keys -t "hyper-loop:${NAME}" Enter
+-  echo "  ✓ ${NAME} started (${CLI})"
+-}
+-
+-kill_agent() {
+-  local NAME="$1"
+-  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
+-}
+-
+ # ── Writer 管理 ──
+ start_writers() {
+   local ROUND="$1"
+@@ -296,7 +255,12 @@ audit_writer_diff() {
+ 
+   # 获取实际改了哪些文件
+   local CHANGED_FILES
+-  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
++  CHANGED_FILES=$(
++    {
++      git -C "$WT" diff --name-only HEAD 2>/dev/null
++      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
++    } | sort -u
++  )
+ 
+   if [[ -z "$CHANGED_FILES" ]]; then
+     echo "  ⚠ Writer 没有改任何文件" >&2
+@@ -317,7 +281,7 @@ audit_writer_diff() {
+ 
+     # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+     case "$changed" in
+-      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
++      DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
+     esac
+ 
+     if ! $FOUND; then
+@@ -409,15 +373,18 @@ merge_writers() {
+ build_app() {
+   local BUILD_DIR="$1"
+   echo "构建 App..."
+-  cd "$BUILD_DIR"
+-  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+-  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
++  (
++    cd "$BUILD_DIR"
++    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
++    eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"
++  )
++  local RC=$?
++  if [[ $RC -eq 0 ]]; then
+     echo "  ✓ 构建成功"
+-    return 0
+   else
+     echo "  ✗ 构建失败"
+-    return 1
+   fi
++  return "$RC"
+ }
+ 
+ # ── Tester（非交互 -p 模式）──
+@@ -587,9 +554,8 @@ if report.exists():
+     p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+     # Count BDD scenario failures from the results table
+     bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+-    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
+-    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
+-    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
++    # BDD S011: any tester report with at least one P0 bug and one FAIL auto-rejects
++    tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
+ 
+ if veto:
+     decision = "REJECTED_VETO"
+@@ -1056,6 +1022,27 @@ cmd_loop() {
+   local CONSECUTIVE_REJECTS=0
+   local BEST_ROUND=0
+   local BEST_MEDIAN=0
++  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
++    local HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION
++    while IFS=$'\t' read -r HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION; do
++      [[ "$HIST_ROUND" =~ ^[0-9]+$ ]] || continue
++
++      if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
++        CONSECUTIVE_REJECTS=0
++        [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
++        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
++          BEST_ROUND=$HIST_ROUND
++          BEST_MEDIAN=$HIST_MEDIAN
++        fi
++      else
++        ((CONSECUTIVE_REJECTS++)) || true
++      fi
++    done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
++
++    if [[ "$BEST_ROUND" -gt 0 ]]; then
++      echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
++    fi
++  fi
+   # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
+   local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
+ 
+
+ succeeded in 0ms:
+codex
+最后我补一个行为层面的 sanity check：`build_app` 的 subshell 改法在 `set -e` 下有没有提前退出副作用，这决定它算不算真正修复。
+exec
+/bin/zsh -lc "bash -lc 'set -euo pipefail; f(){ (false); local rc="'$?; echo rc=$rc; return "$rc"; }; if ! f; then echo handled; fi; echo done'"'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "bash -lc 'set -euo pipefail; f(){ (cd /tmp && false); local rc="'$?; echo rc=$rc; return "$rc"; }; if ! f; then echo handled; fi; echo done'"'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+rc=1
+handled
+done
+
+ succeeded in 0ms:
+rc=1
+handled
+done
+
+codex
+round-12 的主要修复本身基本成立，但我在 `compute_verdict` 里还看到一个对报告格式过度耦合的点，可能绕过 S011。我做个最小验证后就出最终分。
+exec
+/bin/zsh -lc "git show 81bad6e:scripts/hyper-loop.sh | nl -ba | sed -n '248,286p'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+   248	    grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html|sh|bash|toml|json|md|yaml|yml)' | \
+   249	    sed 's/^[[:space:]]*//' | sort -u || true)
+   250	
+   251	  if [[ -z "$ALLOWED_FILES" ]]; then
+   252	    echo "  ⚠ TASK.md 没有指定相关文件，跳过审计" >&2
+   253	    return 0
+   254	  fi
+   255	
+   256	  # 获取实际改了哪些文件
+   257	  local CHANGED_FILES
+   258	  CHANGED_FILES=$(
+   259	    {
+   260	      git -C "$WT" diff --name-only HEAD 2>/dev/null
+   261	      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
+   262	    } | sort -u
+   263	  )
+   264	
+   265	  if [[ -z "$CHANGED_FILES" ]]; then
+   266	    echo "  ⚠ Writer 没有改任何文件" >&2
+   267	    return 0
+   268	  fi
+   269	
+   270	  # 检查是否有越界改动
+   271	  local VIOLATIONS=""
+   272	  while IFS= read -r changed; do
+   273	    local FOUND=false
+   274	    while IFS= read -r allowed; do
+   275	      [[ -z "$allowed" ]] && continue
+   276	      if [[ "$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then
+   277	        FOUND=true
+   278	        break
+   279	      fi
+   280	    done <<< "$ALLOWED_FILES"
+   281	
+   282	    # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+   283	    case "$changed" in
+   284	      DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
+   285	    esac
+   286	
+
+exec
+/bin/zsh -lc "python3 - <<'PY'
+import re
+samples=[
+('P0 lower fail','### P0-1 bad\\n| S011 | fail | reason |'),
+('P0 bullet fail','- P0: bad\\n| S011 | FAIL | reason |'),
+('P0 heading fail','### P0-1 bad\\n| S011 | FAIL | reason |'),
+]
+for name,text in samples:
+    p0_bugs = re.findall(r'"'^###'"\\s+P0', text, re.MULTILINE)
+    bdd_fails = re.findall(r'\\|\\s*\\*?\\*?FAIL\\*?\\*?\\s*\\|', text)
+    print(name, bool(p0_bugs), bool(bdd_fails), (len(p0_bugs) >= 1 and len(bdd_fails) >= 1))
+PY" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+P0 lower fail True False False
+P0 bullet fail False True False
+P0 heading fail True True True
+
+codex
+还剩一个可疑点：审计逻辑是子串匹配，不是路径精确匹配。这可能让“同名前缀/后缀”的越界文件漏检，我做个最小验证。
+exec
+/bin/zsh -lc "bash -lc 'changed=\"scripts/hyper-loop.sh.bak\"; allowed=\"scripts/hyper-loop.sh\"; if [[ \""'$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then echo PASS; else echo FAIL; fi'"'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+exec
+/bin/zsh -lc "bash -lc 'changed=\"scripts/hyper-loop.sh\"; allowed=\"scripts/hyper-loop.sh.bak\"; if [[ \""'$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then echo PASS; else echo FAIL; fi'"'" in /Users/xiaomimacmini3/Desktop/HyperLoop
+ succeeded in 0ms:
+PASS
+
+ succeeded in 0ms:
+PASS
+
+codex
+{"score":8.4,"issues":[{"severity":"P1","desc":"`compute_verdict` 对 S011 的实现仍然过度依赖报告格式，只识别 `### P0` 标题和大写表格 `FAIL`；如果 Tester 用 `P0:`、项目符号或小写 `fail`，就不会触发 `REJECTED_TESTER_P0`，与 BDD 的“包含 P0 和 fail 即否决”仍有偏差。"},{"severity":"P1","desc":"`audit_writer_diff` 仍用子串而不是精确路径做白名单匹配，像 `scripts/hyper-loop.sh.bak` 这类未授权文件会被当成 `scripts/hyper-loop.sh` 放行，S005 的越界拦截边界不够严。"}],"summary":"Round-12 基本修复了已知回归并达到通过线，但判定逻辑仍有报告格式耦合和路径匹配过宽两处残留风险。"}
+tokens used
+95,351
+{"score":8.4,"issues":[{"severity":"P1","desc":"`compute_verdict` 对 S011 的实现仍然过度依赖报告格式，只识别 `### P0` 标题和大写表格 `FAIL`；如果 Tester 用 `P0:`、项目符号或小写 `fail`，就不会触发 `REJECTED_TESTER_P0`，与 BDD 的“包含 P0 和 fail 即否决”仍有偏差。"},{"severity":"P1","desc":"`audit_writer_diff` 仍用子串而不是精确路径做白名单匹配，像 `scripts/hyper-loop.sh.bak` 这类未授权文件会被当成 `scripts/hyper-loop.sh` 放行，S005 的越界拦截边界不够严。"}],"summary":"Round-12 基本修复了已知回归并达到通过线，但判定逻辑仍有报告格式耦合和路径匹配过宽两处残留风险。"}

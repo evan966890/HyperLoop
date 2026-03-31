@@ -1,0 +1,13 @@
+4 task files written. Here's the decomposition summary:
+
+| Task | Priority | File | Region | Issue |
+|------|----------|------|--------|-------|
+| **TASK-1** | P0 | `scripts/hyper-loop.sh` | L282-421 | 3 adjacent functions: audit misses untracked files, empty commit crashes script, `cd` leaks working dir |
+| **TASK-2** | P1 | `scripts/hyper-loop.sh` | L673-753 | `cmd_round()` missing `archive_round()` call — breaks S013 rollback |
+| **TASK-3** | P2 | `scripts/hyper-loop.sh` | L59-98 | Dead code: `start_agent`/`kill_agent` never called (~40 lines) |
+| **TASK-4** | P1 | `_hyper-loop/context/bdd-specs.md` | S003,S007,S008 | BDD specs say "tmux" but code uses pipe/subshell mode |
+
+Key design decisions:
+- Tasks 1-3 modify **non-overlapping regions** of the same `.sh` file (gaps of 184+ lines between regions)
+- Task 4 modifies a **separate file** (`bdd-specs.md`), zero conflict risk
+- Task 1 merges 3 adjacent-function bugs per rule #2 (same area → one task)

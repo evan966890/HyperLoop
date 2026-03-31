@@ -1,0 +1,4 @@
+YOLO mode is enabled. All tool calls will be automatically approved.
+Loaded cached credentials.
+YOLO mode is enabled. All tool calls will be automatically approved.
+{"score":9.4,"issues":[],"summary":"17/17 BDD 场景全部通过，Round 12 成功修复了审计漏洞与历史状态恢复逻辑，代码结构优化显著。"}

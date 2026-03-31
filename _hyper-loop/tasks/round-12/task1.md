@@ -1,28 +1,51 @@
 ## 修复任务: TASK-1
 ### 上下文
 先读 _ctx/ 下所有文件。
+
 ### 问题
-[P0] Tester 和 Reviewer 初始化路径不存在，导致 Tester/Reviewer 无法正确初始化，评分全部为 0.0
+[P0] `audit_writer_diff` 白名单遗漏 `_writer_prompt.md` + 缺少 untracked 文件检测
 
-`run_tester()` 在 line 384 引用 `${PROJECT_ROOT}/_hyper-loop/context/TESTER_INIT.md`，但该文件不存在。
-`run_reviewers()` 在 line 460 引用 `${PROJECT_ROOT}/_hyper-loop/context/REVIEWER_INIT.md`，但该文件不存在。
+`start_writers` 为每个 Writer 生成 `_writer_prompt.md`（~line 178），该文件是 untracked 的。
+但 `audit_writer_diff` 的 case 白名单（~line 319-321）只有：
+```
+DONE.json|WRITER_INIT.md|_ctx/*|TASK.md
+```
+遗漏了 `_writer_prompt.md`。
 
-实际的角色定义文件在：
-- `_hyper-loop/context/agents/tester.md`
-- `_hyper-loop/context/agents/reviewer.md`
+此外，`audit_writer_diff` 只用 `git diff --name-only HEAD`（~line 299）检测已跟踪文件的变更，
+不检测 untracked 文件。如果 Writer 执行了 `git add -A`（常见行为），untracked 的 `_writer_prompt.md`
+会被 stage 并被 `git diff --name-only HEAD` 检测到，然后因不在白名单而被拒绝。
 
-这是前 11 轮全部 0.0 分的根本原因。Round 11 已诊断并在 integration 分支修复，但因 REJECTED_VETO 未合并到 main。
+**影响**: 每个 Writer 的产出都可能被误判越界 → 所有合并被拒绝 → 整轮产出为零。这是阻塞性回归。
 
 ### 相关文件
-- scripts/hyper-loop.sh (lines 380-465)
+- scripts/hyper-loop.sh (行 282-336, `audit_writer_diff` 函数)
+
+### 修复策略
+1. 用 grep 扫描 `start_writers` 函数中所有 `> "${WT}/` 或 `cat >` 写入 worktree 的文件名，
+   确认完整的元数据文件列表
+2. 用 grep 扫描 `merge_writers` 中 `rm -f` 删除的文件列表，两者应一致
+3. 在 `audit_writer_diff` 的 case 白名单中加入 `_writer_prompt.md`：
+   ```bash
+   case "$changed" in
+     DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
+   esac
+   ```
+4. 在 `CHANGED_FILES` 赋值处，同时检测 untracked 文件（与 tracked 变更合并）：
+   ```bash
+   CHANGED_FILES=$(
+     { git -C "$WT" diff --name-only HEAD 2>/dev/null
+       git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
+     } | sort -u
+   )
+   ```
+5. 运行 `bash -n scripts/hyper-loop.sh` 确认语法正确
 
 ### 约束
-- 只修 scripts/hyper-loop.sh 中 run_tester() 和 run_reviewers() 函数内的路径引用
-- 不改其他函数
-- 不改 CSS
-- 修改范围：lines 380-465
+- 只修 scripts/hyper-loop.sh 的 `audit_writer_diff` 函数（行 282-336）
+- 不改函数签名或返回值语义
 
 ### 验收标准
-引用 BDD 场景 S007 (Tester 启动并生成报告) 和 S008 (3 Reviewer 启动并产出评分)
-- `start_agent` 调用中的初始化文件路径指向实际存在的文件
-- `bash -n scripts/hyper-loop.sh` 语法检查通过
+- BDD S004: Writer 完成后 diff 被正确 commit（元数据文件不导致误判）
+- BDD S005: diff 审计仍能正确拦截真实越界修改
+- `bash -n scripts/hyper-loop.sh` 通过

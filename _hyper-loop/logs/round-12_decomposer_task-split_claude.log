@@ -1,0 +1,10 @@
+Round 12 拆解完成。4 个任务，全部修改 `scripts/hyper-loop.sh` 但区域互不重叠：
+
+| Task | 优先级 | 问题 | 修改行范围 |
+|------|--------|------|-----------|
+| **task1** | P0 | `audit_writer_diff` 白名单缺 `_writer_prompt.md` + 无 untracked 检测 | 282-336 |
+| **task2** | P1 | `compute_verdict` P0 否决阈值与 BDD S011 不一致 | 568-620 |
+| **task3** | P1 | `cmd_loop` 重启后 `BEST_ROUND` 不从历史初始化 | 1046-1068 |
+| **task4** | P2 | 删除废弃 `start_agent`/`kill_agent` + `build_app` cd 子 shell 隔离 | 59-98 & 409-421 |
+
+Task1 是阻塞性回归（导致 S004 FAIL，所有 Writer 产出被拒），修复后预计 BDD 通过率从 16/17 恢复到 17/17。

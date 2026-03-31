@@ -1,26 +1,48 @@
 ## 修复任务: TASK-4
 ### 上下文
 先读 _ctx/ 下所有文件。
+
 ### 问题
-[P2] 两个代码质量问题:
+[P1] _hyper-loop/context/bdd-specs.md 中多个场景的描述与实际代码实现不一致，导致 Tester 需要做"功能等价"推理来判定 PASS，增加误判风险。
 
-1. cmd_status() 函数重复定义（约697行和约957行），第一个定义成为死代码。
+不一致清单：
 
-2. 连续失败回退逻辑在全零分时失效（约907-922行）。当所有轮次得分都是 0.0 时:
-   - BEST_ROUND 始终为 0（因为 `float('0.0') > float('0.0')` 为 false）
-   - 回退条件 `[BEST_ROUND -gt 0]` 永远不满足
-   - 连续 10 轮全部 0.0 分，回退机制从未触发
+1. **S003** "Codex 进程在 tmux window 中启动"——实际代码用后台 subshell + `codex exec`（scripts/hyper-loop.sh start_writers 函数 L227-234），不用 tmux window
 
-   修复方案: 当 BEST_ROUND == 0 且 CONSECUTIVE_REJECTS >= 5 时，应该仍然触发回退行为（例如重置 CONSECUTIVE_REJECTS 并记录日志，因为没有历史最佳可回退时至少避免无意义循环）。或者在追踪最佳轮次时使用 `>=` 而非 `>` 比较，确保第一轮的 0.0 也被记录。
+2. **S007** "Tester Claude 子进程在 tmux 中启动"——实际代码用非交互 `claude -p` 管道模式（run_tester 函数 L449-451），不用 tmux
+
+3. **S008** "3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）" + "如果文件不存在，从 pane 输出提取 JSON"——实际代码用并行 subshell + 管道模式（run_reviewers 函数 L504-524），Python 从 stdout 提取 JSON（L480-496），文件不存在时用 fallback score 5（L533-537）
 
 ### 相关文件
-- scripts/hyper-loop.sh (697行: 第一个 cmd_status 定义; 957行: 第二个 cmd_status 定义; 907-922行: 回退逻辑中 BEST_ROUND 追踪)
+- _hyper-loop/context/bdd-specs.md (S003, S007, S008 三个场景)
+
+### 修复策略
+
+1. 先读 scripts/hyper-loop.sh 中 start_writers、run_tester、run_reviewers 三个函数的实际实现，确认当前行为
+
+2. 逐个更新 BDD 场景描述，使其准确反映当前实现：
+
+**S003 修改：**
+- "Codex 进程在 tmux window 中启动" → "Codex 进程在后台子进程中启动（codex exec 非交互模式）"
+
+**S007 修改：**
+- "Tester Claude 子进程在 tmux 中启动" → "Tester 在非交互管道模式中运行（claude -p 管道模式）"
+- 保留"15 分钟内生成"和"超时时生成空报告而非崩溃"的要求
+
+**S008 修改：**
+- "3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）" → "3 个 Reviewer 在并行子进程中启动（Gemini + Claude + Codex）"
+- "如果文件不存在，从 pane 输出提取 JSON" → "通过 Python 从 stdout 管道提取 JSON；如果提取失败或文件不存在，fallback 给中立分 5"
+
+3. 确保修改后的 BDD 场景仍然是可测试的行为规格，保留功能性验收要求
 
 ### 约束
-- 只修 scripts/hyper-loop.sh
-- 删除第一个 cmd_status() 定义（约697行，约6行）
-- 修复回退逻辑: 第一轮时无条件设 BEST_ROUND=1, BEST_MEDIAN=$MEDIAN（确保至少有个基准值）
-- 不改 CSS，不新建文件
+- 只修 _hyper-loop/context/bdd-specs.md
+- 不改 scripts/hyper-loop.sh 或其他文件
+- 保留所有场景 ID（S001-S017）不变
+- 保留功能性验收要求（超时处理、score 字段、报告生成等），只更新执行方式描述
 
 ### 验收标准
-引用 BDD 场景 S013: 连续 5 轮失败后能正确触发回退（即使全部是 0.0 分）
+- S003: BDD 描述与 start_writers 实现一致
+- S007: BDD 描述与 run_tester 实现一致
+- S008: BDD 描述与 run_reviewers 实现一致
+- Tester 不再需要做"功能等价"推理来判定 PASS

@@ -1,0 +1,19 @@
+## 测试完成 — 结果汇总
+
+**17 个 BDD 场景**: 16 PASS / 1 FAIL
+
+### 发现的 Bug
+
+**P0-1（阻塞）: `_writer_prompt.md` 未加入审计白名单**
+- `scripts/hyper-loop.sh:319-321`
+- R11 task2 新增 untracked 文件检测，但 case 白名单遗漏了 `_writer_prompt.md`（每个 Writer 都会由脚本自动生成此文件）
+- **后果**: 所有 Writer 产出被审计拒绝，整个 round 合并数为零
+- **修复**: case 语句加入 `_writer_prompt.md`
+
+**P1-1: Tester P0 否决阈值偏高**
+- `scripts/hyper-loop.sh:587-592` — 需要 2+ 个 `### P0` heading 才触发否决，单个 P0 bug 可能被放过
+
+**P1-2: `BEST_ROUND` 不从历史初始化**
+- `scripts/hyper-loop.sh:1056-1058` — 重启 loop 后 BEST_ROUND=0，连续 5 轮失败不会回退到历史最佳
+
+报告已写入 `_hyper-loop/reports/round-11-test.md`。

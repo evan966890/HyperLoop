@@ -1,0 +1,22 @@
+## Round 12 测试结果
+
+**17/17 BDD 场景全部 PASS，0 P0/P1 bug。**
+
+### R12 四个 task 修复验证
+
+| Task | 内容 | 结果 |
+|------|------|------|
+| task1 (P0) | `audit_writer_diff` 加 `_writer_prompt.md` 白名单 + untracked 检测 | PASS |
+| task2 (P1) | `compute_verdict` P0 否决阈值 `>=1 and >=1` | PASS |
+| task3 (P1) | `cmd_loop` 重启后从 history 恢复 BEST_ROUND/CONSECUTIVE_REJECTS | PASS |
+| task4 (P2) | 删死代码 + `build_app` cd 子 shell 隔离 | PASS |
+
+### 发现的 P0/P1 Bug
+
+**无。** 本轮修改质量良好，所有修复都精准命中目标，未引入回归。
+
+### 非 Bug 备注
+
+BDD 规格中 S003/S007/S008 描述的 "tmux window" 启动方式与实际代码（subshell + 管道）不一致，超时值也有差异（BDD 15min/10min vs 实际 10min/5min）。这些是已知的架构演进，建议同步更新 BDD 规格。
+
+报告已写入 `_hyper-loop/reports/round-12-test.md`。
