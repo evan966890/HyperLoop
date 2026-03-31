@@ -174,11 +174,37 @@ start_writers() {
 2. 最后一行输出：HYPERLOOP_TASK_DONE
 WINIT
 
-    # 启动 Writer（非交互 exec 模式，后台并行）
+    # 构造完整 prompt（WRITER_INIT + TASK + 上下文文件清单），通过 stdin 注入
+    local WRITER_PROMPT="${WT}/_writer_prompt.md"
+    {
+      cat "${WT}/WRITER_INIT.md"
+      echo ""
+      echo "---"
+      echo ""
+      echo "# 本轮任务"
+      echo ""
+      cat "${WT}/TASK.md"
+      echo ""
+      echo "---"
+      echo ""
+      echo "# 项目上下文文件（已复制到 _ctx/ 目录）"
+      echo ""
+      for CTX_FILE in "${WT}"/_ctx/*.md; do
+        [[ -f "$CTX_FILE" ]] || continue
+        echo "## $(basename "$CTX_FILE")"
+        echo ""
+        head -100 "$CTX_FILE"
+        echo ""
+        echo "---"
+        echo ""
+      done
+      echo "现在执行 TASK.md 中的任务。完成后写 DONE.json。"
+    } > "$WRITER_PROMPT"
+
+    # 启动 Writer（非交互 exec 模式，后台并行，stdin 注入完整上下文）
     local WRITER_LOG="${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log"
     (
-      codex exec --dangerously-bypass-approvals-and-sandbox -C "$WT" \
-        "先读 WRITER_INIT.md 了解你的角色和约束，再读 TASK.md 了解具体任务，然后执行修改。完成后写 DONE.json。" \
+      cat "$WRITER_PROMPT" | codex exec --dangerously-bypass-approvals-and-sandbox -C "$WT" - \
         > "$WRITER_LOG" 2>&1 || true
       # 如果 Codex 没写 DONE.json，补一个
       if [[ ! -f "${WT}/DONE.json" ]]; then
