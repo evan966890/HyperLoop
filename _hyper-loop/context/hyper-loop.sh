@@ -174,31 +174,48 @@ start_writers() {
 2. 最后一行输出：HYPERLOOP_TASK_DONE
 WINIT
 
-    # 构造完整 prompt（WRITER_INIT + TASK + 上下文文件清单），通过 stdin 注入
+    # 构造完整 prompt（WRITER_INIT + 项目简报 + BDD + 契约 + TASK），通过 stdin 注入
     local WRITER_PROMPT="${WT}/_writer_prompt.md"
     {
       cat "${WT}/WRITER_INIT.md"
       echo ""
       echo "---"
       echo ""
+      # 项目简报（init 生成的提炼版，不是原始文档）
+      if [[ -f "${WT}/_ctx/project-brief.md" ]]; then
+        echo "# 项目简报"
+        echo ""
+        cat "${WT}/_ctx/project-brief.md"
+        echo ""
+        echo "---"
+        echo ""
+      fi
+      # BDD 规格（完整版，这是验收标准）
+      if [[ -f "${WT}/_ctx/bdd-specs.md" ]]; then
+        echo "# BDD 行为规格"
+        echo ""
+        cat "${WT}/_ctx/bdd-specs.md"
+        echo ""
+        echo "---"
+        echo ""
+      fi
+      # 评估契约
+      if [[ -f "${WT}/_ctx/contract.md" ]]; then
+        echo "# 评估契约"
+        echo ""
+        cat "${WT}/_ctx/contract.md"
+        echo ""
+        echo "---"
+        echo ""
+      fi
       echo "# 本轮任务"
       echo ""
       cat "${WT}/TASK.md"
       echo ""
       echo "---"
       echo ""
-      echo "# 项目上下文文件（已复制到 _ctx/ 目录）"
-      echo ""
-      for CTX_FILE in "${WT}"/_ctx/*.md; do
-        [[ -f "$CTX_FILE" ]] || continue
-        echo "## $(basename "$CTX_FILE")"
-        echo ""
-        head -100 "$CTX_FILE"
-        echo ""
-        echo "---"
-        echo ""
-      done
       echo "现在执行 TASK.md 中的任务。完成后写 DONE.json。"
+      echo "项目的其他文件在 _ctx/ 目录下可以用工具读取，但以上内容已包含核心信息。"
     } > "$WRITER_PROMPT"
 
     # 启动 Writer（非交互 exec 模式，后台并行，stdin 注入完整上下文）
@@ -831,12 +848,141 @@ cmd_resume_from() {
   echo "  接下来运行: hyper-loop.sh loop 或 hyper-loop.sh round <N>"
 }
 
+# ── 初始化：扫描项目 → 生成上下文简报 → 持久化 ──
+cmd_init() {
+  load_config
+  local CTX_DIR="${PROJECT_ROOT}/_hyper-loop/context"
+  mkdir -p "$CTX_DIR"
+
+  echo "═══ HyperLoop Init: 扫描项目并生成上下文简报 ═══"
+  echo ""
+
+  # Step 1: 扫描项目结构和文档
+  echo "Step 1: 扫描项目文档..."
+  local SCAN_RESULT="/tmp/hyper-loop-project-scan.md"
+  {
+    echo "# 项目扫描结果"
+    echo ""
+    echo "## 项目配置"
+    cat "${PROJECT_ROOT}/_hyper-loop/project-config.env" 2>/dev/null
+    echo ""
+
+    echo "## CLAUDE.md（编码规范）"
+    if [[ -f "${PROJECT_ROOT}/CLAUDE.md" ]]; then
+      head -200 "${PROJECT_ROOT}/CLAUDE.md"
+    else
+      echo "(不存在)"
+    fi
+    echo ""
+
+    echo "## BMAD 文档"
+    for DIR in _bmad-output _bmad/output docs/design docs/spec; do
+      if [[ -d "${PROJECT_ROOT}/${DIR}" ]]; then
+        echo "### ${DIR}/"
+        find "${PROJECT_ROOT}/${DIR}" -name "*.md" -type f 2>/dev/null | while read -r f; do
+          echo "#### $(basename "$f")"
+          head -80 "$f"
+          echo ""
+          echo "---"
+        done
+      fi
+    done
+    echo ""
+
+    echo "## 项目文件结构（前 3 层）"
+    find "$PROJECT_ROOT" -maxdepth 3 -type f -name "*.md" -o -name "*.ts" -o -name "*.svelte" -o -name "*.rs" -o -name "*.py" -o -name "*.sh" -o -name "*.json" 2>/dev/null | \
+      grep -v node_modules | grep -v target | grep -v _hyper-loop | grep -v .git | sort | head -80
+    echo ""
+
+    echo "## 已有 BDD 规格"
+    cat "${CTX_DIR}/bdd-specs.md" 2>/dev/null || echo "(未生成)"
+    echo ""
+
+    echo "## 已有评估契约"
+    cat "${CTX_DIR}/contract.md" 2>/dev/null || echo "(未生成)"
+  } > "$SCAN_RESULT"
+
+  local SCAN_LINES
+  SCAN_LINES=$(wc -l < "$SCAN_RESULT" | tr -d ' ')
+  echo "  ✓ 扫描完成: ${SCAN_LINES} 行原始数据"
+
+  # Step 2: 用 Claude 提炼为项目简报
+  echo "Step 2: Claude 提炼项目简报..."
+  local BRIEF_PROMPT="/tmp/hyper-loop-brief-prompt.md"
+  cat > "$BRIEF_PROMPT" <<'BRIEF'
+你是项目文档提炼专家。请根据以下项目扫描结果，生成一份**简洁的项目简报**。
+
+## 输出要求
+- 总长度不超过 300 行
+- 分为以下章节：
+
+### 1. 项目概述（3-5 句话）
+产品是什么、技术栈、目标用户
+
+### 2. 架构约束（要点列表）
+进程模型、IPC 协议、文件结构等——Writer 必须遵守的硬约束
+
+### 3. 编码规范（要点列表）
+从 CLAUDE.md 提取的铁律——命名约定、测试要求、构建规则
+
+### 4. 当前重点（BDD 场景摘要）
+从 BDD 规格中提取当前要验证的核心场景
+
+### 5. 设计意图（从 BMAD 文档提取）
+产品设计的核心原则——Writer 需要理解"为什么这样设计"才能写出对的代码
+
+### 6. 文件地图（关键文件路径 + 一句话说明）
+Writer 最常需要改的 10-20 个文件
+
+**原则：只保留 Writer/Tester/Reviewer 需要的信息。删掉历史记录、会议纪要、过程讨论。**
+BRIEF
+
+  cat "$SCAN_RESULT" >> "$BRIEF_PROMPT"
+
+  local BRIEF_FILE="${CTX_DIR}/project-brief.md"
+  cat "$BRIEF_PROMPT" | claude --dangerously-skip-permissions -p - \
+    --add-dir "$PROJECT_ROOT" \
+    > "$BRIEF_FILE" 2>/dev/null || true
+
+  if [[ -s "$BRIEF_FILE" ]]; then
+    local BRIEF_LINES
+    BRIEF_LINES=$(wc -l < "$BRIEF_FILE" | tr -d ' ')
+    echo "  ✓ 项目简报已生成: ${BRIEF_FILE} (${BRIEF_LINES} 行)"
+  else
+    echo "  ⚠ Claude 未生成简报，使用原始扫描结果"
+    head -300 "$SCAN_RESULT" > "$BRIEF_FILE"
+  fi
+
+  # Step 3: 复制核心文件到 context
+  echo "Step 3: 同步核心文件..."
+  [[ -f "${PROJECT_ROOT}/CLAUDE.md" ]] && cp "${PROJECT_ROOT}/CLAUDE.md" "${CTX_DIR}/" 2>/dev/null
+  cp "${PROJECT_ROOT}/scripts/hyper-loop.sh" "${CTX_DIR}/hyper-loop.sh" 2>/dev/null || true
+  [[ -f "${PROJECT_ROOT}/_hyper-loop/context/cli-reference-verified.md" ]] || true
+
+  echo "  ✓ context/ 目录已就绪"
+  echo ""
+  echo "context/ 内容:"
+  ls -la "$CTX_DIR"/*.md 2>/dev/null | awk '{print "  " $NF " (" $5 " bytes)"}'
+  echo ""
+  echo "═══ Init 完成 ═══"
+  echo "接下来："
+  echo "  1. 检查 _hyper-loop/context/project-brief.md 是否准确"
+  echo "  2. 确认 bdd-specs.md 和 contract.md"
+  echo "  3. 启动循环: hyper-loop.sh loop N"
+}
+
 # ── 死循环模式（autoresearch 启示：NEVER STOP）──
 cmd_loop() {
   local MAX_ROUNDS="${1:-999}"
   local STOP_FILE="${PROJECT_ROOT:-.}/_hyper-loop/STOP"
 
   load_config
+
+  # 检查是否已初始化
+  if [[ ! -f "${PROJECT_ROOT}/_hyper-loop/context/project-brief.md" ]]; then
+    echo "⚠ 未找到 project-brief.md，先运行 init 扫描项目..."
+    cmd_init
+  fi
 
   echo ""
   echo "╔══════════════════════════════════════════════════╗"
@@ -983,18 +1129,20 @@ cmd_status() {
 
 # ── 入口 ──
 case "${1:-help}" in
+  init)         cmd_init ;;
   round)        cmd_round "${2:-}" ;;
   loop)         cmd_loop "${2:-999}" ;;
   resume-from)  cmd_resume_from "${2:-}" ;;
   status)       cmd_status ;;
   *)
     echo "用法:"
+    echo "  hyper-loop.sh init            # 扫描项目，生成上下文简报（首次必须执行）"
     echo "  hyper-loop.sh round <N>       # 执行第 N 轮循环（需要先写 task*.md）"
     echo "  hyper-loop.sh loop [max]      # 死循环模式（autoresearch 式，默认 999 轮）"
     echo "  hyper-loop.sh resume-from <N> # 从档案库第 N 轮重新开始"
     echo "  hyper-loop.sh status          # 查看当前状态"
     echo ""
-    echo "前置条件：Claude Code 已完成 Phase 0（BDD spec + project-config.env）"
+    echo "前置条件：project-config.env + hyper-loop.sh init"
     echo "停止方法：touch _hyper-loop/STOP"
     ;;
 esac

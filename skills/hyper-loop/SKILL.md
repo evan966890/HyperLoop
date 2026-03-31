@@ -46,16 +46,20 @@ TECH_STACK="Tauri v2 + Svelte 5 + Rust + TypeScript"
 EOF
 ```
 
-### Step 2: 收集上下文包
+### Step 2: 初始化项目上下文
 
-把 BMAD 文档复制到 `_hyper-loop/context/`：
+运行 init 命令扫描项目并生成上下文简报：
 
 ```bash
-cp CLAUDE.md _hyper-loop/context/
-find _bmad-output -iname "*prd*" -exec cp {} _hyper-loop/context/ \;
-find _bmad-output -iname "*architect*" -exec cp {} _hyper-loop/context/ \;
-find docs/design -name "*.md" -exec cp {} _hyper-loop/context/ \;
+PROJECT_ROOT=$(pwd) ~/.claude/skills/hyper-loop/scripts/hyper-loop.sh init
 ```
+
+这会自动：
+1. 扫描 CLAUDE.md、BMAD 文档、设计文档、项目文件结构
+2. 用 Claude 提炼为 300 行以内的 `project-brief.md`（不是复制原文件）
+3. 保存到 `_hyper-loop/context/project-brief.md`（持久化，不用每轮重建）
+
+每个 Writer/Tester/Reviewer 的 prompt 会自动注入这份简报。
 
 ### Step 3: 生成 BDD 行为规格
 
