@@ -218,6 +218,10 @@ WINIT
       echo "项目的其他文件在 _ctx/ 目录下可以用工具读取，但以上内容已包含核心信息。"
     } > "$WRITER_PROMPT"
 
+    local PROMPT_LINES
+    PROMPT_LINES=$(wc -l < "$WRITER_PROMPT" | tr -d ' ')
+    echo "  📝 ${TASK_NAME} prompt: ${PROMPT_LINES} lines" >&2
+
     # 启动 Writer（非交互 exec 模式，后台并行，stdin 注入完整上下文）
     local WRITER_LOG="${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log"
     (
@@ -730,7 +734,8 @@ auto_decompose() {
   echo "自动拆解 Round ${ROUND} 任务..."
 
   # 用 Claude 非交互模式拆解任务
-  local DECOMPOSE_PROMPT="/tmp/hyper-loop-decompose-r${ROUND}.md"
+  local DECOMPOSE_PROMPT
+  DECOMPOSE_PROMPT=$(mktemp /tmp/hyper-loop-decompose-XXXXXX.md)
   cat > "$DECOMPOSE_PROMPT" <<DPROMPT
 你是 HyperLoop 的任务拆解器。请基于以下信息拆解本轮任务。
 
@@ -865,7 +870,8 @@ cmd_init() {
 
   # Step 1: 扫描项目结构和文档
   echo "Step 1: 扫描项目文档..."
-  local SCAN_RESULT="/tmp/hyper-loop-project-scan.md"
+  local SCAN_RESULT
+  SCAN_RESULT=$(mktemp /tmp/hyper-loop-scan-XXXXXX.md)
   {
     echo "# 项目扫描结果"
     echo ""
@@ -924,7 +930,8 @@ cmd_init() {
 
   # Step 2: 用 Claude 提炼为项目简报
   echo "Step 2: Claude 提炼项目简报..."
-  local BRIEF_PROMPT="/tmp/hyper-loop-brief-prompt.md"
+  local BRIEF_PROMPT
+  BRIEF_PROMPT=$(mktemp /tmp/hyper-loop-brief-XXXXXX.md)
   cat > "$BRIEF_PROMPT" <<'BRIEF'
 你是项目文档提炼专家。请根据以下项目扫描结果，生成一份**简洁的项目简报**。
 
@@ -951,6 +958,7 @@ cmd_init() {
 Writer 最常需要改的 10-20 个文件。**必须用相对路径**（如 src/lib/foo.ts），不要用绝对路径。
 
 **原则：只保留 Writer/Tester/Reviewer 需要的信息。删掉历史记录、会议纪要、过程讨论。**
+**格式：直接输出简报正文，不要加任何前导说明（如"好的，这是项目简报："）或后续总结。**
 BRIEF
 
   cat "$SCAN_RESULT" >> "$BRIEF_PROMPT"
