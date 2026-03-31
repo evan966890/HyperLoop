@@ -497,7 +497,7 @@ else:
 
   # 写 prompt 到临时文件，避免 ARG_MAX 和 stdin 不可用问题
   local REVIEW_PROMPT_FILE
-  REVIEW_PROMPT_FILE=$(mktemp /tmp/hyper-loop-review-XXXXXX.md)
+  REVIEW_PROMPT_FILE=$(mktemp /tmp/hyper-loop-review-XXXXXX)
   echo "$REVIEW_PROMPT" > "$REVIEW_PROMPT_FILE"
 
   # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
@@ -762,7 +762,7 @@ auto_decompose() {
 
   # 用 Claude 非交互模式拆解任务
   local DECOMPOSE_PROMPT
-  DECOMPOSE_PROMPT=$(mktemp /tmp/hyper-loop-decompose-XXXXXX.md)
+  DECOMPOSE_PROMPT=$(mktemp /tmp/hyper-loop-decompose-XXXXXX)
   cat > "$DECOMPOSE_PROMPT" <<DPROMPT
 你是 HyperLoop 的任务拆解器。请基于以下信息拆解本轮任务。
 
@@ -898,7 +898,7 @@ cmd_init() {
   # Step 1: 扫描项目结构和文档
   echo "Step 1: 扫描项目文档..."
   local SCAN_RESULT
-  SCAN_RESULT=$(mktemp /tmp/hyper-loop-scan-XXXXXX.md)
+  SCAN_RESULT=$(mktemp /tmp/hyper-loop-scan-XXXXXX)
   {
     echo "# 项目扫描结果"
     echo ""
@@ -958,7 +958,7 @@ cmd_init() {
   # Step 2: 用 Claude 提炼为项目简报
   echo "Step 2: Claude 提炼项目简报..."
   local BRIEF_PROMPT
-  BRIEF_PROMPT=$(mktemp /tmp/hyper-loop-brief-XXXXXX.md)
+  BRIEF_PROMPT=$(mktemp /tmp/hyper-loop-brief-XXXXXX)
   cat > "$BRIEF_PROMPT" <<'BRIEF'
 你是项目文档提炼专家。请根据以下项目扫描结果，生成一份**简洁的项目简报**。
 
