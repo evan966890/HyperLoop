@@ -1,11 +1,11 @@
-# BDD 行为规格 — HyperLoop 脚本自身
+# BDD 行为规格 — HyperLoop v5.5
 
 ## S001: loop 命令启动死循环
 Given project-config.env 和 bdd-specs.md 存在
 When 执行 `hyper-loop.sh loop 3`
-Then 脚本输出 "Round 1/3" 并进入循环
+Then 脚本输出 "Round N/M" 并进入循环
   And 循环跑满 3 轮后正常退出（不崩溃）
-  And results.tsv 有 3 行记录
+  And results.tsv 有 3 行新记录
 
 ## S002: auto_decompose 生成任务文件
 Given _hyper-loop/context/ 和 bdd-specs.md 存在
@@ -19,7 +19,7 @@ Given task*.md 文件存在
 When start_writers 被调用
 Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
   And ~/.codex/config.toml 包含该目录的 trust 配置
-  And Codex 进程在 tmux window 中启动
+  And Codex exec 后台子进程启动（stdin 管道注入 prompt）
   And _ctx/ 目录被复制到 worktree
 
 ## S004: Writer 完成后 diff 被正确 commit
@@ -37,26 +37,49 @@ When audit_writer_diff 被调用
 Then 返回非零退出码
   And 该 Writer 的产出被跳过不合并
 
+## S005b: diff 审计拦截评估文件修改
+Given Writer 改了 _hyper-loop/ 下的评估文件（bdd-specs.md, contract.md, compute_verdict 逻辑）
+When audit_writer_diff 被调用
+Then 返回非零退出码（即使 TASK.md 列出了该文件）
+  And 日志输出"评估文件不可修改"
+
 ## S006: Writer 超时处理
 Given Writer 15 分钟未写 DONE.json
 When 超时触发
 Then DONE.json 被写入 status=timeout
   And 该 Writer 被标记为 failed
 
-## S007: Tester 启动并生成报告
-Given App 已构建（对本项目=bash -n 通过）
+## S007: Tester 静态验证
+Given App 已构建（bash -n 通过 或 BUILD_CMD 成功）
 When run_tester 被调用
-Then Tester Claude 子进程在 tmux 中启动
-  And 15 分钟内生成 reports/round-N-test.md
+Then Tester Claude 子进程以管道模式启动（claude -p -）
+  And 10 分钟内生成 reports/round-N-test.md
+  And 报告末尾包含结构化摘要行 `BDD_PASS: N/M` 和 `P0_COUNT: N`
   And 超时时生成空报告而非崩溃
+
+## S007b: Tester 动态验证（当 LAUNCH_CMD 存在时）
+Given project-config.env 的 LAUNCH_CMD 非空
+When run_tester 被调用
+Then 静态验证完成后，启动 app（eval LAUNCH_CMD）
+  And 使用 Playwright（web）或 screencapture（native）截图
+  And 截图保存到 screenshots/round-N/
+  And 报告引用截图路径并标注 BDD 场景通过/失败
+  And 测试完成后关闭 app 进程
 
 ## S008: 3 Reviewer 启动并产出评分
 Given Tester 报告存在
 When run_reviewers 被调用
-Then 3 个 Reviewer 在 tmux 中启动（Gemini + Claude + Codex）
-  And 10 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
+Then 3 个 Reviewer 以并行子进程启动（Gemini -p / Claude -p / Codex exec）
+  And Reviewer prompt 包含 project-brief.md（BMAD 设计文档精华）
+  And 5 分钟内各自生成 scores/round-N/reviewer-{a,b,c}.json
   And JSON 包含 "score" 字段
-  And 如果文件不存在，从 pane 输出提取 JSON
+  And fallback score 5（超时或无输出时）
+
+## S008b: Reviewer 引用设计文档评分
+Given project-brief.md 存在且包含设计要求
+When Reviewer 评分
+Then issues 中能引用设计文档的具体章节或要求
+  And 评分理由与用户原始设计意图对齐（不是自创标准）
 
 ## S009: 和议计算正确
 Given 3 个评分文件存在 scores=[5.0, 6.0, 7.0]
@@ -72,9 +95,10 @@ Then DECISION = REJECTED_VETO
   And 记录到 results.tsv
 
 ## S011: Tester P0 否决
-Given Tester 报告包含 "P0" 和 "fail"
+Given Tester 报告包含结构化摘要 `P0_COUNT: N`（N > 0）
 When compute_verdict 被调用
 Then DECISION = REJECTED_TESTER_P0
+  And 如果报告无结构化摘要，fallback 到正则检测 `### P0` heading + BDD FAIL
 
 ## S012: verdict.env 安全读取
 Given verdict.env 包含 MEDIAN=0.0 和 SCORES="1.0 2.0 3.0"
@@ -101,7 +125,6 @@ Given Round N 完成
 When cleanup_round 被调用
 Then /tmp/hyper-loop-worktrees-rN/ 不存在
   And hyper-loop/rN-* 分支被删除
-  And tmux writer windows 被关闭
 
 ## S016: macOS timeout 兼容
 Given macOS 没有 timeout 命令但有 gtimeout

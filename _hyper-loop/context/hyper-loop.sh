@@ -56,47 +56,6 @@ ensure_session() {
   echo "tmux session 'hyper-loop' created"
 }
 
-start_agent() {
-  local NAME="$1"    # tmux window name
-  local CLI="$2"     # e.g. "codex --full-auto"
-  local INIT="$3"    # 初始化文件的绝对路径
-  local ROUND="$4"
-
-  tmux new-window -t "hyper-loop" -n "$NAME"
-  tmux pipe-pane -o -t "hyper-loop:${NAME}" "cat >> '${LOG_DIR}/${NAME}-r${ROUND}.log'"
-  tmux send-keys -t "hyper-loop:${NAME}" "cd ${PROJECT_ROOT} && ${CLI}" Enter
-  sleep 3
-
-  # 注入初始化文件（传路径，不传内容）
-  local INJECT="/tmp/hyper-loop-inject-${NAME}-r${ROUND}.md"
-  {
-    echo "请先读以下文件了解你的角色和上下文："
-    echo "- 角色定义：${INIT}"
-    echo "- BDD 行为规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
-    echo "- 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md"
-    echo "- 历史评分：${PROJECT_ROOT}/_hyper-loop/results.tsv"
-    # 注入最近 3 轮摘要
-    if ls "${SUMMARY_DIR}/${NAME}-r"*.md >/dev/null 2>&1; then
-      echo "- 你的历史摘要（最近 3 轮）："
-      ls -t "${SUMMARY_DIR}/${NAME}-r"*.md 2>/dev/null | head -3 | while read -r f; do
-        echo "  - $f"
-      done
-    fi
-    echo ""
-    echo "当前是第 ${ROUND} 轮。读完上述文件后回复'已就绪'。"
-  } > "$INJECT"
-
-  tmux load-buffer -b "inject-${NAME}-r${ROUND}" "$INJECT"
-  tmux paste-buffer -d -r -b "inject-${NAME}-r${ROUND}" -t "hyper-loop:${NAME}"
-  tmux send-keys -t "hyper-loop:${NAME}" Enter
-  echo "  ✓ ${NAME} started (${CLI})"
-}
-
-kill_agent() {
-  local NAME="$1"
-  tmux kill-window -t "hyper-loop:${NAME}" 2>/dev/null || true
-}
-
 # ── Writer 管理 ──
 start_writers() {
   local ROUND="$1"
@@ -296,11 +255,31 @@ audit_writer_diff() {
 
   # 获取实际改了哪些文件
   local CHANGED_FILES
-  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
+  CHANGED_FILES=$(
+    {
+      git -C "$WT" diff --name-only HEAD 2>/dev/null
+      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
+    } | sort -u
+  )
 
   if [[ -z "$CHANGED_FILES" ]]; then
     echo "  ⚠ Writer 没有改任何文件" >&2
     return 0
+  fi
+
+  # 黑名单：评估文件不可被 Writer 修改（即使 TASK.md 列出了它们）
+  local EVAL_VIOLATIONS=""
+  while IFS= read -r changed; do
+    case "$changed" in
+      _hyper-loop/bdd-specs.md|_hyper-loop/contract.md|_hyper-loop/context/bdd-specs.md|_hyper-loop/context/contract.md)
+        EVAL_VIOLATIONS="${EVAL_VIOLATIONS}    评估文件不可修改: ${changed}\n" ;;
+    esac
+  done <<< "$CHANGED_FILES"
+
+  if [[ -n "$EVAL_VIOLATIONS" ]]; then
+    echo "  ✗ Diff 审计失败：Writer 试图修改评估文件" >&2
+    echo -e "$EVAL_VIOLATIONS" >&2
+    return 1
   fi
 
   # 检查是否有越界改动
@@ -315,9 +294,9 @@ audit_writer_diff() {
       fi
     done <<< "$ALLOWED_FILES"
 
-    # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 文件
+    # 允许改 DONE.json、WRITER_INIT.md 等 HyperLoop 元数据文件
     case "$changed" in
-      DONE.json|WRITER_INIT.md|_ctx/*|TASK.md) FOUND=true ;;
+      DONE.json|WRITER_INIT.md|TASK.md|_writer_prompt.md|_ctx/*) FOUND=true ;;
     esac
 
     if ! $FOUND; then
@@ -409,15 +388,18 @@ merge_writers() {
 build_app() {
   local BUILD_DIR="$1"
   echo "构建 App..."
-  cd "$BUILD_DIR"
-  eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
-  if eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"; then
+  (
+    cd "$BUILD_DIR"
+    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
+    eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"
+  )
+  local RC=$?
+  if [[ $RC -eq 0 ]]; then
     echo "  ✓ 构建成功"
-    return 0
   else
     echo "  ✗ 构建失败"
-    return 1
   fi
+  return "$RC"
 }
 
 # ── Tester（非交互 -p 模式）──
@@ -437,6 +419,12 @@ run_tester() {
     echo "构建结果：$(eval "${BUILD_VERIFY:-echo 'no verify'}" 2>&1 | tail -3)"
   } > "$SUMMARY" 2>/dev/null
 
+  # 构建 Tester prompt（静态验证 + 可选动态验证）
+  local BRIEF_REF=""
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/context/project-brief.md" ]]; then
+    BRIEF_REF="7. 读 ${PROJECT_ROOT}/_hyper-loop/context/project-brief.md 了解用户的设计意图，评估代码是否偏离设计"
+  fi
+
   local TESTER_PROMPT="你是代码测试员。请执行以下操作：
 
 1. 读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解 BDD 场景
@@ -444,17 +432,82 @@ run_tester() {
 3. 运行 bash -n ${PROJECT_ROOT}/scripts/hyper-loop.sh 验证语法
 4. 按 BDD 场景逐条检查脚本代码，标注 pass/fail
 5. 将结果写入 ${REPORT_FILE}，格式：每行一个场景 ID + pass/fail + 原因
-6. 列出发现的 P0/P1 bug"
+6. 列出发现的 P0/P1 bug
+${BRIEF_REF}
+
+**重要：报告最后必须包含以下两行结构化摘要（verdict 逻辑依赖它们）：**
+\`\`\`
+BDD_PASS: <通过数>/<总数>
+P0_COUNT: <P0 bug 数量>
+\`\`\`"
 
   echo "$TESTER_PROMPT" | timeout 600 claude --dangerously-skip-permissions -p - \
     --add-dir "$PROJECT_ROOT" 2>&1 | \
     tee "${LOG_DIR}/round-${ROUND}_tester_bdd-verify_claude.log" > "${REPORT_FILE}" || true
 
   if [[ -s "$REPORT_FILE" ]]; then
-    echo "  ✓ 试用报告已生成: $REPORT_FILE"
+    echo "  ✓ 静态验证报告已生成: $REPORT_FILE"
   else
     echo "  ⚠ Tester 无输出，生成默认报告"
     echo "# Round $ROUND — Tester 无输出" > "$REPORT_FILE"
+  fi
+
+  # ── 动态验证阶段（当 LAUNCH_CMD 存在时）──
+  if [[ -n "${LAUNCH_CMD:-}" ]] && [[ "$LAUNCH_CMD" != "echo"* ]]; then
+    echo "  启动动态验证（app 截图 + 用户流程）..."
+    local APP_PID=""
+
+    # 启动 app（后台）
+    (
+      cd "$PROJECT_ROOT"
+      eval "$LAUNCH_CMD" > "${LOG_DIR}/round-${ROUND}_app_launch.log" 2>&1
+    ) &
+    APP_PID=$!
+
+    # 等待 app 启动（根据 DEV_SERVER_PORT 或固定等待）
+    if [[ -n "${DEV_SERVER_PORT:-}" ]]; then
+      echo "  等待端口 ${DEV_SERVER_PORT}..."
+      local WAIT_START
+      WAIT_START=$(date +%s)
+      while ! nc -z localhost "$DEV_SERVER_PORT" 2>/dev/null; do
+        if [[ $(( $(date +%s) - WAIT_START )) -gt 30 ]]; then
+          echo "  ⚠ app 启动超时（30s），跳过动态验证" >&2
+          kill "$APP_PID" 2>/dev/null || true
+          APP_PID=""
+          break
+        fi
+        sleep 2
+      done
+    else
+      sleep 10  # 无端口信息，固定等 10 秒
+    fi
+
+    if [[ -n "$APP_PID" ]] && kill -0 "$APP_PID" 2>/dev/null; then
+      # 构造动态验证 prompt
+      local DYN_PROMPT="你是 App 动态测试员。App 已在本机运行。
+
+## 任务
+1. 对 web 应用：用 Playwright 浏览器工具访问 http://localhost:${DEV_SERVER_PORT:-3000} 截图
+   对 native 应用：用 screencapture 命令截图
+2. 按 BDD 场景逐条验证视觉和交互
+3. 截图保存到 ${SCREENSHOT_DIR}/
+4. 把动态验证结果追加到 ${REPORT_FILE}
+
+截图命令参考：
+- Web: npx playwright screenshot http://localhost:${DEV_SERVER_PORT:-3000} ${SCREENSHOT_DIR}/home.png
+- Native: screencapture -l \$(osascript -e 'tell app \"${WINDOW_NAME:-App}\" to id of window 1') ${SCREENSHOT_DIR}/window.png
+- 通用: screencapture ${SCREENSHOT_DIR}/screen.png"
+
+      echo "$DYN_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - \
+        --add-dir "$PROJECT_ROOT" 2>&1 | \
+        tee "${LOG_DIR}/round-${ROUND}_tester_dynamic_claude.log" >> "${REPORT_FILE}" || true
+
+      echo "  ✓ 动态验证完成"
+
+      # 关闭 app
+      kill "$APP_PID" 2>/dev/null || true
+      wait "$APP_PID" 2>/dev/null || true
+    fi
   fi
 }
 
@@ -464,17 +517,33 @@ run_reviewers() {
 
   echo "启动 3 个 Reviewer（非交互模式）..."
 
-  # 构造评审 prompt（引用文件路径）
-  local REVIEW_PROMPT="你是代码评审官。请读以下文件后给出评分。
+  # 构造评审 prompt（注入设计文档 + BDD + Tester 报告）
+  local BRIEF_CONTENT=""
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/context/project-brief.md" ]]; then
+    BRIEF_CONTENT=$(cat "${PROJECT_ROOT}/_hyper-loop/context/project-brief.md")
+  fi
 
+  local REVIEW_PROMPT="你是代码评审官。你的职责是对照用户的**原始设计意图**评估代码质量。
+
+## 用户的设计意图（项目简报，从 BMAD 文档提炼）
+${BRIEF_CONTENT:-（项目简报不存在，仅依据 BDD 和契约评分）}
+
+## 评估依据
 评估契约：${PROJECT_ROOT}/_hyper-loop/context/contract.md
 BDD 规格：${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md
 Tester 报告：${REPORT_FILE}
-本轮修改：
+
+## 本轮修改
 $(for STAT in "${TASK_DIR}"/*.stat; do [[ -f "$STAT" ]] && cat "$STAT"; done)
 
+## 评分要求
+1. 读项目简报了解用户的原始设计意图
+2. 读 BDD 规格和 Tester 报告了解通过情况
+3. 评分时，issues 必须引用设计文档的具体要求（如「简报中要求 X，但当前实现 Y」）
+4. 不要自创评分标准——只基于用户的设计文档和 BDD 规格
+
 只输出一个 JSON 对象，不要代码块，不要解释，不要 markdown：
-{\"score\":数字0到10,\"issues\":[{\"severity\":\"P0\",\"desc\":\"描述\"}],\"summary\":\"一句话总结\"}"
+{\"score\":数字0到10,\"issues\":[{\"severity\":\"P0\",\"desc\":\"引用设计文档的具体要求 + 当前偏差\"}],\"summary\":\"一句话总结\"}"
 
   # JSON 提取函数
   local EXTRACT_PY='
@@ -583,13 +652,19 @@ report = Path(report_path)
 if report.exists():
     text = report.read_text()
     import re
-    # Count actual P0 bug entries (### P0- headings), not section headers (## P0 Bugs)
-    p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
-    # Count BDD scenario failures from the results table
-    bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
-    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
-    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
-    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
+    # 优先解析结构化摘要行（格式鲁棒，不依赖 markdown 格式）
+    p0_match = re.search(r'P0_COUNT:\s*(\d+)', text)
+    bdd_match = re.search(r'BDD_PASS:\s*(\d+)\s*/\s*(\d+)', text)
+
+    if p0_match:
+        # 结构化路径：直接用 Tester 输出的 P0 计数
+        p0_count = int(p0_match.group(1))
+        tester_p0 = p0_count > 0
+    else:
+        # Fallback 路径：正则检测 ### P0 heading + BDD FAIL 表格项
+        p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
+        bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
+        tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
 
 if veto:
     decision = "REJECTED_VETO"
@@ -1056,6 +1131,27 @@ cmd_loop() {
   local CONSECUTIVE_REJECTS=0
   local BEST_ROUND=0
   local BEST_MEDIAN=0
+  if [[ -f "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]] && [[ -s "${PROJECT_ROOT}/_hyper-loop/results.tsv" ]]; then
+    local HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION
+    while IFS=$'\t' read -r HIST_ROUND HIST_MEDIAN HIST_SCORES HIST_DECISION; do
+      [[ "$HIST_ROUND" =~ ^[0-9]+$ ]] || continue
+
+      if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
+        CONSECUTIVE_REJECTS=0
+        [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
+        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+          BEST_ROUND=$HIST_ROUND
+          BEST_MEDIAN=$HIST_MEDIAN
+        fi
+      else
+        ((CONSECUTIVE_REJECTS++)) || true
+      fi
+    done < "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+
+    if [[ "$BEST_ROUND" -gt 0 ]]; then
+      echo "历史最佳: Round ${BEST_ROUND} (median=${BEST_MEDIAN})"
+    fi
+  fi
   # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
   local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
 
