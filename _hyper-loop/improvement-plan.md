@@ -1,4 +1,52 @@
-# HyperLoop 改进日志 — 2026-03-30/31
+# HyperLoop 改进日志 — 2026-03-30/31 → 04-01
+
+## v5.5 突破：从全拒到 9.0 (2026-03-31 session)
+
+### 结果
+| Round | Median | Gemini | Claude | Codex | Writers | 决策 |
+|-------|--------|--------|--------|-------|---------|------|
+| 1-10  | 5.0-6.3| 5.0(fb)| 3.0-8.5| 4.0-6.5| 1/4  | 全REJECTED |
+| 11    | 6.5    | 6.8    | 6.5    | 6.5   | 4/4    | ACCEPTED |
+| 12    | 9.0    | 9.4    | 9.0    | 8.4   | 4/4    | ACCEPTED |
+
+### 根因分析：为什么前 10 轮全部失败
+1. **tester_p0 子串匹配永远 True** — `"P0" in text` 命中每份报告的 `## P0 Bugs` 标题。这是唯一阻塞因素，修复后立即 ACCEPTED
+2. **Gemini 收不到 prompt** — `gemini -y -p ""` 传了空字符串，实际 prompt 在 stdin 但 gemini 不读 stdin。改为 `-p "$(cat file)"`
+3. **75% Writer 产出浪费** — DONE.json/TASK.md 等元数据随 `git add -A` 进入 writer 分支，导致 squash merge 冲突。3 行 `rm -f` 修复
+4. **脚本启动不了第二轮** — mktemp 的 `.md` 后缀在 macOS 上不兼容（X 必须在末尾）；dirty working tree 阻止 merge to main；`loop 5` 语义是"跑到第 5 轮"而非"再跑 5 轮"
+
+### 修复清单 (3 commits)
+| Commit | 问题 | 修复 |
+|--------|------|------|
+| e371019 | P0 检测假阳性 | 子串匹配 → 结构化计数 `### P0` headings + BDD FAIL 阈值 |
+| e371019 | 审计白名单缺 .sh | 加 sh/bash/toml/json/md/yaml/yml |
+| e371019 | 构建失败跳过 archive_round | 补调用 + SCORES 行 |
+| e371019 | cmd_status 重复定义 | 删除死代码版 |
+| e371019 | Gemini prompt 未送达 | `-p ""` → `-p "$(cat file)"` |
+| e371019 | Codex reviewer CLI arg 过长 | 改 stdin 管道 |
+| e371019 | PREV_MEDIAN 非数字崩溃 | 正则校验 |
+| e371019 | MEDIAN 残留导致误退出 | 每轮开头重置 |
+| e371019 | 0 Writer 合并仍跑评审 | merge-count 检查 |
+| e371019 | BDD S004/S017 过时 | 更新规格反映元数据清理 |
+| bde898f | mktemp .md 后缀 macOS 不兼容 | 去掉 .md 后缀 |
+| 8fe161d | (Round 12 Writer) 死代码 start_agent/kill_agent | 删除 |
+| 8fe161d | (Round 12 Writer) audit 不检测 untracked 文件 | 加 `git ls-files --others` |
+| 8fe161d | (Round 12 Writer) build_app cd 污染父进程 cwd | 改 subshell |
+| 8fe161d | (Round 12 Writer) loop 冷启动丢失历史最佳 | 启动时读 results.tsv 恢复状态 |
+
+### 三个质变时刻
+1. **v5.2: SKILL.md → bash 脚本** — AI 行为靠程序约束，不靠文字请求
+2. **v5.4: tmux 交互 → 管道模式** — AI 间通信走管道不走交互
+3. **v5.5: 评估管道 bug 修复** — 评估逻辑的 bug 比被评估代码的 bug 更致命
+
+### 工程经验
+- 多 agent 系统瓶颈在胶水代码正确性，不在 AI 能力
+- 148 行修复 → 评分从 5.0 飙到 9.0；3 行 rm -f → 合并率从 25% → 100%
+- nohup 后台跑时 stderr 被吞，平台差异（mktemp）极难定位
+- dirty working tree 阻止 git merge 在 `|| true` 下静默失败，但后续操作可能崩
+- Writer 自改进有效：Round 12 的 4 个 Writer 独立发现了 dead code、cwd 污染、untracked 文件遗漏、冷启动状态丢失
+
+---
 
 ## 本轮成果
 
