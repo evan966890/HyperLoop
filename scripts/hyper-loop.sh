@@ -592,9 +592,8 @@ if report.exists():
     p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
     # Count BDD scenario failures from the results table
     bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
-    # P0 auto-reject: needs 2+ distinct P0 bugs OR significant BDD failures (>3)
-    # Contract says 80% objective = BDD pass rate; 3/17 fails = 82% still OK
-    tester_p0 = len(p0_bugs) >= 2 or (len(p0_bugs) >= 1 and len(bdd_fails) > 3)
+    # BDD S011: any tester report with at least one P0 bug and one FAIL auto-rejects
+    tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
 
 if veto:
     decision = "REJECTED_VETO"
