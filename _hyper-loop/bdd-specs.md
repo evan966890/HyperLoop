@@ -14,10 +14,12 @@ Then _hyper-loop/tasks/round-N/ 下至少有 1 个 task*.md 文件
   And 每个文件包含"修复任务"和"相关文件"段落
   And 如果 claude -p 失败，降级生成默认 task1.md
 
-## S003: Writer worktree 创建 + trust + 启动
-Given task*.md 文件存在
+## S003: Writer worktree 创建 + 环境准备 + 启动
+Given task*.md 文件存在且 parallel-plan.txt 已生成
 When start_writers 被调用
-Then 为每个 task 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+Then Writer 数量由 parallel-plan.txt 决定（1~N 个）
+  And 每个 Writer 创建 /tmp/hyper-loop-worktrees-rN/taskM 目录
+  And prepare_worktree 为每个 worktree symlink SHARED_DEPS + 设置 CARGO_TARGET_DIR
   And ~/.codex/config.toml 包含该目录的 trust 配置
   And Codex exec 后台子进程启动（stdin 管道注入 prompt）
   And _ctx/ 目录被复制到 worktree
@@ -139,3 +141,67 @@ Then 元数据文件已预先清理，不会导致 false conflict
   And 如果第二个 Writer 与第一个有真实代码冲突则 merge --abort 并标记 deferred
   And 如果没有代码冲突则两个都成功 merge
   And 脚本不崩溃
+
+## S018: auto_decompose 检测文件交集决定并行度
+Given auto_decompose 生成了 3 个 task，task1 改 a.rs，task2 改 b.rs，task3 改 a.rs
+When 文件交集检测执行
+Then task1 和 task3 有交集 → 合并为 1 个 task
+  And parallel-plan.txt 写入 PARALLEL=false WRITER_COUNT=1
+  And 最终只有 task1.md（合并版）
+
+## S019: prepare_worktree symlink 共享依赖
+Given SHARED_DEPS="tauri-app/node_modules" 且主目录有该目录
+When prepare_worktree 被调用
+Then worktree 中 tauri-app/node_modules 是指向主目录的 symlink
+  And Cargo 项目使用独立 CARGO_TARGET_DIR（不 symlink target/）
+
+## S020: cmd_loop 启动时清理残留
+Given /tmp/hyper-loop-worktrees-r5/ 残留自上次运行
+When cmd_loop 启动
+Then /tmp/hyper-loop-worktrees-* 被清理
+  And hyper-loop/* 分支被删除
+  And stale tmux session 被关闭
+
+## S021: 脚本异常退出时 trap 写日志
+Given 脚本在 line 500 因未处理错误退出
+When ERR trap 触发
+Then loop.log 包含 "[FATAL] line 500 exit=1 cmd=..." 
+  And EXIT trap 也写一行 "[EXIT] exit=1"
+
+## S022: 所有任务改同一文件时 fallback 单 Writer
+Given auto_decompose 生成 4 个 task 全部改 scripts/hyper-loop.sh
+When 文件交集检测执行
+Then parallel-plan.txt 写入 PARALLEL=false WRITER_COUNT=1
+  And 4 个 task 合并为 task1.md
+
+## S023: cmd_monitor 返回进程状态
+Given 循环正在运行（PID 存在）
+When cmd_monitor 被调用
+Then 输出 "状态: 运行中 (PID XXXXX)"
+  And 输出心跳时间
+  And 输出最近 3 轮 results.tsv
+
+## S024: 心跳超时 warning
+Given heartbeat 文件最后更新在 6 分钟前
+When cmd_monitor 被调用
+Then 输出 "⚠ 心跳超时（>5分钟），可能卡住"
+
+## S025: ACCEPTED merge 前 stash dirty working tree
+Given working tree 有未提交修改
+When ACCEPTED 分支执行 merge to main
+Then 先 git stash push
+  And merge 完成后 git stash pop
+  And merge 不会因 dirty tree 静默失败
+
+## S026: 达标后写 REACHED_GOAL 并停止
+Given 中位数达到 >= 8.0
+When 达标检查触发
+Then _hyper-loop/REACHED_GOAL 文件被创建（含 ROUND 和 MEDIAN）
+  And 循环 break（不自动继续）
+  And cmd_monitor 检测到 REACHED_GOAL 输出 "🎉 目标达成！"
+
+## S027: Reviewer prompt 超过 100KB 时自动裁剪
+Given Reviewer prompt 文件大小 > 100KB
+When run_reviewers 准备发送 prompt
+Then prompt 被裁剪为：头部 30 行 + diff stat + Tester 报告前 50 行
+  And 日志输出裁剪前后大小

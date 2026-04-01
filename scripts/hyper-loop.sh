@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# 进程守护：异常退出时记录位置
+trap 'echo "[FATAL] line $LINENO exit=$? cmd=$BASH_COMMAND" >> "${PROJECT_ROOT:-.}/_hyper-loop/loop.log" 2>/dev/null' ERR
+trap 'echo "[EXIT] exit=$?" >> "${PROJECT_ROOT:-.}/_hyper-loop/loop.log" 2>/dev/null' EXIT
+
 # ============================================================================
-# HyperLoop v5.3 — 编排脚本
+# HyperLoop v5.7 — 编排脚本
 #
 # 像 autoresearch 的 program.md：一个死循环，改→跑→评→keep/reset→重复
 # 像 HyperAgents 的 generate_loop.py：硬编码进化循环，有档案库和 parent 选择
@@ -56,6 +60,30 @@ ensure_session() {
   echo "tmux session 'hyper-loop' created"
 }
 
+# ── Worktree 环境准备（symlink 共享依赖 + Cargo target 隔离）──
+prepare_worktree() {
+  local WT="$1"
+
+  # Symlink 共享大体积依赖目录（node_modules 等，npm 读安全）
+  for SHARED_DIR in ${SHARED_DEPS:-}; do
+    local SRC="${PROJECT_ROOT}/${SHARED_DIR}"
+    local DST="${WT}/${SHARED_DIR}"
+    if [[ -d "$SRC" ]] && [[ ! -e "$DST" ]]; then
+      mkdir -p "$(dirname "$DST")"
+      ln -sf "$SRC" "$DST"
+      echo "  ↗ symlink: ${SHARED_DIR}" >&2
+    fi
+  done
+
+  # Cargo target 隔离（每个 worktree 独立，防并行编译死锁）
+  # 查找 worktree 内的 Cargo.toml，为每个设置独立 CARGO_TARGET_DIR
+  local CARGO_ENV="${WT}/.cargo-env.sh"
+  if find "$WT" -maxdepth 3 -name "Cargo.toml" -print -quit 2>/dev/null | grep -q .; then
+    echo "export CARGO_TARGET_DIR=\"${WT}/.cargo-target\"" > "$CARGO_ENV"
+    echo "  🦀 CARGO_TARGET_DIR=${WT}/.cargo-target" >&2
+  fi
+}
+
 # ── Writer 管理 ──
 start_writers() {
   local ROUND="$1"
@@ -81,6 +109,9 @@ start_writers() {
 
     # 创建 worktree
     git -C "$PROJECT_ROOT" worktree add "$WT" -b "$BRANCH" 2>/dev/null
+
+    # 环境准备：symlink 共享依赖 + Cargo target 隔离
+    prepare_worktree "$WT"
 
     # 预 trust worktree 目录（解决 Codex "Do you trust?" 弹窗）
     # Codex 的 trust 存在 ~/.codex/config.toml
@@ -184,6 +215,8 @@ WINIT
     # 启动 Writer（非交互 exec 模式，后台并行，stdin 注入完整上下文）
     local WRITER_LOG="${LOG_DIR}/round-${ROUND}_writer_${TASK_NAME}_codex.log"
     (
+      # Source Cargo target 隔离环境（如果存在）
+      [[ -f "${WT}/.cargo-env.sh" ]] && source "${WT}/.cargo-env.sh"
       cat "$WRITER_PROMPT" | codex exec --dangerously-bypass-approvals-and-sandbox -C "$WT" - \
         > "$WRITER_LOG" 2>&1 || true
       # 如果 Codex 没写 DONE.json，补一个
@@ -569,6 +602,26 @@ else:
   REVIEW_PROMPT_FILE=$(mktemp /tmp/hyper-loop-review-XXXXXX)
   echo "$REVIEW_PROMPT" > "$REVIEW_PROMPT_FILE"
 
+  # Prompt 长度检查：>100KB 时裁剪为摘要模式（防止 Gemini 截断/超时）
+  local PROMPT_SIZE
+  PROMPT_SIZE=$(wc -c < "$REVIEW_PROMPT_FILE" | tr -d ' ')
+  if [[ "$PROMPT_SIZE" -gt 102400 ]]; then
+    echo "  ⚠ Reviewer prompt 过大 (${PROMPT_SIZE} bytes)，裁剪为摘要模式" >&2
+    # 重建 prompt：只用 stat + Tester 报告摘要，不含完整 diff
+    {
+      echo "$REVIEW_PROMPT" | head -30  # 保留 prompt 头部（角色 + 契约 + BDD 路径）
+      echo ""
+      echo "## 本轮修改（摘要，原始 prompt 过大已裁剪）"
+      for STAT in "${TASK_DIR}"/*.stat; do [[ -f "$STAT" ]] && cat "$STAT"; done
+      echo ""
+      echo "## Tester 报告摘要"
+      head -50 "$REPORT_FILE" 2>/dev/null
+      echo ""
+      echo "（完整报告见 ${REPORT_FILE}）"
+    } > "$REVIEW_PROMPT_FILE"
+    echo "  裁剪后: $(wc -c < "$REVIEW_PROMPT_FILE" | tr -d ' ') bytes" >&2
+  fi
+
   # 并行跑 3 个 Reviewer（非交互 -p 模式，stdout 管道提取 JSON）
   (
     timeout 300 gemini -y -p "$(cat "$REVIEW_PROMPT_FILE")" --include-directories "$PROJECT_ROOT" 2>&1 | \
@@ -920,6 +973,64 @@ FALLBACK
   fi
 
   echo "  ✓ 生成了 ${TASK_COUNT:-1} 个任务"
+
+  # ── 文件交集检测：决定并行度 ──
+  local PLAN_FILE="${TASK_DIR}/parallel-plan.txt"
+  local ALL_FILES_UNIQUE=true
+
+  # 提取每个 task 的"相关文件"
+  for TASK_FILE in "$TASK_DIR"/task*.md; do
+    [[ -f "$TASK_FILE" ]] || continue
+    local TNAME
+    TNAME=$(basename "$TASK_FILE" .md)
+    grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
+      grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html|sh|bash|toml|json|md|yaml|yml)' | \
+      sed 's/^[[:space:]]*//' | sort -u > "${TASK_DIR}/${TNAME}.files" 2>/dev/null || true
+  done
+
+  # 检测任意两个 task 是否有文件交集
+  local TASK_FILES_LIST
+  TASK_FILES_LIST=$(ls "${TASK_DIR}"/*.files 2>/dev/null || true)
+  if [[ -n "$TASK_FILES_LIST" ]]; then
+    local i j
+    for i in ${TASK_DIR}/*.files; do
+      for j in ${TASK_DIR}/*.files; do
+        [[ "$i" == "$j" ]] && continue
+        if comm -12 "$i" "$j" 2>/dev/null | grep -q .; then
+          ALL_FILES_UNIQUE=false
+          break 2
+        fi
+      done
+    done
+  fi
+
+  if [[ "$ALL_FILES_UNIQUE" == "true" ]] && [[ "${TASK_COUNT:-1}" -gt 1 ]]; then
+    echo "PARALLEL=true" > "$PLAN_FILE"
+    echo "WRITER_COUNT=${TASK_COUNT:-1}" >> "$PLAN_FILE"
+    echo "  ✓ 文件无交集 → ${TASK_COUNT:-1} Writer 并行"
+  else
+    echo "PARALLEL=false" > "$PLAN_FILE"
+    echo "WRITER_COUNT=1" >> "$PLAN_FILE"
+    if [[ "${TASK_COUNT:-1}" -gt 1 ]]; then
+      echo "  ⚠ 文件有交集或无法判断 → 1 Writer 串行（合并所有 task）"
+      # 合并所有 task 为 task1.md
+      {
+        for TASK_FILE in "$TASK_DIR"/task*.md; do
+          [[ -f "$TASK_FILE" ]] || continue
+          cat "$TASK_FILE"
+          echo ""
+          echo "---"
+          echo ""
+        done
+      } > "${TASK_DIR}/task1-merged.md"
+      # 删除原始 task 文件，保留合并版
+      rm -f "${TASK_DIR}"/task[2-9]*.md 2>/dev/null
+      mv "${TASK_DIR}/task1-merged.md" "${TASK_DIR}/task1.md"
+    else
+      echo "  ✓ 单任务 → 1 Writer"
+    fi
+  fi
+  rm -f "${TASK_DIR}"/*.files 2>/dev/null
 }
 
 # ── 档案归档（HyperAgents 启示：保留 stepping stones）──
@@ -1155,7 +1266,19 @@ cmd_loop() {
   # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
   local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
 
+  # ── 启动时清理历史残留 ──
+  echo "清理历史残留..."
+  rm -rf /tmp/hyper-loop-worktrees-* 2>/dev/null || true
+  git -C "$PROJECT_ROOT" worktree prune 2>/dev/null || true
+  for _BRANCH in $(git -C "$PROJECT_ROOT" branch --list 'hyper-loop/*' 2>/dev/null); do
+    git -C "$PROJECT_ROOT" branch -D "$_BRANCH" 2>/dev/null || true
+  done
+  tmux kill-session -t hyper-loop 2>/dev/null || true
+
   while [[ "$ROUND" -le "$END_ROUND" ]]; do
+    # 写心跳（monitor 用来检测进程是否活着）
+    date +%s > "${PROJECT_ROOT}/_hyper-loop/heartbeat"
+
     # 检查停止信号
     if [[ -f "$STOP_FILE" ]]; then
       echo "检测到 STOP 文件，优雅退出"
@@ -1230,8 +1353,17 @@ cmd_loop() {
 
       if [[ "$DECISION" == "ACCEPTED" ]] || [[ "$DECISION" == "ACCEPTED_UNCHANGED" ]]; then
         echo "  → KEEP: 合并到 main"
+        # Stash dirty working tree 防止 merge 静默失败
+        local STASHED=false
+        if [[ -n "$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null)" ]]; then
+          echo "  ⚠ Working tree dirty，先 stash" >&2
+          git -C "$PROJECT_ROOT" stash push -m "hyper-loop-r${ROUND}-pre-merge" 2>/dev/null && STASHED=true
+        fi
         git -C "$PROJECT_ROOT" merge --no-ff "hyper-loop/r${ROUND}-integration" \
           -m "hyper-loop R${ROUND}: median=${MEDIAN}" 2>/dev/null || true
+        if [[ "$STASHED" == "true" ]]; then
+          git -C "$PROJECT_ROOT" stash pop 2>/dev/null || true
+        fi
         CONSECUTIVE_REJECTS=0
 
         # 追踪最佳轮次
@@ -1262,10 +1394,13 @@ cmd_loop() {
       CONSECUTIVE_REJECTS=0
     fi
 
-    # 中位数 >= 8.0 → 达标，停止
+    # 中位数 >= 8.0 → 达标，写 REACHED_GOAL 并停止等用户确认
     if python3 -c "exit(0 if float('${MEDIAN:-0}') >= 8.0 else 1)" 2>/dev/null; then
       echo ""
       echo "🎉 中位数达到 ${MEDIAN} >= 8.0，目标达成！"
+      echo "ROUND=${ROUND} MEDIAN=${MEDIAN} TIME=$(date '+%Y-%m-%d %H:%M:%S')" \
+        > "${PROJECT_ROOT}/_hyper-loop/REACHED_GOAL"
+      echo "已写入 REACHED_GOAL。等待用户确认是否继续。"
       break
     fi
 
@@ -1299,6 +1434,56 @@ cmd_status() {
   fi
 }
 
+# ── 监控（Claude watchdog 调用）──
+cmd_monitor() {
+  load_config 2>/dev/null || true
+  local LOGFILE="${PROJECT_ROOT:-.}/_hyper-loop/loop.log"
+  local HEARTBEAT="${PROJECT_ROOT:-.}/_hyper-loop/heartbeat"
+  local PID_FILE="${PROJECT_ROOT:-.}/_hyper-loop/loop.pid"
+  local GOAL_FILE="${PROJECT_ROOT:-.}/_hyper-loop/REACHED_GOAL"
+
+  # 达标检查
+  if [[ -f "$GOAL_FILE" ]]; then
+    echo "🎉 目标达成！"
+    cat "$GOAL_FILE"
+    echo "用户决定：继续 → 删除 REACHED_GOAL 并重启 loop；停止 → 完成"
+    return 0
+  fi
+
+  # 进程状态
+  local PID
+  PID=$(cat "$PID_FILE" 2>/dev/null || echo "")
+  if [[ -n "$PID" ]] && kill -0 "$PID" 2>/dev/null; then
+    echo "状态: 运行中 (PID $PID)"
+  else
+    echo "状态: 已停止"
+    echo "最后日志:"
+    tail -5 "$LOGFILE" 2>/dev/null
+    return 1
+  fi
+
+  # 心跳检查
+  if [[ -f "$HEARTBEAT" ]]; then
+    local LAST NOW AGE
+    LAST=$(cat "$HEARTBEAT")
+    NOW=$(date +%s)
+    AGE=$(( NOW - LAST ))
+    echo "心跳: ${AGE}s 前"
+    if [[ "$AGE" -gt 300 ]]; then
+      echo "⚠ 心跳超时（>5分钟），可能卡住"
+    fi
+  else
+    echo "心跳: 无记录"
+  fi
+
+  # 最新结果
+  echo "---"
+  echo "最近 3 轮:"
+  tail -3 "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (无数据)"
+  echo "---"
+  tail -5 "$LOGFILE" 2>/dev/null
+}
+
 # ── 入口 ──
 case "${1:-help}" in
   init)         cmd_init ;;
@@ -1306,6 +1491,7 @@ case "${1:-help}" in
   loop)         cmd_loop "${2:-999}" ;;
   resume-from)  cmd_resume_from "${2:-}" ;;
   status)       cmd_status ;;
+  monitor)      cmd_monitor ;;
   *)
     echo "用法:"
     echo "  hyper-loop.sh init            # 扫描项目，生成上下文简报（首次必须执行）"
@@ -1313,6 +1499,7 @@ case "${1:-help}" in
     echo "  hyper-loop.sh loop [max]      # 死循环模式（autoresearch 式，默认 999 轮）"
     echo "  hyper-loop.sh resume-from <N> # 从档案库第 N 轮重新开始"
     echo "  hyper-loop.sh status          # 查看当前状态"
+    echo "  hyper-loop.sh monitor         # 监控循环状态（Claude watchdog 调用）"
     echo ""
     echo "前置条件：project-config.env + hyper-loop.sh init"
     echo "停止方法：touch _hyper-loop/STOP"
