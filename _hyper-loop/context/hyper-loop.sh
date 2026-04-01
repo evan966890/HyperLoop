@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 进程守护：异常退出时记录位置
-trap 'echo "[FATAL] line $LINENO exit=$? cmd=$BASH_COMMAND" >> "${PROJECT_ROOT:-.}/_hyper-loop/loop.log" 2>/dev/null' ERR
+# 进程守护：异常退出时记录位置（脱敏：截断长命令，过滤 KEY/TOKEN/SECRET）
+_hl_sanitize() { echo "$1" | head -c 200 | sed -E 's/(KEY|TOKEN|SECRET|PASSWORD)[=:][^ ]*/\1=***REDACTED***/gi'; }
+trap 'echo "[FATAL] line $LINENO exit=$? cmd=$(_hl_sanitize "$BASH_COMMAND")" >> "${PROJECT_ROOT:-.}/_hyper-loop/loop.log" 2>/dev/null' ERR
 trap 'echo "[EXIT] exit=$?" >> "${PROJECT_ROOT:-.}/_hyper-loop/loop.log" 2>/dev/null' EXIT
 
 # ============================================================================
@@ -94,6 +95,15 @@ prepare_worktree() {
   for SHARED_DIR in ${SHARED_DEPS:-}; do
     local SRC="${PROJECT_ROOT}/${SHARED_DIR}"
     local DST="${WT}/${SHARED_DIR}"
+    # 安全检查：SRC 必须在 PROJECT_ROOT 内（防 symlink 逃逸）
+    local REAL_SRC
+    REAL_SRC=$(cd "$PROJECT_ROOT" && realpath -m "$SHARED_DIR" 2>/dev/null || echo "$SRC")
+    local REAL_ROOT
+    REAL_ROOT=$(realpath "$PROJECT_ROOT" 2>/dev/null || echo "$PROJECT_ROOT")
+    if [[ "$REAL_SRC" != "$REAL_ROOT"* ]]; then
+      echo "  ⚠ SHARED_DEPS 逃逸: ${SHARED_DIR} 不在项目内，跳过" >&2
+      continue
+    fi
     if [[ -d "$SRC" ]] && [[ ! -e "$DST" ]]; then
       mkdir -p "$(dirname "$DST")"
       ln -sf "$SRC" "$DST"
@@ -244,10 +254,15 @@ WINIT
       # Source Cargo target 隔离环境（如果存在）
       [[ -f "${WT}/.cargo-env.sh" ]] && source "${WT}/.cargo-env.sh"
       cat "$WRITER_PROMPT" | codex exec --dangerously-bypass-approvals-and-sandbox -C "$WT" - \
-        > "$WRITER_LOG" 2>&1 || true
-      # 如果 Codex 没写 DONE.json，补一个
+        > "$WRITER_LOG" 2>&1
+      local EXIT_CODE=$?
+      # 如果 Codex 没写 DONE.json，标记为 failed（不是 done——防伪造通过审计）
       if [[ ! -f "${WT}/DONE.json" ]]; then
-        echo '{"status":"done","files_changed":[],"note":"codex exec exited without DONE.json"}' > "${WT}/DONE.json"
+        if [[ $EXIT_CODE -eq 0 ]]; then
+          echo '{"status":"done","files_changed":[],"note":"codex exited 0 without DONE.json"}' > "${WT}/DONE.json"
+        else
+          echo "{\"status\":\"failed\",\"files_changed\":[],\"note\":\"codex exited ${EXIT_CODE} without DONE.json\"}" > "${WT}/DONE.json"
+        fi
       fi
     ) &
 
@@ -267,10 +282,12 @@ wait_writers() {
   START_TIME=$(date +%s)
 
   while true; do
-    # 检查是否还有 codex exec 子进程在跑
+    # 检查 subshell 和 codex 子进程是否都完成
     local RUNNING
     RUNNING=$(jobs -r 2>/dev/null | wc -l | tr -d ' ')
-    if [[ "$RUNNING" -eq 0 ]]; then
+    local CODEX_RUNNING
+    CODEX_RUNNING=$(pgrep -f "codex exec.*${WORKTREE_BASE}" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$RUNNING" -eq 0 ]] && [[ "$CODEX_RUNNING" -eq 0 ]]; then
       echo "  ✓ 所有 Writer 已完成"
       break
     fi
@@ -278,11 +295,14 @@ wait_writers() {
     local ELAPSED=$(( $(date +%s) - START_TIME ))
     if [[ "$ELAPSED" -gt "$TIMEOUT" ]]; then
       echo "  ⚠ 超时（${TIMEOUT}s），强制结束未完成的 Writer"
-      # 杀掉所有后台 subshell 及其子进程（codex exec）
+      # 杀掉所有后台 subshell + 其子进程（codex exec）
       for PID in $(jobs -p 2>/dev/null); do
-        # kill 整个进程组，确保 codex exec 子进程也被杀
-        kill -- -"$PID" 2>/dev/null || kill "$PID" 2>/dev/null || true
+        # 先杀子进程（codex），再杀 subshell
+        pkill -P "$PID" 2>/dev/null || true
+        kill "$PID" 2>/dev/null || true
       done
+      # 额外清理：查找所有 codex exec 进程指向本轮 worktree 的
+      pkill -f "codex exec.*${WORKTREE_BASE}" 2>/dev/null || true
       wait 2>/dev/null || true
       # 给没有 DONE.json 的 Writer 写 timeout 状态
       for WT in "${WORKTREE_BASE}"/task*; do
@@ -306,6 +326,20 @@ audit_writer_diff() {
   ALLOWED_FILES=$(grep -A 20 '### 相关文件' "$TASK_FILE" 2>/dev/null | \
     grep -oE '[-a-zA-Z0-9_./ ]+\.(rs|svelte|ts|js|tsx|jsx|css|py|go|html|sh|bash|toml|json|md|yaml|yml)' | \
     sed 's/^[[:space:]]*//' | sort -u || true)
+
+  # 路径穿越防御：拒绝 ../ 开头的路径
+  local PATH_VIOLATIONS=""
+  while IFS= read -r af; do
+    [[ -z "$af" ]] && continue
+    if [[ "$af" == ../* ]] || [[ "$af" == */../* ]] || [[ "$af" == /* ]]; then
+      PATH_VIOLATIONS="${PATH_VIOLATIONS}    路径穿越: ${af}\n"
+    fi
+  done <<< "$ALLOWED_FILES"
+  if [[ -n "$PATH_VIOLATIONS" ]]; then
+    echo "  ✗ TASK.md 包含路径穿越:" >&2
+    echo -e "$PATH_VIOLATIONS" >&2
+    return 1
+  fi
 
   if [[ -z "$ALLOWED_FILES" ]]; then
     echo "  ⚠ TASK.md 没有指定相关文件，跳过审计" >&2
@@ -397,7 +431,7 @@ merge_writers() {
     TASK_NAME=$(basename "$WT")
 
     local STATUS
-    STATUS=$(python3 -c "import json; print(json.load(open('${WT}/DONE.json'))['status'])" 2>/dev/null || echo "unknown")
+    STATUS=$(HL_FILE="${WT}/DONE.json" python3 -c "import json,os; print(json.load(open(os.environ['HL_FILE']))['status'])" 2>/dev/null || echo "unknown")
     if [[ "$STATUS" != "done" ]]; then
       echo "  ⚠ ${TASK_NAME}: status=${STATUS}, 跳过" >&2
       ((FAILED++)) || true
@@ -654,7 +688,7 @@ else:
 
   # 写 prompt 到临时文件，避免 ARG_MAX 和 stdin 不可用问题
   local REVIEW_PROMPT_FILE
-  REVIEW_PROMPT_FILE=$(mktemp /tmp/hyper-loop-review-XXXXXX)
+  REVIEW_PROMPT_FILE=$(mktemp /tmp/hyper-loop-review-XXXXXX) && chmod 600 "$REVIEW_PROMPT_FILE"
   echo "$REVIEW_PROMPT" > "$REVIEW_PROMPT_FILE"
 
   # Prompt 长度检查：>100KB 时裁剪为摘要模式（防止 Gemini 截断/超时）
@@ -682,7 +716,7 @@ else:
     timeout 300 gemini -y -p "$(cat "$REVIEW_PROMPT_FILE")" --include-directories "$PROJECT_ROOT" 2>&1 | \
       tee "${LOG_DIR}/round-${ROUND}_reviewer-a_scoring_gemini.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-a.json" 2>/dev/null
-    echo "  ✓ reviewer-a (gemini) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-a.json'))['score'])" 2>/dev/null || echo 'fallback')"
+    echo "  ✓ reviewer-a (gemini) done: $(HL_FILE="${SCORES_DIR}/reviewer-a.json" python3 -c "import json,os; print(json.load(open(os.environ['HL_FILE']))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
 
   (
@@ -690,14 +724,14 @@ else:
       --add-dir "$PROJECT_ROOT" 2>&1 | \
       tee "${LOG_DIR}/round-${ROUND}_reviewer-b_scoring_claude.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-b.json" 2>/dev/null
-    echo "  ✓ reviewer-b (claude) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-b.json'))['score'])" 2>/dev/null || echo 'fallback')"
+    echo "  ✓ reviewer-b (claude) done: $(HL_FILE="${SCORES_DIR}/reviewer-b.json" python3 -c "import json,os; print(json.load(open(os.environ['HL_FILE']))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
 
   (
     cat "$REVIEW_PROMPT_FILE" | timeout 300 codex exec --full-auto -C "$PROJECT_ROOT" - 2>&1 | \
       tee "${LOG_DIR}/round-${ROUND}_reviewer-c_scoring_codex.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-c.json" 2>/dev/null
-    echo "  ✓ reviewer-c (codex) done: $(python3 -c "import json; print(json.load(open('${SCORES_DIR}/reviewer-c.json'))['score'])" 2>/dev/null || echo 'fallback')"
+    echo "  ✓ reviewer-c (codex) done: $(HL_FILE="${SCORES_DIR}/reviewer-c.json" python3 -c "import json,os; print(json.load(open(os.environ['HL_FILE']))['score'])" 2>/dev/null || echo 'fallback')"
   ) &
 
   echo "  等待 3 个 Reviewer 完成（最多 5 分钟）..."
@@ -729,7 +763,7 @@ compute_verdict() {
   for SCORE_FILE in "${SCORES_DIR}"/*.json; do
     [[ -f "$SCORE_FILE" ]] || continue
     local S
-    S=$(python3 -c "import json; print(json.load(open('${SCORE_FILE}'))['score'])" 2>/dev/null || echo "0")
+    S=$(HL_FILE="$SCORE_FILE" python3 -c "import json,os; print(json.load(open(os.environ['HL_FILE']))['score'])" 2>/dev/null || echo "0")
     SCORES+=("$S")
     local NAME
     NAME=$(basename "$SCORE_FILE" .json)
@@ -746,16 +780,41 @@ compute_verdict() {
   local CURRENT_PHASE="${CURRENT_PHASE:-0}"
   local BDD_FILE="${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
 
-  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" "$CURRENT_PHASE" "$BDD_FILE" <<'PYVERDICT'
-import sys, json, re
+  # 通过环境变量传参（避免 CLI 参数注入）
+  HL_SCORES="${SCORES[*]}" \
+  HL_PREV_MEDIAN="$PREV_MEDIAN" \
+  HL_REPORT="$REPORT_FILE" \
+  HL_OUTPUT="${TASK_DIR}/verdict.env" \
+  HL_PHASE="$CURRENT_PHASE" \
+  HL_BDD="$BDD_FILE" \
+  python3 - <<'PYVERDICT'
+import os, json, re, tempfile, shutil
 from pathlib import Path
 
-scores_str, prev_median_str, report_path, output_path, phase_str, bdd_path = sys.argv[1:7]
-scores = sorted([float(s) for s in scores_str.split()])
+scores_str = os.environ.get('HL_SCORES', '0')
+prev_median_str = os.environ.get('HL_PREV_MEDIAN', '0')
+report_path = os.environ.get('HL_REPORT', '')
+output_path = os.environ.get('HL_OUTPUT', '/dev/null')
+phase_str = os.environ.get('HL_PHASE', '0')
+bdd_path = os.environ.get('HL_BDD', '')
+
+# 安全解析分数
+try:
+    scores = sorted([float(s) for s in scores_str.split() if s.replace('.','',1).isdigit()])
+except (ValueError, TypeError):
+    scores = [0.0]
+
+if not scores:
+    scores = [0.0]
+
 n = len(scores)
 median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
 max_diff = max(scores) - min(scores)
-prev_median = float(prev_median_str)
+
+try:
+    prev_median = float(prev_median_str)
+except (ValueError, TypeError):
+    prev_median = 0.0
 current_phase = int(phase_str) if phase_str.isdigit() else 0
 
 veto = any(s < 4.0 for s in scores)
@@ -853,7 +912,9 @@ if phase_info:
     print(f"  Phase: {phase_info}")
 print(f"  决策: {decision}")
 
-with open(output_path, 'w') as f:
+# 原子写入：先写 tmp 再 mv（防止中途崩溃留半成品）
+tmp_fd, tmp_path = tempfile.mkstemp(dir=str(Path(output_path).parent), suffix='.tmp')
+with os.fdopen(tmp_fd, 'w') as f:
     f.write(f"DECISION={decision}\n")
     f.write(f"MEDIAN={median}\n")
     f.write(f"MAX_DIFF={max_diff}\n")
@@ -864,6 +925,7 @@ with open(output_path, 'w') as f:
     f.write(f"BDD_PHASE_PASS={bdd_phase_pass}\n")
     f.write(f"BDD_PHASE_TOTAL={bdd_phase_total}\n")
     f.write(f"IMPROVED_SCENARIOS=\"{' '.join(improved_scenarios)}\"\n")
+shutil.move(tmp_path, output_path)
 PYVERDICT
 
   echo "═══════════════════════════════════"
@@ -905,13 +967,18 @@ record_result() {
 
   # 安全读取（不 source，用 grep）
   local R_DECISION R_MEDIAN R_SCORES
-  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2)
-  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2)
+  R_DECISION=$(grep '^DECISION=' "$VERDICT_FILE" | cut -d= -f2-)
+  R_MEDIAN=$(grep '^MEDIAN=' "$VERDICT_FILE" | cut -d= -f2-)
   R_SCORES=$(grep '^SCORES=' "$VERDICT_FILE" | cut -d= -f2- | tr -d '"')
 
-  printf '%s\t%s\t%s\t%s\n' \
-    "$ROUND" "${R_MEDIAN:-0}" "${R_SCORES:-}" "${R_DECISION:-ERROR}" \
-    >> "${PROJECT_ROOT}/_hyper-loop/results.tsv"
+  # flock 保护追加（防并发写入损坏）
+  local TSV="${PROJECT_ROOT}/_hyper-loop/results.tsv"
+  (
+    flock -w 5 200 2>/dev/null || true  # 等 5 秒拿锁，拿不到也继续
+    printf '%s\t%s\t%s\t%s\n' \
+      "$ROUND" "${R_MEDIAN:-0}" "${R_SCORES:-}" "${R_DECISION:-ERROR}" \
+      >> "$TSV"
+  ) 200>>"$TSV"
 }
 
 # ============================================================================
@@ -978,8 +1045,8 @@ cmd_round() {
   echo ""
   # shellcheck source=/dev/null
   # 安全读取 verdict.env（不 source，用 grep 提取）
-  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
-  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2-)
+  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2-)
 
   if [[ "$DECISION" == "ACCEPTED" ]] || [[ "$DECISION" == "ACCEPTED_UNCHANGED" ]]; then
     echo "建议：合并 integration 分支到 main"
@@ -1010,7 +1077,7 @@ auto_decompose() {
 
   # 用 Claude 非交互模式拆解任务
   local DECOMPOSE_PROMPT
-  DECOMPOSE_PROMPT=$(mktemp /tmp/hyper-loop-decompose-XXXXXX)
+  DECOMPOSE_PROMPT=$(mktemp /tmp/hyper-loop-decompose-XXXXXX) && chmod 600 "$DECOMPOSE_PROMPT"
   cat > "$DECOMPOSE_PROMPT" <<DPROMPT
 你是 HyperLoop 的任务拆解器。请基于以下信息拆解本轮任务。
 
@@ -1225,7 +1292,7 @@ cmd_init() {
   # Step 1: 扫描项目结构和文档
   echo "Step 1: 扫描项目文档..."
   local SCAN_RESULT
-  SCAN_RESULT=$(mktemp /tmp/hyper-loop-scan-XXXXXX)
+  SCAN_RESULT=$(mktemp /tmp/hyper-loop-scan-XXXXXX) && chmod 600 "$SCAN_RESULT"
   {
     echo "# 项目扫描结果"
     echo ""
@@ -1285,7 +1352,7 @@ cmd_init() {
   # Step 2: 用 Claude 提炼为项目简报
   echo "Step 2: Claude 提炼项目简报..."
   local BRIEF_PROMPT
-  BRIEF_PROMPT=$(mktemp /tmp/hyper-loop-brief-XXXXXX)
+  BRIEF_PROMPT=$(mktemp /tmp/hyper-loop-brief-XXXXXX) && chmod 600 "$BRIEF_PROMPT"
   cat > "$BRIEF_PROMPT" <<'BRIEF'
 你是项目文档提炼专家。请根据以下项目扫描结果，生成一份**简洁的项目简报**。
 
@@ -1391,7 +1458,7 @@ cmd_loop() {
       if [[ "$HIST_DECISION" == ACCEPTED* ]]; then
         CONSECUTIVE_REJECTS=0
         [[ "$HIST_MEDIAN" =~ ^[0-9]*\.?[0-9]+$ ]] || continue
-        if python3 -c "exit(0 if float('${HIST_MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+        if HL_A="${HIST_MEDIAN}" HL_B="${BEST_MEDIAN}" python3 -c "import os; exit(0 if float(os.environ.get('HL_A','0')) > float(os.environ.get('HL_B','0')) else 1)" 2>/dev/null; then
           BEST_ROUND=$HIST_ROUND
           BEST_MEDIAN=$HIST_MEDIAN
         fi
@@ -1491,8 +1558,8 @@ cmd_loop() {
       # 读取决策
       # shellcheck source=/dev/null
       # 安全读取 verdict.env（不 source，用 grep 提取）
-  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
-  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2)
+  DECISION=$(grep '^DECISION=' "${TASK_DIR}/verdict.env" | cut -d= -f2-)
+  MEDIAN=$(grep '^MEDIAN=' "${TASK_DIR}/verdict.env" | cut -d= -f2-)
 
       if [[ "$DECISION" == "ACCEPTED" ]] || [[ "$DECISION" == "ACCEPTED_UNCHANGED" ]]; then
         echo "  → KEEP: 合并到 main"
@@ -1521,7 +1588,7 @@ cmd_loop() {
         fi
 
         # 追踪最佳轮次
-        if python3 -c "exit(0 if float('${MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
+        if HL_A="${MEDIAN}" HL_B="${BEST_MEDIAN}" python3 -c "import os; exit(0 if float(os.environ.get('HL_A','0')) > float(os.environ.get('HL_B','0')) else 1)" 2>/dev/null; then
           BEST_ROUND=$ROUND
           BEST_MEDIAN=$MEDIAN
         fi
@@ -1563,7 +1630,7 @@ cmd_loop() {
     fi
 
     # 中位数 >= 8.0 → 达标
-    if python3 -c "exit(0 if float('${MEDIAN:-0}') >= 8.0 else 1)" 2>/dev/null; then
+    if HL_A="${MEDIAN:-0}" python3 -c "import os; exit(0 if float(os.environ.get('HL_A','0')) >= 8.0 else 1)" 2>/dev/null; then
       echo ""
       echo "🎉 中位数达到 ${MEDIAN} >= 8.0"
 
@@ -1576,7 +1643,11 @@ cmd_loop() {
           CURRENT_PHASE=$NEXT_PHASE
           # 更新 project-config.env 中的 CURRENT_PHASE
           if grep -q '^CURRENT_PHASE=' "${PROJECT_ROOT}/_hyper-loop/project-config.env" 2>/dev/null; then
-            sed -i.bak "s/^CURRENT_PHASE=.*/CURRENT_PHASE=${NEXT_PHASE}/" "${PROJECT_ROOT}/_hyper-loop/project-config.env"
+            # NEXT_PHASE 来自整数运算，但仍做防御性校验
+            if [[ "$NEXT_PHASE" =~ ^[0-9]+$ ]]; then
+              sed -i.bak "s/^CURRENT_PHASE=.*/CURRENT_PHASE=${NEXT_PHASE}/" "${PROJECT_ROOT}/_hyper-loop/project-config.env"
+              rm -f "${PROJECT_ROOT}/_hyper-loop/project-config.env.bak" 2>/dev/null
+            fi
           else
             echo "CURRENT_PHASE=${NEXT_PHASE}" >> "${PROJECT_ROOT}/_hyper-loop/project-config.env"
           fi
