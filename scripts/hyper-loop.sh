@@ -450,10 +450,11 @@ merge_writers() {
 
     # Writer 改了文件但可能没 commit——Codex 只写文件不一定 git add/commit
     # 必须先 commit 才能 merge
-    # 先删除 HyperLoop 元数据文件，防止多 Writer squash merge 冲突（P0-1 修复）
+    # 先删除 HyperLoop 元数据文件，防止多 Writer squash merge 冲突
     rm -f "${WT}/DONE.json" "${WT}/WRITER_INIT.md" "${WT}/TASK.md" "${WT}/_writer_prompt.md" 2>/dev/null
-    rm -rf "${WT}/_ctx" 2>/dev/null
-    git -C "$WT" add -A 2>/dev/null
+    rm -rf "${WT}/_ctx" "${WT}/.cargo-env.sh" "${WT}/.cargo-target" 2>/dev/null
+    # git add -u 只收 tracked 文件变更（不带入编译产物等 untracked 垃圾）
+    git -C "$WT" add -u 2>/dev/null
     git -C "$WT" commit -m "hyper-loop writer: ${TASK_NAME}" --allow-empty >&2 2>/dev/null || true
 
     # 保存 diff（对比 worktree 创建时的 parent commit）
