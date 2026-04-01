@@ -458,6 +458,30 @@ run_tester() {
     BRIEF_REF="7. 读 ${PROJECT_ROOT}/_hyper-loop/context/project-brief.md 了解用户的设计意图，评估代码是否偏离设计"
   fi
 
+  # 如果有分阶段，告诉 Tester 只重点验证当前 Phase
+  local PHASE_HINT=""
+  if [[ -n "${CURRENT_PHASE:-}" ]] && [[ "${CURRENT_PHASE:-0}" -gt 0 ]]; then
+    PHASE_HINT="
+**当前处于 Phase ${CURRENT_PHASE}。** 重点验证 Phase ${CURRENT_PHASE} 的场景，但也列出其他场景的状态。
+P0 判定仅限 Phase ${CURRENT_PHASE} 的场景。其他 Phase 的 FAIL 不影响本轮评估。"
+  fi
+
+  # stepping stones 上下文
+  local SS_HINT=""
+  local SS_DIR="${PROJECT_ROOT}/_hyper-loop/stepping-stones"
+  if [[ -d "$SS_DIR" ]]; then
+    local LATEST_SS
+    LATEST_SS=$(ls -td "${SS_DIR}"/round-* 2>/dev/null | head -1)
+    if [[ -n "$LATEST_SS" ]] && [[ -f "${LATEST_SS}/verdict.env" ]]; then
+      local SS_IMPROVED
+      SS_IMPROVED=$(grep '^IMPROVED_SCENARIOS=' "${LATEST_SS}/verdict.env" 2>/dev/null | cut -d= -f2- | tr -d '"')
+      if [[ -n "$SS_IMPROVED" ]]; then
+        SS_HINT="
+**上一轮 stepping stone：** 场景 ${SS_IMPROVED} 曾 PASS（patch 在 ${LATEST_SS}/）。如果这些场景现在变 FAIL，是回退。"
+      fi
+    fi
+  fi
+
   local TESTER_PROMPT="你是代码测试员。请执行以下操作：
 
 1. 读 ${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md 了解 BDD 场景
@@ -467,6 +491,8 @@ run_tester() {
 5. 将结果写入 ${REPORT_FILE}，格式：每行一个场景 ID + pass/fail + 原因
 6. 列出发现的 P0/P1 bug
 ${BRIEF_REF}
+${PHASE_HINT}
+${SS_HINT}
 
 **重要：报告最后必须包含以下两行结构化摘要（verdict 逻辑依赖它们）：**
 \`\`\`
@@ -687,37 +713,92 @@ compute_verdict() {
     return
   fi
 
-  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" <<'PYVERDICT'
-import sys, json
+  # 读取当前 Phase（分阶段 BDD 评估）
+  local CURRENT_PHASE="${CURRENT_PHASE:-0}"
+  local BDD_FILE="${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md"
+
+  python3 - "${SCORES[*]}" "$PREV_MEDIAN" "$REPORT_FILE" "${TASK_DIR}/verdict.env" "$CURRENT_PHASE" "$BDD_FILE" <<'PYVERDICT'
+import sys, json, re
 from pathlib import Path
 
-scores_str, prev_median_str, report_path, output_path = sys.argv[1:5]
+scores_str, prev_median_str, report_path, output_path, phase_str, bdd_path = sys.argv[1:7]
 scores = sorted([float(s) for s in scores_str.split()])
 n = len(scores)
 median = scores[n//2] if n % 2 else (scores[n//2-1] + scores[n//2]) / 2
 max_diff = max(scores) - min(scores)
 prev_median = float(prev_median_str)
+current_phase = int(phase_str) if phase_str.isdigit() else 0
 
 veto = any(s < 4.0 for s in scores)
 
+# ── 分阶段 BDD 评估 ──
+# 如果 BDD spec 有 Phase 标注，只评估当前 Phase 的场景
+phase_scenarios = set()
+if current_phase > 0:
+    bdd = Path(bdd_path)
+    if bdd.exists():
+        bdd_text = bdd.read_text()
+        # 找当前 Phase 包含的场景 ID（## Phase N: ... 下的 ## SXXX / ## GXXX 等）
+        in_phase = False
+        for line in bdd_text.splitlines():
+            phase_match = re.match(r'^##\s+Phase\s+(\d+)', line)
+            if phase_match:
+                in_phase = (int(phase_match.group(1)) == current_phase)
+                continue
+            if in_phase:
+                # 提取场景 ID（## S001, ## G001, ## C001 等）
+                scenario_match = re.match(r'^##\s+([A-Z]\d{3})', line)
+                if scenario_match:
+                    phase_scenarios.add(scenario_match.group(1))
+
 tester_p0 = False
+bdd_phase_pass = 0
+bdd_phase_total = 0
+bdd_pass_total = 0
+bdd_total_total = 0
+improved_scenarios = []  # 用于 stepping stones
+
 report = Path(report_path)
 if report.exists():
     text = report.read_text()
-    import re
-    # 优先解析结构化摘要行（格式鲁棒，不依赖 markdown 格式）
+    # 优先解析结构化摘要行
     p0_match = re.search(r'P0_COUNT:\s*(\d+)', text)
     bdd_match = re.search(r'BDD_PASS:\s*(\d+)\s*/\s*(\d+)', text)
 
+    if bdd_match:
+        bdd_pass_total = int(bdd_match.group(1))
+        bdd_total_total = int(bdd_match.group(2))
+
     if p0_match:
-        # 结构化路径：直接用 Tester 输出的 P0 计数
         p0_count = int(p0_match.group(1))
-        tester_p0 = p0_count > 0
+        # 分阶段时：只在当前 Phase 有 P0 才否决
+        if phase_scenarios:
+            # 检查 P0 bug 是否属于当前 Phase 的场景
+            p0_in_phase = False
+            for s in phase_scenarios:
+                if re.search(rf'{s}.*(?:FAIL|fail)', text):
+                    p0_in_phase = True
+                    break
+            tester_p0 = p0_count > 0 and p0_in_phase
+        else:
+            tester_p0 = p0_count > 0
     else:
-        # Fallback 路径：正则检测 ### P0 heading + BDD FAIL 表格项
         p0_bugs = re.findall(r'^###\s+P0', text, re.MULTILINE)
         bdd_fails = re.findall(r'\|\s*\*?\*?FAIL\*?\*?\s*\|', text)
         tester_p0 = len(p0_bugs) >= 1 and len(bdd_fails) >= 1
+
+    # 统计当前 Phase 的通过率（如果有 Phase）
+    if phase_scenarios:
+        for s in phase_scenarios:
+            bdd_phase_total += 1
+            if re.search(rf'\|\s*{s}\s*\|.*PASS', text, re.IGNORECASE):
+                bdd_phase_pass += 1
+
+    # 提取有进步的场景（从 FAIL → PASS）用于 stepping stones
+    for match in re.finditer(r'\|\s*([A-Z]\d{3})\s*\|.*?(PASS|FAIL)', text, re.IGNORECASE):
+        sid, result = match.group(1), match.group(2).upper()
+        if result == "PASS":
+            improved_scenarios.append(sid)
 
 if veto:
     decision = "REJECTED_VETO"
@@ -732,10 +813,15 @@ elif median == prev_median and median > 0:
 else:
     decision = "REJECTED_NO_IMPROVEMENT"
 
+phase_info = ""
+if current_phase > 0 and bdd_phase_total > 0:
+    phase_info = f" (Phase {current_phase}: {bdd_phase_pass}/{bdd_phase_total})"
 print(f"  中位数: {median}")
 print(f"  分歧: {max_diff}")
 print(f"  否决: {veto}")
 print(f"  Tester P0: {tester_p0}")
+if phase_info:
+    print(f"  Phase: {phase_info}")
 print(f"  决策: {decision}")
 
 with open(output_path, 'w') as f:
@@ -745,6 +831,10 @@ with open(output_path, 'w') as f:
     f.write(f"VETO={veto}\n")
     f.write(f"TESTER_P0={tester_p0}\n")
     f.write(f"SCORES=\"{' '.join(str(s) for s in scores)}\"\n")
+    f.write(f"CURRENT_PHASE={current_phase}\n")
+    f.write(f"BDD_PHASE_PASS={bdd_phase_pass}\n")
+    f.write(f"BDD_PHASE_TOTAL={bdd_phase_total}\n")
+    f.write(f"IMPROVED_SCENARIOS=\"{' '.join(improved_scenarios)}\"\n")
 PYVERDICT
 
   echo "═══════════════════════════════════"
@@ -909,6 +999,27 @@ $(if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))" ]]; then
   for f in "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))"/*.json; do
     [[ -f "\$f" ]] && echo "$(basename "\$f"): $(cat "\$f" 2>/dev/null)"
   done
+fi)
+
+$(if [[ -n "${CURRENT_PHASE:-}" ]] && [[ "${CURRENT_PHASE:-0}" -gt 0 ]]; then
+  echo "## 当前阶段"
+  echo "处于 Phase ${CURRENT_PHASE}。只需修复 Phase ${CURRENT_PHASE} 的 BDD 场景，不要试图修复其他 Phase 的问题。"
+fi)
+
+$(local SS_DIR="${PROJECT_ROOT}/_hyper-loop/stepping-stones"
+if [[ -d "$SS_DIR" ]]; then
+  local LATEST_SS
+  LATEST_SS=$(ls -td "${SS_DIR}"/round-* 2>/dev/null | head -1)
+  if [[ -n "$LATEST_SS" ]]; then
+    echo "## Stepping Stones（上一轮有价值的改动）"
+    echo "以下 patch 来自之前被 REJECTED 但有部分进步的轮次。Writer 应在这些改动基础上继续，不要重写已验证通过的部分："
+    for P in "${LATEST_SS}"/*.patch; do
+      [[ -f "\$P" ]] && echo "- \$(basename "\$P"): \$(head -5 "\$P" 2>/dev/null)"
+    done
+    local SS_IMPROVED
+    SS_IMPROVED=$(grep '^IMPROVED_SCENARIOS=' "${LATEST_SS}/verdict.env" 2>/dev/null | cut -d= -f2- | tr -d '"')
+    [[ -n "$SS_IMPROVED" ]] && echo "已通过的场景：${SS_IMPROVED}"
+  fi
 fi)
 
 ## 要求
@@ -1374,6 +1485,20 @@ cmd_loop() {
       else
         echo "  → RESET: 丢弃本轮 ($DECISION)"
         ((CONSECUTIVE_REJECTS++)) || true
+
+        # ── Stepping stones：保留有进步的 REJECTED 轮次 patch ──
+        local IMPROVED
+        IMPROVED=$(grep '^IMPROVED_SCENARIOS=' "${TASK_DIR}/verdict.env" 2>/dev/null | cut -d= -f2- | tr -d '"')
+        if [[ -n "$IMPROVED" ]] && [[ "$IMPROVED" != " " ]]; then
+          local SS_DIR="${PROJECT_ROOT}/_hyper-loop/stepping-stones/round-${ROUND}"
+          mkdir -p "$SS_DIR"
+          # 保存 patch 和 verdict
+          for P in "${TASK_DIR}"/*.patch; do
+            [[ -f "$P" ]] && cp "$P" "$SS_DIR/"
+          done
+          cp "${TASK_DIR}/verdict.env" "$SS_DIR/" 2>/dev/null
+          echo "  💎 Stepping stone saved: ${IMPROVED} (${SS_DIR})"
+        fi
       fi
 
       # 归档
@@ -1394,13 +1519,40 @@ cmd_loop() {
       CONSECUTIVE_REJECTS=0
     fi
 
-    # 中位数 >= 8.0 → 达标，写 REACHED_GOAL 并停止等用户确认
+    # 中位数 >= 8.0 → 达标
     if python3 -c "exit(0 if float('${MEDIAN:-0}') >= 8.0 else 1)" 2>/dev/null; then
       echo ""
-      echo "🎉 中位数达到 ${MEDIAN} >= 8.0，目标达成！"
-      echo "ROUND=${ROUND} MEDIAN=${MEDIAN} TIME=$(date '+%Y-%m-%d %H:%M:%S')" \
+      echo "🎉 中位数达到 ${MEDIAN} >= 8.0"
+
+      # ── 分阶段推进：如果还有下一个 Phase，自动推进 ──
+      if [[ -n "${CURRENT_PHASE:-}" ]] && [[ "${CURRENT_PHASE:-0}" -gt 0 ]]; then
+        local NEXT_PHASE=$((CURRENT_PHASE + 1))
+        # 检查 BDD spec 是否有下一个 Phase
+        if grep -q "^## Phase ${NEXT_PHASE}" "${PROJECT_ROOT}/_hyper-loop/context/bdd-specs.md" 2>/dev/null; then
+          echo "Phase ${CURRENT_PHASE} 达标！自动推进到 Phase ${NEXT_PHASE}"
+          CURRENT_PHASE=$NEXT_PHASE
+          # 更新 project-config.env 中的 CURRENT_PHASE
+          if grep -q '^CURRENT_PHASE=' "${PROJECT_ROOT}/_hyper-loop/project-config.env" 2>/dev/null; then
+            sed -i.bak "s/^CURRENT_PHASE=.*/CURRENT_PHASE=${NEXT_PHASE}/" "${PROJECT_ROOT}/_hyper-loop/project-config.env"
+          else
+            echo "CURRENT_PHASE=${NEXT_PHASE}" >> "${PROJECT_ROOT}/_hyper-loop/project-config.env"
+          fi
+          # 重置 PREV_MEDIAN（新 Phase 从 0 开始）
+          CONSECUTIVE_REJECTS=0
+          echo "  ✓ CURRENT_PHASE=${NEXT_PHASE}，继续循环"
+          # 清理 stepping stones（新 Phase 重新开始）
+          rm -rf "${PROJECT_ROOT}/_hyper-loop/stepping-stones" 2>/dev/null
+          ((ROUND++))
+          sleep 30
+          continue
+        fi
+      fi
+
+      # 没有更多 Phase 或未使用分阶段 → 写 REACHED_GOAL 并停止
+      echo "所有 Phase 已完成（或未使用分阶段）。写入 REACHED_GOAL。"
+      echo "ROUND=${ROUND} MEDIAN=${MEDIAN} PHASE=${CURRENT_PHASE:-all} TIME=$(date '+%Y-%m-%d %H:%M:%S')" \
         > "${PROJECT_ROOT}/_hyper-loop/REACHED_GOAL"
-      echo "已写入 REACHED_GOAL。等待用户确认是否继续。"
+      echo "等待用户确认是否继续。"
       break
     fi
 

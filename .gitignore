@@ -1,0 +1,16 @@
+# HyperLoop 运行产物（不进 git，防数据膨胀）
+_hyper-loop/loop.log
+_hyper-loop/loop.pid
+_hyper-loop/heartbeat
+_hyper-loop/STOP
+_hyper-loop/REACHED_GOAL
+_hyper-loop/stepping-stones/
+_hyper-loop/logs/
+_hyper-loop/tasks/*/task*.patch
+_hyper-loop/tasks/*/merge-count.txt
+_hyper-loop/tasks/*/round-summary.txt
+_hyper-loop/tasks/*/*.files
+_hyper-loop/tasks/*/parallel-plan.txt
+
+# 临时文件
+/tmp/hyper-loop-*
