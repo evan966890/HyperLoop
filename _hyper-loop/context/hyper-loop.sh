@@ -286,14 +286,10 @@ audit_writer_diff() {
     return 0
   fi
 
-  # 获取实际改了哪些文件
+  # 获取实际改了哪些 git 追踪的文件（不含 untracked 编译产物）
+  # 编译产物（.cargo-target/, node_modules/, target/ 等）在 .gitignore 里，不会出现在这里
   local CHANGED_FILES
-  CHANGED_FILES=$(
-    {
-      git -C "$WT" diff --name-only HEAD 2>/dev/null
-      git -C "$WT" ls-files --others --exclude-standard 2>/dev/null
-    } | sort -u
-  )
+  CHANGED_FILES=$(git -C "$WT" diff --name-only HEAD 2>/dev/null | sort -u)
 
   if [[ -z "$CHANGED_FILES" ]]; then
     echo "  ⚠ Writer 没有改任何文件" >&2
@@ -321,7 +317,14 @@ audit_writer_diff() {
     local FOUND=false
     while IFS= read -r allowed; do
       [[ -z "$allowed" ]] && continue
-      if [[ "$changed" == *"$allowed"* ]] || [[ "$allowed" == *"$changed"* ]]; then
+      # 路径匹配：allowed 是 basename 或相对路径，changed 是相对路径
+      # 精确匹配 basename 或完整路径（不再子串模糊匹配）
+      local changed_base
+      changed_base=$(basename "$changed")
+      local allowed_base
+      allowed_base=$(basename "$allowed")
+      if [[ "$changed" == "$allowed" ]] || [[ "$changed_base" == "$allowed_base" ]] || \
+         [[ "$changed" == */"$allowed" ]] || [[ "$allowed" == */"$changed" ]]; then
         FOUND=true
         break
       fi
@@ -657,7 +660,7 @@ else:
   ) &
 
   (
-    echo "$REVIEW_PROMPT" | timeout 300 claude --dangerously-skip-permissions -p - \
+    cat "$REVIEW_PROMPT_FILE" | timeout 300 claude --dangerously-skip-permissions -p - \
       --add-dir "$PROJECT_ROOT" 2>&1 | \
       tee "${LOG_DIR}/round-${ROUND}_reviewer-b_scoring_claude.log" | \
       python3 -c "$EXTRACT_PY" > "${SCORES_DIR}/reviewer-b.json" 2>/dev/null
@@ -997,7 +1000,7 @@ fi)
 $(if [[ -d "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))" ]]; then
   echo "## 上一轮评分"
   for f in "${PROJECT_ROOT}/_hyper-loop/scores/round-$((ROUND-1))"/*.json; do
-    [[ -f "\$f" ]] && echo "$(basename "\$f"): $(cat "\$f" 2>/dev/null)"
+    [[ -f "$f" ]] && echo "$(basename "$f"): $(cat "$f" 2>/dev/null)"
   done
 fi)
 
@@ -1014,7 +1017,7 @@ if [[ -d "$SS_DIR" ]]; then
     echo "## Stepping Stones（上一轮有价值的改动）"
     echo "以下 patch 来自之前被 REJECTED 但有部分进步的轮次。Writer 应在这些改动基础上继续，不要重写已验证通过的部分："
     for P in "${LATEST_SS}"/*.patch; do
-      [[ -f "\$P" ]] && echo "- \$(basename "\$P"): \$(head -5 "\$P" 2>/dev/null)"
+      [[ -f "$P" ]] && echo "- $(basename "$P"): $(head -5 "$P" 2>/dev/null)"
     done
     local SS_IMPROVED
     SS_IMPROVED=$(grep '^IMPROVED_SCENARIOS=' "${LATEST_SS}/verdict.env" 2>/dev/null | cut -d= -f2- | tr -d '"')
@@ -1470,12 +1473,23 @@ cmd_loop() {
           echo "  ⚠ Working tree dirty，先 stash" >&2
           git -C "$PROJECT_ROOT" stash push -m "hyper-loop-r${ROUND}-pre-merge" 2>/dev/null && STASHED=true
         fi
+        local PRE_MERGE_SHA
+        PRE_MERGE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)
         git -C "$PROJECT_ROOT" merge --no-ff "hyper-loop/r${ROUND}-integration" \
           -m "hyper-loop R${ROUND}: median=${MEDIAN}" 2>/dev/null || true
+        local POST_MERGE_SHA
+        POST_MERGE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null)
         if [[ "$STASHED" == "true" ]]; then
           git -C "$PROJECT_ROOT" stash pop 2>/dev/null || true
         fi
-        CONSECUTIVE_REJECTS=0
+        # 校验 merge 是否真的成功（HEAD 应该变了）
+        if [[ "$PRE_MERGE_SHA" == "$POST_MERGE_SHA" ]]; then
+          echo "  ⚠ merge 到 main 失败（HEAD 未变），本轮视为 REJECTED" >&2
+          ((CONSECUTIVE_REJECTS++)) || true
+        else
+          echo "  ✓ merge 成功 (${POST_MERGE_SHA:0:8})"
+          CONSECUTIVE_REJECTS=0
+        fi
 
         # 追踪最佳轮次
         if python3 -c "exit(0 if float('${MEDIAN}') > float('${BEST_MEDIAN}') else 1)" 2>/dev/null; then
