@@ -35,15 +35,13 @@
 
 ---
 
-## 活跃的 tmux 会话
+## 运行架构（v5.9 — 非交互管道模式）
 
-```
-hyper-loop:orchestrator  — 我在这里
-hyper-loop:reviewer      — Gemini CLI（常驻，已注入 REVIEWER_INIT.md）
-hyper-loop:w-task1       — Codex Writer 1（按需创建）
-hyper-loop:w-task2       — Codex Writer 2（按需创建）
-...
-```
+所有 agent 通过 stdin 管道调用，不使用 tmux 交互会话：
+- **Writer**: `cat prompt | codex exec -C $WT -`（后台并行）
+- **Tester**: `echo prompt | claude -p - --add-dir $DIR`
+- **Reviewer A/B/C**: Gemini `-p "$(cat file)"` / Claude `-p -` / Codex `exec -`
+- tmux 仅用于 session 管理（创建/关闭），不用于 agent 交互
 
 ---
 
@@ -52,10 +50,9 @@ hyper-loop:w-task2       — Codex Writer 2（按需创建）
 ### 启动前
 - [ ] 上下文包已重建？（`_hyper-loop/context/` 目录存在且非空）
 - [ ] `_hyper-loop/project-config.env` 已锁定并与用户确认？
-- [ ] Gemini reviewer 在运行？（`tmux list-panes -t hyper-loop:reviewer`）
-- [ ] `tmux pipe-pane` 日志已接好？（`_hyper-loop/logs/<timestamp>/` 下有输出）
 - [ ] 评估契约已锁定？（`_hyper-loop/contract.md` 存在）
-- [ ] 功能检查清单已生成？（`_hyper-loop/checklist.md` 存在）
+- [ ] BDD 规格已锁定？（`_hyper-loop/bdd-specs.md` 存在）
+- [ ] Working tree 干净？（`git status --porcelain` 为空）
 
 ### 每轮
 - [ ] 轮次 < max-rounds？

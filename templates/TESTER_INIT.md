@@ -1,7 +1,7 @@
 # Tester Agent 初始化文档
 
 > 本文档在 HyperLoop Phase 0 自动生成。
-> Tester 是常驻角色，负责创建、维护和执行测试集，生成真实试用报告。
+> Tester 以管道模式运行（`claude -p -`），负责按 BDD 规格验证代码并生成报告。
 
 ---
 

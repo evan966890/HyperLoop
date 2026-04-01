@@ -6,7 +6,8 @@ trap 'echo "[FATAL] line $LINENO exit=$? cmd=$BASH_COMMAND" >> "${PROJECT_ROOT:-
 trap 'echo "[EXIT] exit=$?" >> "${PROJECT_ROOT:-.}/_hyper-loop/loop.log" 2>/dev/null' EXIT
 
 # ============================================================================
-# HyperLoop v5.7 — 编排脚本
+# HyperLoop v5.9 — 编排脚本
+HYPER_LOOP_VERSION="5.9.0"
 #
 # 像 autoresearch 的 program.md：一个死循环，改→跑→评→keep/reset→重复
 # 像 HyperAgents 的 generate_loop.py：硬编码进化循环，有档案库和 parent 选择
@@ -24,29 +25,53 @@ elif ! command -v timeout >/dev/null 2>&1; then
   timeout() { local T="$1"; shift; "$@" & local PID=$!; (sleep "$T" && kill "$PID" 2>/dev/null) & wait "$PID" 2>/dev/null; }
 fi
 
-# ── 加载项目配置 ──
+# ── 加载项目配置（白名单 key，不执行任意 shell）──
 load_config() {
   local CONFIG_FILE="${PROJECT_ROOT:-.}/_hyper-loop/project-config.env"
   if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "ERROR: 找不到 $CONFIG_FILE，先跑 Phase 0" >&2
     exit 1
   fi
-  set -a
-  # shellcheck source=/dev/null
-  . "$CONFIG_FILE"
-  set +a
+  # 白名单：只加载已知 key，忽略未知 key（防止配置文件注入）
+  local ALLOWED_KEYS="PROJECT_ROOT PROJECT_NAME PROJECT_TYPE BUILD_CMD LAUNCH_CMD CACHE_CLEAN BUILD_VERIFY WINDOW_NAME BUNDLE_ID DEV_SERVER_PORT TECH_STACK TEST_MODE SHARED_DEPS CURRENT_PHASE WRITER_MODE"
+  while IFS='=' read -r KEY VALUE; do
+    [[ -z "$KEY" || "$KEY" == \#* ]] && continue
+    VALUE="${VALUE%\"}" ; VALUE="${VALUE#\"}"
+    VALUE="${VALUE%\'}" ; VALUE="${VALUE#\'}"
+    local FOUND=false
+    for AK in $ALLOWED_KEYS; do
+      [[ "$KEY" == "$AK" ]] && FOUND=true && break
+    done
+    if $FOUND; then
+      export "$KEY=$VALUE"
+    else
+      echo "  ⚠ 忽略未知配置 key: $KEY" >&2
+    fi
+  done < "$CONFIG_FILE"
+}
+
+# ── 项目级 namespace（多项目并发不互踩）──
+project_namespace() {
+  # 用 PROJECT_ROOT 的 hash 前 8 位做唯一标识
+  local HASH
+  HASH=$(echo "${PROJECT_ROOT:-.}" | md5sum 2>/dev/null | cut -c1-8 || \
+         echo "${PROJECT_ROOT:-.}" | md5 2>/dev/null | cut -c1-8 || \
+         echo "default")
+  echo "hl-${HASH}"
 }
 
 # ── 目录初始化 ──
 init_dirs() {
   local ROUND="$1"
+  NS=$(project_namespace)
   LOG_DIR="${PROJECT_ROOT}/_hyper-loop/logs/$(date +%Y%m%d-%H%M%S)"
   SCREENSHOT_DIR="${PROJECT_ROOT}/_hyper-loop/screenshots/round-${ROUND}"
   SCORES_DIR="${PROJECT_ROOT}/_hyper-loop/scores/round-${ROUND}"
   REPORT_FILE="${PROJECT_ROOT}/_hyper-loop/reports/round-${ROUND}-test.md"
   SUMMARY_DIR="${PROJECT_ROOT}/_hyper-loop/summaries"
   TASK_DIR="${PROJECT_ROOT}/_hyper-loop/tasks/round-${ROUND}"
-  WORKTREE_BASE="/tmp/hyper-loop-worktrees-r${ROUND}"
+  WORKTREE_BASE="/tmp/hyper-loop/${NS}/r${ROUND}"
+  TMUX_SESSION="${NS}"
 
   mkdir -p "$LOG_DIR" "$SCREENSHOT_DIR" "$SCORES_DIR" "$SUMMARY_DIR" "$TASK_DIR" \
     "${PROJECT_ROOT}/_hyper-loop/archive/round-${ROUND}" \
@@ -55,9 +80,10 @@ init_dirs() {
 
 # ── tmux 会话管理 ──
 ensure_session() {
-  tmux kill-session -t hyper-loop 2>/dev/null || true
-  tmux new-session -d -s hyper-loop -n orchestrator
-  echo "tmux session 'hyper-loop' created"
+  local SESSION="${TMUX_SESSION:-hyper-loop}"
+  tmux kill-session -t "$SESSION" 2>/dev/null || true
+  tmux new-session -d -s "$SESSION" -n orchestrator
+  echo "tmux session '${SESSION}' created"
 }
 
 # ── Worktree 环境准备（symlink 共享依赖 + Cargo target 隔离）──
@@ -426,8 +452,8 @@ build_app() {
   echo "构建 App..."
   (
     cd "$BUILD_DIR"
-    eval "${CACHE_CLEAN:-true}" 2>/dev/null || true
-    eval "${BUILD_CMD:-echo 'no BUILD_CMD'}"
+    bash -c "${CACHE_CLEAN:-true}" 2>/dev/null || true
+    bash -c "${BUILD_CMD:-echo 'no BUILD_CMD'}"
   )
   local RC=$?
   if [[ $RC -eq 0 ]]; then
@@ -452,7 +478,7 @@ run_tester() {
       [[ -f "$STAT" ]] && cat "$STAT"
     done
     echo ""
-    echo "构建结果：$(eval "${BUILD_VERIFY:-echo 'no verify'}" 2>&1 | tail -3)"
+    echo "构建结果：$(bash -c "${BUILD_VERIFY:-echo 'no verify'}" 2>&1 | tail -3)"
   } > "$SUMMARY" 2>/dev/null
 
   # 构建 Tester prompt（静态验证 + 可选动态验证）
@@ -522,7 +548,7 @@ P0_COUNT: <P0 bug 数量>
     # 启动 app（后台）
     (
       cd "$PROJECT_ROOT"
-      eval "$LAUNCH_CMD" > "${LOG_DIR}/round-${ROUND}_app_launch.log" 2>&1
+      bash -c "$LAUNCH_CMD" > "${LOG_DIR}/round-${ROUND}_app_launch.log" 2>&1
     ) &
     APP_PID=$!
 
@@ -850,8 +876,9 @@ cleanup_round() {
   # 用 subshell + set +e 确保清理不会触发 set -e 退出
   (
     set +e
-    tmux list-windows -t hyper-loop -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
-      tmux kill-window -t "hyper-loop:${w}" 2>/dev/null
+    local SESSION="${TMUX_SESSION:-hyper-loop}"
+    tmux list-windows -t "$SESSION" -F '#{window_name}' 2>/dev/null | grep -E '^w-|^tester|^reviewer' | while read -r w; do
+      tmux kill-window -t "${SESSION}:${w}" 2>/dev/null
     done
 
     for WT in "${WORKTREE_BASE}"/task* "${WORKTREE_BASE}/integration"; do
@@ -1380,14 +1407,16 @@ cmd_loop() {
   # MAX_ROUNDS 是"再跑多少轮"，转换为终止轮次号
   local END_ROUND=$((ROUND + MAX_ROUNDS - 1))
 
-  # ── 启动时清理历史残留 ──
-  echo "清理历史残留..."
-  rm -rf /tmp/hyper-loop-worktrees-* 2>/dev/null || true
+  # ── 启动时清理本项目的历史残留（namespace 隔离，不影响其他项目）──
+  local NS
+  NS=$(project_namespace)
+  echo "清理历史残留 (${NS})..."
+  rm -rf "/tmp/hyper-loop/${NS}" 2>/dev/null || true
   git -C "$PROJECT_ROOT" worktree prune 2>/dev/null || true
   for _BRANCH in $(git -C "$PROJECT_ROOT" branch --list 'hyper-loop/*' 2>/dev/null); do
     git -C "$PROJECT_ROOT" branch -D "$_BRANCH" 2>/dev/null || true
   done
-  tmux kill-session -t hyper-loop 2>/dev/null || true
+  tmux kill-session -t "$NS" 2>/dev/null || true
 
   while [[ "$ROUND" -le "$END_ROUND" ]]; do
     # 写心跳（monitor 用来检测进程是否活着）
@@ -1588,7 +1617,9 @@ cmd_loop() {
 
 cmd_status() {
   echo "tmux windows:"
-  tmux list-windows -t hyper-loop 2>/dev/null || echo "  (no session)"
+  local SESSION
+  SESSION=$(project_namespace)
+  tmux list-windows -t "$SESSION" 2>/dev/null || echo "  (no session)"
   echo ""
   echo "results.tsv:"
   cat "${PROJECT_ROOT:-.}/_hyper-loop/results.tsv" 2>/dev/null || echo "  (empty)"

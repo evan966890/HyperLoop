@@ -93,7 +93,7 @@
 
 ## 完成协议
 
-- 完成后不要退出 Codex CLI，会话保持常驻
+- 写 DONE.json：`{"status":"done","files_changed":["实际改了的文件"],"lint_pass":true}`
 - 先输出 2-4 行：改了什么、验证跑了什么、还剩什么风险
 - 最后一行必须单独输出：`HYPERLOOP_TASK_DONE`
 
